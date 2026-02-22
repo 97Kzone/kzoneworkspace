@@ -14,7 +14,7 @@ build/
 *.env
 application-local.properties
 application-secret.properties
-
+compose.yaml
 # OS
 .DS_Store
 Thumbs.db
