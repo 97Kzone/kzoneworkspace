@@ -32,12 +32,12 @@ public class AgentController(
         ResponseEntity.ok(agentService.getAgentById(id))
 
     @PostMapping
-    fun createAgent(@RequestBody agent: Agent): ResponseEntity<Agent> =
-        ResponseEntity.ok(agentService.createAgent(agent))
+    fun createAgent(@RequestBody request: AgentRequest): ResponseEntity<Agent> =
+        ResponseEntity.ok(agentService.createAgent(request.toEntity()))
 
     @PutMapping("/{id}")
-    fun updateAgent(@PathVariable id: Long, @RequestBody agent: Agent): ResponseEntity<Agent> =
-        ResponseEntity.ok(agentService.updateAgent(id, agent))
+    fun updateAgent(@PathVariable id: Long, @RequestBody request: AgentRequest): ResponseEntity<Agent> =
+        ResponseEntity.ok(agentService.updateAgent(id, request.toEntity()))
 
     @PatchMapping("/{id}/status")
     fun updateStatus(@PathVariable id: Long, @RequestParam status: AgentStatus): ResponseEntity<Agent> =

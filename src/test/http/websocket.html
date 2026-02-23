@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+<h2>WebSocket 테스트</h2>
+<div>
+    <input id="roomId" value="room1" placeholder="채팅방 ID"/>
+    <input id="name" value="테스터" placeholder="이름"/>
+    <button onclick="connect()">연결</button>
+    <button onclick="disconnect()">연결해제</button>
+</div>
+<br/>
+<div>
+    <input id="message" placeholder="메시지 입력"/>
+    <button onclick="sendMessage()">전송</button>
+</div>
+<br/>
+<div id="log" style="border:1px solid #ccc; padding:10px; height:300px; overflow-y:scroll;"></div>
+
+<script>
+    let stompClient = null;
+
+    function log(msg) {
+        const div = document.getElementById('log');
+        div.innerHTML += `<p>${new Date().toLocaleTimeString()} - ${msg}</p>`;
+        div.scrollTop = div.scrollHeight;
+    }
+
+    function connect() {
+        const roomId = document.getElementById('roomId').value;
+        const name = document.getElementById('name').value;
+        const socket = new SockJS('http://localhost:8080/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, () => {
+            log('✅ 연결됨');
+            stompClient.subscribe(`/topic/room/${roomId}`, (msg) => {
+                const body = JSON.parse(msg.body);
+                log(`[${body.senderName}] ${body.content}`);
+            });
+            stompClient.send('/app/chat.join', {}, JSON.stringify({
+                roomId, senderId: '1', senderName: name, content: '', type: 'SYSTEM'
+            }));
+        });
+    }
+
+    function disconnect() {
+        if (stompClient) stompClient.disconnect();
+        log('❌ 연결 해제');
+    }
+
+    function sendMessage() {
+        const roomId = document.getElementById('roomId').value;
+        const name = document.getElementById('name').value;
+        const content = document.getElementById('message').value;
+        stompClient.send('/app/chat.send', {}, JSON.stringify({
+            roomId, senderId: '1', senderName: name, content, type: 'CHAT'
+        }));
+        document.getElementById('message').value = '';
+    }
+</script>
+</body>
+</html>
