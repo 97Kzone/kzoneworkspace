@@ -1,13 +1,13 @@
-### 에이전트 생성
+### 기획 에이전트 생성
 POST http://localhost:8080/api/agents
 Content-Type: application/json
 
 {
-  "name": "기획 에이전트",
+  "name": "기획에이전트",
   "role": "기획",
-  "systemPrompt": "당신은 앱 기획 전문가입니다.",
-  "provider": "ANTHROPIC",
-  "model": "claude-opus-4-6"
+  "systemPrompt": "당신은 앱 기획 전문가입니다. 사용자의 요청을 분석하고 명확한 기획안을 작성해주세요.",
+  "provider": "GOOGLE",
+  "model": "gemini-2.5-flash"
 }
 
 ### 전체 조회
@@ -17,4 +17,4 @@ GET http://localhost:8080/api/agents
 GET http://localhost:8080/api/agents/1
 
 ### 삭제
-DELETE http://localhost:8080/api/agents/1
+DELETE http://localhost:8080/api/agents/52

@@ -33,6 +33,10 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	//implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
+    implementation("com.anthropic:anthropic-java:2.12.0")
+    implementation("com.google.genai:google-genai:1.0.0")
+
 	//compileOnly("org.projectlombok:lombok")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 	runtimeOnly("org.postgresql:postgresql")
