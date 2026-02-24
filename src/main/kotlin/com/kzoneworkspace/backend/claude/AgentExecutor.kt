@@ -2,6 +2,8 @@ package com.kzoneworkspace.backend.claude
 
 import com.kzoneworkspace.backend.agent.entity.Agent
 import com.kzoneworkspace.backend.agent.entity.AiProvider
+import com.kzoneworkspace.backend.task.entity.TaskStatus
+import com.kzoneworkspace.backend.task.service.TaskService
 import com.kzoneworkspace.backend.websocket.ChatMessage
 import com.kzoneworkspace.backend.websocket.MessageType
 import org.springframework.messaging.simp.SimpMessagingTemplate
@@ -11,10 +13,14 @@ import org.springframework.stereotype.Service
 class AgentExecutor(
     private val claudeClient: ClaudeClient,
     private val geminiClient: GeminiClient,
+    private val taskService: TaskService,
     private val messagingTemplate: SimpMessagingTemplate
 ) {
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
+        // Task 생성 (PENDING → RUNNING)
+        val task = taskService.createTask(roomId, userMessage, agent)
+        taskService.updateStatus(task.id, TaskStatus.RUNNING)
         sendMessage(roomId, agent.name, "처리 중...", MessageType.AGENT)
 
         try {
@@ -32,6 +38,8 @@ class AgentExecutor(
                 AiProvider.OPENAI -> "OpenAI 연동 준비 중"
             }
 
+            // COMPLETED + 결과 저장
+            taskService.updateStatus(task.id, TaskStatus.COMPLETED, response)
             sendMessage(roomId, agent.name, response, MessageType.AGENT)
 
         } catch (e: Exception) {
