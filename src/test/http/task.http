@@ -1,0 +1,13 @@
+### Task 전체 조회 (roomId로 필터)
+GET http://localhost:8080/api/tasks?roomId=room1
+
+### Task 단건 조회
+GET http://localhost:8080/api/tasks/1
+
+### Task 상태 업데이트 (수동 테스트용)
+PATCH http://localhost:8080/api/tasks/1/status
+Content-Type: application/json
+
+{
+  "status": "COMPLETED"
+}
