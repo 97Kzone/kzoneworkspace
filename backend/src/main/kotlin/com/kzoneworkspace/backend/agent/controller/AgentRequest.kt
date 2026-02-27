@@ -4,6 +4,7 @@ import com.kzoneworkspace.backend.agent.entity.Agent
 import com.kzoneworkspace.backend.agent.entity.AiProvider
 
 data class AgentRequest (
+    
     val name: String,
     val role: String,
     val systemPrompt: String = "",
