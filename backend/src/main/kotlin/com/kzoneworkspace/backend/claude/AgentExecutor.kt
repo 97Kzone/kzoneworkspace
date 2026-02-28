@@ -5,6 +5,7 @@ import com.kzoneworkspace.backend.agent.entity.AiProvider
 import com.kzoneworkspace.backend.task.entity.TaskStatus
 import com.kzoneworkspace.backend.task.service.TaskService
 import com.kzoneworkspace.backend.websocket.ChatMessage
+import com.kzoneworkspace.backend.websocket.ChatMessageRepository
 import com.kzoneworkspace.backend.websocket.MessageType
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
@@ -14,7 +15,8 @@ class AgentExecutor(
     private val claudeClient: ClaudeClient,
     private val geminiClient: GeminiClient,
     private val taskService: TaskService,
-    private val messagingTemplate: SimpMessagingTemplate
+    private val messagingTemplate: SimpMessagingTemplate,
+    private val chatMessageRepository: ChatMessageRepository
 ) {
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
@@ -48,15 +50,17 @@ class AgentExecutor(
     }
 
     private fun sendMessage(roomId: String, senderName: String, content: String, type: MessageType) {
+        val message = ChatMessage(
+            roomId = roomId,
+            senderId = "agent",
+            senderName = senderName,
+            content = content,
+            type = type
+        )
+        val savedMessage = chatMessageRepository.save(message)
         messagingTemplate.convertAndSend(
             "/topic/room/$roomId",
-            ChatMessage(
-                roomId = roomId,
-                senderId = "agent",
-                senderName = senderName,
-                content = content,
-                type = type
-            )
+            savedMessage
         )
     }
 }

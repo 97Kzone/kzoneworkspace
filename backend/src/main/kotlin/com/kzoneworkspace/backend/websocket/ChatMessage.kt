@@ -1,12 +1,31 @@
 package com.kzoneworkspace.backend.websocket
 
+import jakarta.persistence.*
+import java.time.LocalDateTime
+
+@Entity
+@Table(name = "chat_messages")
 data class ChatMessage(
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    val id: Long = 0,
+
+    @Column(nullable = false)
     val roomId: String,
+
+    @Column(nullable = false)
     val senderId: String,
+
+    @Column(nullable = false)
     val senderName: String,
+
+    @Column(columnDefinition = "TEXT", nullable = false)
     val content: String,
+
+    @Enumerated(EnumType.STRING)
     val type: MessageType,
-    val timestamp: Long? = System.currentTimeMillis()
+
+    val timestamp: LocalDateTime = LocalDateTime.now()
 )
 
 enum class MessageType {
