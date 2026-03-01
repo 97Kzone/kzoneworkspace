@@ -22,7 +22,7 @@ class ChatController(
 
         // 내 메시지 먼저 채팅방에 전송
         messagingTemplate.convertAndSend(
-            "/topic/room/${savedMessage.roomId}",
+            "/topic/public",
             savedMessage
         )
 
@@ -51,7 +51,7 @@ class ChatController(
                 )
                 val savedError = chatMessageRepository.save(errorMessage)
                 messagingTemplate.convertAndSend(
-                    "/topic/room/${savedMessage.roomId}",
+                    "/topic/public",
                     savedError
                 )
             }
@@ -69,7 +69,7 @@ class ChatController(
         )
         val savedSystemMessage = chatMessageRepository.save(systemMessage)
         messagingTemplate.convertAndSend(
-            "/topic/room/${message.roomId}",
+            "/topic/public",
             savedSystemMessage
         )
     }

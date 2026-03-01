@@ -59,7 +59,7 @@ class AgentExecutor(
         )
         val savedMessage = chatMessageRepository.save(message)
         messagingTemplate.convertAndSend(
-            "/topic/room/$roomId",
+            "/topic/public",
             savedMessage
         )
     }
