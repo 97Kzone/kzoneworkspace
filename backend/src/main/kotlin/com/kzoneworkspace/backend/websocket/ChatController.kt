@@ -28,21 +28,25 @@ class ChatController(
 
         // @에이전트이름 으로 특정 에이전트 호출
         if (savedMessage.content.startsWith("@")) {
-            val agentName = savedMessage.content.substringAfter("@").substringBefore(" ")
-            val userMessage = savedMessage.content.substringAfter(" ")
+            val contentAfterAt = savedMessage.content.substringAfter("@")
             val agents = agentService.getAllAgents()
-            val agent = agents.find { it.name == agentName }
+            
+            // 이름 전체(띄어쓰기 포함)가 매칭되는 에이전트 찾기
+            val agent = agents.find { contentAfterAt.startsWith(it.name) }
 
             if (agent != null) {
+                // 에이전트 이름을 제외한 실제 유저의 메시지 추출
+                val userMessage = contentAfterAt.substring(agent.name.length).trim()
                 Thread {
                     agentExecutor.execute(agent, savedMessage.roomId, userMessage)
                 }.start()
             } else {
+                val agentNameFallback = contentAfterAt.substringBefore(" ")
                 val errorMessage = ChatMessage(
                     roomId = savedMessage.roomId,
                     senderId = "system",
                     senderName = "시스템",
-                    content = "에이전트 '$agentName'을 찾을 수 없습니다.",
+                    content = "에이전트 '$agentNameFallback'(을)를 찾을 수 없습니다.",
                     type = MessageType.SYSTEM
                 )
                 val savedError = chatMessageRepository.save(errorMessage)
