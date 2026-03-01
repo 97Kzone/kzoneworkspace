@@ -8,7 +8,7 @@ import java.time.LocalDateTime
 data class ChatMessage(
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    val id: Long = 0,
+    val id: Long? = null,
 
     @Column(nullable = false)
     val roomId: String,
@@ -25,7 +25,7 @@ data class ChatMessage(
     @Enumerated(EnumType.STRING)
     val type: MessageType,
 
-    val timestamp: LocalDateTime = LocalDateTime.now()
+    val timestamp: LocalDateTime? = LocalDateTime.now()
 )
 
 enum class MessageType {
