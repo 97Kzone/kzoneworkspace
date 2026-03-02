@@ -2,8 +2,8 @@ import axios from 'axios';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
-const API_BASE_URL = 'http://localhost:9090/api';
-const WS_URL = 'http://localhost:9090/ws';
+const API_BASE_URL = 'http://localhost:9000/api';
+const WS_URL = 'http://localhost:9000/ws';
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -43,7 +43,11 @@ export const agentService = {
 };
 
 export const taskService = {
-    getByRoom: (roomId: string) => api.get<Task[]>(`/tasks?roomId=${roomId}`),
+    getByRoom: (roomId: String) => api.get<Task[]>(`/tasks?roomId=${roomId}`),
+};
+
+export const chatService = {
+    getHistory: (roomId: String) => api.get<ChatMessage[]>(`/chat/history?roomId=${roomId}`),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {

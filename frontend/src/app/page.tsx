@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
-import { Agent, Task, ChatMessage, agentService, taskService, createWebSocketClient } from "./apiService";
+import { Agent, Task, ChatMessage, agentService, taskService, chatService, createWebSocketClient } from "./apiService";
 
 export default function VirtualOfficeBright() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -23,12 +23,15 @@ export default function VirtualOfficeBright() {
 
   const fetchInitialData = async () => {
     try {
-      const [agentRes, taskRes] = await Promise.all([
+      const [agentRes, taskRes, historyRes] = await Promise.all([
         agentService.getAll(),
-        taskService.getByRoom("default")
+        taskService.getByRoom("default"),
+        chatService.getHistory("default")
       ]);
       setAgents(agentRes.data);
       setTasks(taskRes.data);
+      // 초기 라운지 메시지 설정
+      setMessages(historyRes.data);
     } catch (err) {
       console.error("데이터 로드 실패:", err);
     }
@@ -59,6 +62,26 @@ export default function VirtualOfficeBright() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, activeChat]);
+
+  // 채팅방 변경 시 이력 가져오기
+  useEffect(() => {
+    if (!activeChat) return;
+    const currentRoomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
+
+    chatService.getHistory(currentRoomId).then(res => {
+      setMessages(prev => {
+        const newMessages = res.data;
+        // 기존 메시지와 중복 제거 후 합치기
+        const existingIds = new Set(prev.map(m => m.id));
+        const uniqueNew = newMessages.filter(m => !existingIds.has(m.id));
+        return [...prev, ...uniqueNew].sort((a, b) => {
+          const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return timeA - timeB;
+        });
+      });
+    });
+  }, [activeChat]);
 
   useEffect(() => {
     if (consoleScrollRef.current) consoleScrollRef.current.scrollTop = consoleScrollRef.current.scrollHeight;
@@ -120,7 +143,7 @@ export default function VirtualOfficeBright() {
     <div className="flex bg-[#f4f7fb] text-slate-700 h-screen w-full font-sans overflow-hidden selection:bg-indigo-100">
 
       {/* 1. Left Panel: Activity Feed (Light Theme) */}
-      <div className="w-[600px] border-r border-indigo-100 bg-white flex flex-col shrink-0 relative z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-500">
+      <div className="w-[420px] border-r border-indigo-100 bg-white flex flex-col shrink-0 relative z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-500">
         <div className="h-14 border-b border-slate-100 flex items-center px-5 shrink-0 bg-white/50 backdrop-blur-sm">
           <Terminal size={18} className="text-indigo-400 mr-2" />
           <span className="text-sm font-bold tracking-wide text-slate-700 uppercase">활동 기록</span>

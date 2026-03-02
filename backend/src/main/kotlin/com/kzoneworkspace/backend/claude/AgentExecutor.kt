@@ -20,7 +20,6 @@ class AgentExecutor(
 ) {
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
-        // Task 생성 (PENDING → RUNNING)
         val task = taskService.createTask(roomId, userMessage, agent)
         taskService.updateStatus(task.id, TaskStatus.RUNNING)
         sendMessage(roomId, agent.name, "처리 중...", MessageType.AGENT)
@@ -40,7 +39,6 @@ class AgentExecutor(
                 AiProvider.OPENAI -> "OpenAI 연동 준비 중"
             }
 
-            // COMPLETED + 결과 저장
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, response)
             sendMessage(roomId, agent.name, response, MessageType.AGENT)
 

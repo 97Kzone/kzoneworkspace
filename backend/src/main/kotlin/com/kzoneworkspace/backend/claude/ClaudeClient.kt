@@ -20,7 +20,7 @@ class ClaudeClient(
     fun sendMessage(
         systemPrompt: String,
         userMessage: String,
-        model: String = "claude-opus-4-6"
+        model: String = "claude-3-5-sonnet-20241022"
     ): String {
         val params = MessageCreateParams.builder()
             .model(Model.of(model))
