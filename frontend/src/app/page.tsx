@@ -362,11 +362,18 @@ export default function VirtualOfficeBright() {
                             ? 'bg-blue-500 text-white rounded-2xl rounded-tr-sm shadow-sm'
                             : msg.type === 'SYSTEM'
                               ? 'bg-transparent text-slate-400 font-medium text-xs w-full text-center'
-                              : 'bg-white border border-slate-100 text-slate-700 rounded-2xl rounded-tl-sm shadow-sm'
+                              : msg.type === 'TOOL'
+                                ? 'bg-slate-100 border border-slate-200 text-slate-600 rounded-lg font-mono text-[11px] w-full'
+                                : 'bg-white border border-slate-100 text-slate-700 rounded-2xl rounded-tl-sm shadow-sm'
                             }`}>
                             <div className="prose prose-sm max-w-none">
                               {msg.type === 'SYSTEM' ? (
                                 <div className="italic">{msg.content}</div>
+                              ) : msg.type === 'TOOL' ? (
+                                <div className="flex items-center gap-2 py-1">
+                                  {msg.content.includes('🛠️') ? <Terminal size={12} className="text-indigo-500" /> : <Code2 size={12} className="text-emerald-500" />}
+                                  <span>{msg.content}</span>
+                                </div>
                               ) : (
                                 <ReactMarkdown
                                   components={{

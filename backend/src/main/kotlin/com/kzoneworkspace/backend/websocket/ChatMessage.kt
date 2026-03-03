@@ -32,5 +32,6 @@ enum class MessageType {
     CHAT,       // 일반 채팅
     SYSTEM,     // 시스템 메시지 (입장/퇴장)
     AGENT,      // 에이전트 응답
-    COMMAND     // 업무 지시
+    COMMAND,    // 업무 지시
+    TOOL        // 도구 사용 및 결과
 }

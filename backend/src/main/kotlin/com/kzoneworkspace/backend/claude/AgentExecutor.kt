@@ -11,6 +11,8 @@ import com.kzoneworkspace.backend.websocket.MessageType
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import java.io.File
+import com.google.genai.types.Part
+import com.google.genai.types.FunctionCall
 
 @Service
 class AgentExecutor(
@@ -62,94 +64,106 @@ class AgentExecutor(
             var lastResponse: String = ""
 
             while (loop) {
-                // REST API 직접 호출
-                val responseNode = when (agent.provider) {
-                    AiProvider.ANTHROPIC -> claudeClient.sendMessageREST(
-                        systemPrompt = agent.systemPrompt,
-                        messages = messages,
-                        model = agent.model,
-                        tools = tools
-                    )
+                val toolUseBlocks = mutableListOf<Map<String, Any>>()
+                val assistantContentList = mutableListOf<Map<String, Any>>()
+                var textResponseMessage = ""
+
+                when (agent.provider) {
+                    AiProvider.ANTHROPIC -> {
+                        val responseNode = claudeClient.sendMessageREST(
+                            systemPrompt = agent.systemPrompt,
+                            messages = messages,
+                            model = agent.model,
+                            tools = tools
+                        )
+                        val contentBlocks = responseNode["content"]
+                        for (block in contentBlocks) {
+                            val blockType = block["type"].asText()
+                            if (blockType == "text") {
+                                val text = block["text"].asText()
+                                assistantContentList.add(mapOf("type" to "text", "text" to text))
+                                textResponseMessage += text
+                            } else if (blockType == "tool_use") {
+                                val id = block["id"].asText()
+                                val name = block["name"].asText()
+                                val input = objectMapper.convertValue(block["input"], Map::class.java) as Map<String, Any>
+                                assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to input))
+                                toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to input))
+                            }
+                        }
+                    }
+                    AiProvider.GOOGLE -> {
+                        // Gemini SDK 호출 (이전 턴의 메시지들을 Gemini 형식으로 변환할 필요가 있을 수 있으나 일단 단순화 시도)
+                        // Gemini SDK는 마지막 메시지가 user여야 하거나 등 제약이 있으므로 주의
+                        val response = geminiClient.sendMessage(
+                            systemPrompt = agent.systemPrompt,
+                            messages = messages,
+                            model = agent.model,
+                            tools = tools
+                        )
+                        val candidates = response.candidates().orElse(null)
+                        val candidate = if (candidates != null && candidates.isNotEmpty()) candidates[0] else null
+                        val contentOpt = candidate?.content()
+                        val partsOpt = contentOpt?.orElse(null)?.parts()
+                        val parts = partsOpt?.orElse(null)
+                        
+                        parts?.forEach { part: Part ->
+                            val textOpt = part.text()
+                            if (textOpt.isPresent) {
+                                val text = textOpt.get()
+                                assistantContentList.add(mapOf("type" to "text", "text" to text))
+                                textResponseMessage += text
+                            }
+                            val fcOpt = part.functionCall()
+                            if (fcOpt.isPresent) {
+                                val fc: FunctionCall = fcOpt.get()
+                                val id = "gemini-${System.currentTimeMillis()}"
+                                val name = fc.name().orElse("")
+                                val args = fc.args().orElse(emptyMap<String, Any>()) as Map<String, Any>
+                                assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to args))
+                                toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to args))
+
+                            }
+                        }
+                    }
                     else -> throw RuntimeException("지원되지 않는 프로바이더의 도구 사용입니다.")
                 }
 
-                val contentBlocks = responseNode["content"]
-                val assistantContentList = mutableListOf<Map<String, Any>>()
-                val toolUseBlocks = mutableListOf<com.fasterxml.jackson.databind.JsonNode>()
-
-                // 응답 블록 파싱 및 어시스턴트 메시지 기록 확장
-                for (block in contentBlocks) {
-                    val blockType = block["type"].asText()
-                    if (blockType == "text") {
-                        assistantContentList.add(
-                            mapOf("type" to "text", "text" to block["text"].asText())
-                        )
-                    } else if (blockType == "tool_use") {
-                        val inputMap = objectMapper.convertValue(block["input"], Map::class.java) as Map<String, Any>
-                        assistantContentList.add(
-                            mapOf(
-                                "type" to "tool_use",
-                                "id" to block["id"].asText(),
-                                "name" to block["name"].asText(),
-                                "input" to inputMap
-                            )
-                        )
-                        toolUseBlocks.add(block)
-                    }
-                }
-                
-                // 생성된 어시스턴트(AI)의 메시지를 컨텍스트에 추가
                 messages.add(mapOf("role" to "assistant", "content" to assistantContentList))
 
                 if (toolUseBlocks.isEmpty()) {
-                    // 도구 사용 요청이 없으면 루프 종료
-                    val textBlocks = mutableListOf<String>()
-                    for (block in contentBlocks) {
-                        if (block["type"].asText() == "text") {
-                            textBlocks.add(block["text"].asText())
-                        }
-                    }
-                    lastResponse = textBlocks.joinToString("\n")
+                    lastResponse = textResponseMessage
                     loop = false
                 } else {
-                    // 도구 사용 처리
                     val toolResults = mutableListOf<Map<String, Any>>()
-                    
                     for (block in toolUseBlocks) {
-                        val toolUseId = block["id"].asText()
-                        val toolName = block["name"].asText()
-                        val input = block["input"]
+                        val toolUseId = block["id"] as String
+                        val toolName = block["name"] as String
+                        val input = block["input"] as Map<String, Any>
                         
+                        // UI 알림 (MessageType.TOOL 사용)
+                        val inputStr = objectMapper.writeValueAsString(input)
+                        sendMessage(roomId, agent.name, "🛠️ 도구 사용: $toolName ($inputStr)", MessageType.TOOL)
+
                         val result = try {
                             when (toolName) {
-                                "search_files" -> {
-                                    val pattern = if (input.has("pattern")) input["pattern"].asText() else ""
-                                    handleSearchFiles(pattern)
-                                }
-                                "read_file" -> {
-                                    val path = if (input.has("path")) input["path"].asText() else ""
-                                    handleReadFile(path)
-                                }
+                                "search_files" -> handleSearchFiles(input["pattern"] as? String ?: "")
+                                "read_file" -> handleReadFile(input["path"] as? String ?: "")
                                 else -> "알 수 없는 도구: $toolName"
                             }
                         } catch (e: Exception) {
                             "도구 실행 중 오류: ${e.message}"
                         }
                         
-                        toolResults.add(
-                            mapOf(
-                                "type" to "tool_result",
-                                "tool_use_id" to toolUseId,
-                                "content" to result
-                            )
-                        )
+                        toolResults.add(mapOf(
+                            "type" to "tool_result",
+                            "name" to toolName,
+                            "tool_use_id" to toolUseId,
+                            "content" to result
+                        ))
                         
-                        // 시스템 메시지로 알림
-                        val inputStr = objectMapper.writeValueAsString(input)
-                        sendMessage(roomId, "시스템", "[도구 사용] $toolName: $inputStr", MessageType.SYSTEM)
+                        sendMessage(roomId, agent.name, "✅ 도구 결과: $toolName 실행 완료", MessageType.TOOL)
                     }
-                    
-                    // 도구 실행 결과를 사용자(user) 롤의 메시지로 이어서 전달
                     messages.add(mapOf("role" to "user", "content" to toolResults))
                 }
             }
