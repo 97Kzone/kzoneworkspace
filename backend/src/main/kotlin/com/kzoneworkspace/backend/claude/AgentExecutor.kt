@@ -21,6 +21,7 @@ class AgentExecutor(
     private val geminiClient: GeminiClient,
     private val agentService: AgentService,
     private val taskService: TaskService,
+    private val projectContextService: ProjectContextService,
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatMessageRepository: ChatMessageRepository
 ) {
@@ -33,7 +34,13 @@ class AgentExecutor(
 
         try {
             val messages = mutableListOf<Map<String, Any>>()
-            messages.add(mapOf("role" to "user", "content" to userMessage))
+            
+            // 프로젝트 컨텍스트 주입 (지능 고도화)
+            val projectContext = projectContextService.getProjectContext()
+            messages.add(mapOf(
+                "role" to "user", 
+                "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage"
+            ))
 
             val lastResponse = runReasoningLoop(agent, roomId, messages)
 
