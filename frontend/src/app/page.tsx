@@ -15,6 +15,7 @@ export default function VirtualOfficeBright() {
 
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
   const [newAgent, setNewAgent] = useState({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "" });
+  const [editingAgentId, setEditingAgentId] = useState<number | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
 
   const stompClient = useRef<any>(null);
@@ -120,16 +121,32 @@ export default function VirtualOfficeBright() {
     else if (newAgent.model.includes("gpt")) provider = "OPENAI";
 
     try {
-      await agentService.createAgent({ ...newAgent, provider });
+      if (editingAgentId) {
+        await agentService.updateAgent(editingAgentId, { ...newAgent, provider });
+      } else {
+        await agentService.createAgent({ ...newAgent, provider });
+      }
       await fetchInitialData();
       setIsDeployModalOpen(false);
       setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "" });
+      setEditingAgentId(null);
     } catch (err) {
-      console.error("배포 실패:", err);
-      alert("에이전트 배포에 실패했습니다.");
+      console.error("작업 실패:", err);
+      alert("에이전트 처리 중 오류가 발생했습니다.");
     } finally {
       setIsDeploying(false);
     }
+  };
+
+  const handleOpenEditModal = (agent: any) => {
+    setNewAgent({
+      name: agent.name,
+      role: agent.role,
+      model: agent.model,
+      systemPrompt: agent.systemPrompt || ""
+    });
+    setEditingAgentId(agent.id);
+    setIsDeployModalOpen(true);
   };
 
   const getAgentPosition = (index: number) => {
@@ -446,13 +463,13 @@ export default function VirtualOfficeBright() {
               className="bg-white border border-slate-100 rounded-xl p-4 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group shadow-sm"
               onClick={() => setActiveChat(agent.name)}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3.5">
+                <div className="flex items-center gap-3.5 flex-1">
                   <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors border border-slate-100 group-hover:border-blue-100">
                     {agent.role.toLowerCase().includes('front') ? <Layout size={18} className="text-pink-400" /> :
                       agent.role.toLowerCase().includes('back') ? <Database size={18} className="text-emerald-400" /> :
                         <Code2 size={18} className="text-blue-400" />}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h4 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
                       {agent.name}
                       {tasks.some(t => t.agent?.id === agent.id && t.status === 'RUNNING') && (
@@ -462,6 +479,16 @@ export default function VirtualOfficeBright() {
                     <div className="text-[11px] text-slate-400 font-medium">{agent.role}</div>
                   </div>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEditModal(agent);
+                  }}
+                  className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-indigo-500 transition-all"
+                  title="정보 수정"
+                >
+                  <Sparkles size={14} />
+                </button>
               </div>
               <div className="mt-3 flex items-center justify-between bg-slate-50 rounded-lg py-1.5 px-3">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">모델</span>
@@ -500,8 +527,14 @@ export default function VirtualOfficeBright() {
               className="w-[500px] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
               <div className="px-7 py-5 border-b border-slate-100 flex items-center justify-between bg-white">
-                <h3 className="text-lg font-extrabold text-slate-800">새 에이전트 배치</h3>
-                <button onClick={() => setIsDeployModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
+                <h3 className="text-lg font-extrabold text-slate-800">
+                  {editingAgentId ? "에이전트 정보 수정" : "새 에이전트 배치"}
+                </h3>
+                <button onClick={() => {
+                  setIsDeployModalOpen(false);
+                  setEditingAgentId(null);
+                  setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "" });
+                }} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
                   <X size={18} />
                 </button>
               </div>
@@ -527,7 +560,7 @@ export default function VirtualOfficeBright() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all appearance-none"
                     >
                       <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                       <option value="gpt-4o" disabled>OpenAI GPT-4o (준비 중)</option>
                     </select>
                   </div>
@@ -569,7 +602,7 @@ export default function VirtualOfficeBright() {
                     className="px-6 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50 hover:shadow-xl hover:-translate-y-0.5"
                   >
                     {isDeploying ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                    에이전트 고용
+                    {editingAgentId ? "정보 반영" : "에이전트 고용"}
                   </button>
                 </div>
               </form>

@@ -40,6 +40,7 @@ export interface ChatMessage {
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
+    updateAgent: (id: number, agentData: any) => api.put<Agent>(`/agents/${id}`, agentData),
 };
 
 export const taskService = {
