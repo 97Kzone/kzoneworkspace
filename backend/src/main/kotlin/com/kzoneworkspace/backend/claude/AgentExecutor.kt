@@ -34,7 +34,7 @@ class AgentExecutor(
             val messages = mutableListOf<Map<String, Any>>()
             messages.add(mapOf("role" to "user", "content" to userMessage))
 
-            // 도구(Tools) 정의 (순수 맵 사용으로 SDK 오류 회피)
+            // 도구(Tools) 정의
             val tools = listOf(
                 mapOf(
                     "name" to "search_files",
@@ -49,13 +49,58 @@ class AgentExecutor(
                 ),
                 mapOf(
                     "name" to "read_file",
-                    "description" to "파일의 내용을 읽습니다. (전체 경로 입력)",
+                    "description" to "파일의 내용을 읽합니니다. (전체 경로 입력)",
                     "input_schema" to mapOf(
                         "type" to "object",
                         "properties" to mapOf(
                             "path" to mapOf("type" to "string", "description" to "읽을 파일의 전체 경로")
                         ),
                         "required" to listOf("path")
+                    )
+                ),
+                mapOf(
+                    "name" to "write_file",
+                    "description" to "파일을 생성하거나 내용을 덮어씁니다.",
+                    "input_schema" to mapOf(
+                        "type" to "object",
+                        "properties" to mapOf(
+                            "path" to mapOf("type" to "string", "description" to "저장할 파일 경로"),
+                            "content" to mapOf("type" to "string", "description" to "파일에 저장할 내용")
+                        ),
+                        "required" to listOf("path", "content")
+                    )
+                ),
+                mapOf(
+                    "name" to "list_directory",
+                    "description" to "특정 디렉토리의 파일 목록을 조회합니다.",
+                    "input_schema" to mapOf(
+                        "type" to "object",
+                        "properties" to mapOf(
+                            "path" to mapOf("type" to "string", "description" to "조회할 디렉토리 경로 (기본: '.')")
+                        ),
+                        "required" to listOf("path")
+                    )
+                ),
+                mapOf(
+                    "name" to "delete_file",
+                    "description" to "파일을 삭제합니다.",
+                    "input_schema" to mapOf(
+                        "type" to "object",
+                        "properties" to mapOf(
+                            "path" to mapOf("type" to "string", "description" to "삭제할 파일 경로")
+                        ),
+                        "required" to listOf("path")
+                    )
+                ),
+                mapOf(
+                    "name" to "run_command",
+                    "description" to "쉘 명령어를 실행합니다.",
+                    "input_schema" to mapOf(
+                        "type" to "object",
+                        "properties" to mapOf(
+                            "command" to mapOf("type" to "string", "description" to "실행할 명령어")
+                        ),
+                        "required" to listOf("command")
                     )
                 )
             )
@@ -93,8 +138,6 @@ class AgentExecutor(
                         }
                     }
                     AiProvider.GOOGLE -> {
-                        // Gemini SDK 호출 (이전 턴의 메시지들을 Gemini 형식으로 변환할 필요가 있을 수 있으나 일단 단순화 시도)
-                        // Gemini SDK는 마지막 메시지가 user여야 하거나 등 제약이 있으므로 주의
                         val response = geminiClient.sendMessage(
                             systemPrompt = agent.systemPrompt,
                             messages = messages,
@@ -122,11 +165,10 @@ class AgentExecutor(
                                 val args = fc.args().orElse(emptyMap<String, Any>()) as Map<String, Any>
                                 assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to args))
                                 toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to args))
-
                             }
                         }
                     }
-                    else -> throw RuntimeException("지원되지 않는 프로바이더의 도구 사용입니다.")
+                    else -> throw RuntimeException("지원되지 않는 프로바이더입니다.")
                 }
 
                 messages.add(mapOf("role" to "assistant", "content" to assistantContentList))
@@ -135,13 +177,11 @@ class AgentExecutor(
                     lastResponse = textResponseMessage
                     loop = false
                 } else {
-                    val toolResults = mutableListOf<Map<String, Any>>()
                     for (block in toolUseBlocks) {
                         val toolUseId = block["id"] as String
                         val toolName = block["name"] as String
                         val input = block["input"] as Map<String, Any>
                         
-                        // UI 알림 (MessageType.TOOL 사용)
                         val inputStr = objectMapper.writeValueAsString(input)
                         sendMessage(roomId, agent.name, "🛠️ 도구 사용: $toolName ($inputStr)", MessageType.TOOL)
 
@@ -149,22 +189,28 @@ class AgentExecutor(
                             when (toolName) {
                                 "search_files" -> handleSearchFiles(input["pattern"] as? String ?: "")
                                 "read_file" -> handleReadFile(input["path"] as? String ?: "")
+                                "write_file" -> handleWriteFile(input["path"] as? String ?: "", input["content"] as? String ?: "")
+                                "list_directory" -> handleListDirectory(input["path"] as? String ?: ".")
+                                "delete_file" -> handleDeleteFile(input["path"] as? String ?: "")
+                                "run_command" -> handleRunCommand(input["command"] as? String ?: "")
                                 else -> "알 수 없는 도구: $toolName"
                             }
                         } catch (e: Exception) {
                             "도구 실행 중 오류: ${e.message}"
                         }
                         
-                        toolResults.add(mapOf(
-                            "type" to "tool_result",
-                            "name" to toolName,
-                            "tool_use_id" to toolUseId,
-                            "content" to result
+                        messages.add(mapOf(
+                            "role" to "user",
+                            "content" to listOf(mapOf(
+                                "type" to "tool_result",
+                                "name" to toolName,
+                                "tool_use_id" to toolUseId,
+                                "content" to result
+                            ))
                         ))
                         
                         sendMessage(roomId, agent.name, "✅ 도구 결과: $toolName 실행 완료", MessageType.TOOL)
                     }
-                    messages.add(mapOf("role" to "user", "content" to toolResults))
                 }
             }
 
@@ -180,7 +226,7 @@ class AgentExecutor(
     }
 
     private fun handleSearchFiles(pattern: String): String {
-        val root = File(".").absoluteFile.parentFile ?: File(".")
+        val root = File(".")
         val results = mutableListOf<String>()
         val regex = try {
             pattern.replace(".", "\\.").replace("*", ".*").toRegex(RegexOption.IGNORE_CASE)
@@ -201,9 +247,59 @@ class AgentExecutor(
             val file = File(path)
             if (!file.exists()) "파일이 존재하지 않습니다: $path"
             else if (file.length() > 500_000) "파일이 너무 커서 읽을 수 없습니다. (500KB 제한)"
-            else file.readText().take(10000) // 최대 10,000자 요약 제공으로 토큰 한도 보호
+            else file.readText().take(10000)
         } catch (e: Exception) {
             "파일 읽기 오류: ${e.message}"
+        }
+    }
+
+    private fun handleWriteFile(path: String, content: String): String {
+        return try {
+            val file = File(path)
+            file.parentFile?.mkdirs()
+            file.writeText(content)
+            "파일 저장 완료: ${file.absolutePath}"
+        } catch (e: Exception) {
+            "파일 쓰기 오류: ${e.message}"
+        }
+    }
+
+    private fun handleListDirectory(path: String): String {
+        return try {
+            val dir = File(path)
+            if (!dir.exists() || !dir.isDirectory) return "디렉토리가 존재하지 않습니다: $path"
+            val files = dir.listFiles()?.joinToString("\n") { 
+                (if (it.isDirectory) "[DIR] " else "[FILE] ") + it.name 
+            } ?: "디렉토리가 비어있거나 접근할 수 없습니다."
+            "목록:\n$files"
+        } catch (e: Exception) {
+            "디렉토리 조회 오류: ${e.message}"
+        }
+    }
+
+    private fun handleDeleteFile(path: String): String {
+        return try {
+            val file = File(path)
+            if (!file.exists()) return "파일이 존재하지 않습니다: $path"
+            if (file.delete()) "파일 삭제 완료: $path" else "파일 삭제 실패"
+        } catch (e: Exception) {
+            "파일 삭제 오류: ${e.message}"
+        }
+    }
+
+    private fun handleRunCommand(command: String): String {
+        return try {
+            val process = Runtime.getRuntime().exec(command)
+            val output = process.inputStream.bufferedReader().readText()
+            val error = process.errorStream.bufferedReader().readText()
+            
+            if (error.isNotEmpty()) {
+                "명령어 실행 결과:\n$output\n오류:\n$error"
+            } else {
+                "명령어 실행 결과:\n$output"
+            }
+        } catch (e: Exception) {
+            "명령어 실행 오류: ${e.message}"
         }
     }
 
