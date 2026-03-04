@@ -217,7 +217,7 @@ class AgentExecutor(
                     val input = block["input"] as Map<String, Any>
                     
                     val inputStr = objectMapper.writeValueAsString(input)
-                    sendMessage(roomId, agent.name, "🛠️ 도구 사용: $toolName ($inputStr)", MessageType.TOOL)
+                    sendMessage(roomId, agent.name, "🔍 **도구 사용**: `$toolName` \n> $inputStr", MessageType.TOOL)
 
                     val result = try {
                         when (toolName) {
@@ -244,7 +244,7 @@ class AgentExecutor(
                         ))
                     ))
                     
-                    sendMessage(roomId, agent.name, "✅ 도구 결과: $toolName 실행 완료", MessageType.TOOL)
+                    sendMessage(roomId, agent.name, "✨ **도구 실행 완료**: `$toolName`", MessageType.TOOL)
                 }
             }
         }
@@ -255,14 +255,14 @@ class AgentExecutor(
         val targetAgent = agentService.getAllAgents().find { it.name == agentName }
             ?: return "에이전트 '$agentName'(을)를 찾을 수 없습니다."
 
-        sendMessage(roomId, agentName, "🤝 [협업 요청 수신]: $task", MessageType.AGENT)
+        sendMessage(roomId, agentName, "🤝 **[협업 요청 수신]**\n> **요청 내용**: $task", MessageType.AGENT)
         
         val subMessages = mutableListOf<Map<String, Any>>()
         subMessages.add(mapOf("role" to "user", "content" to task))
         
         return try {
             val response = runReasoningLoop(targetAgent, roomId, subMessages)
-            "에이전트 '$agentName'의 응답: $response"
+            "🙋 **${agentName}의 보고**: $response"
         } catch (e: Exception) {
             "에이전트 호출 중 오류: ${e.message}"
         }

@@ -149,6 +149,27 @@ export default function VirtualOfficeBright() {
     setIsDeployModalOpen(true);
   };
 
+  const getAgentColor = (name: string) => {
+    const colors = [
+      { bg: "bg-indigo-500", text: "text-indigo-500", light: "bg-indigo-50", border: "border-indigo-100", soft: "text-indigo-600" },
+      { bg: "bg-rose-500", text: "text-rose-500", light: "bg-rose-50", border: "border-rose-100", soft: "text-rose-600" },
+      { bg: "bg-emerald-500", text: "text-emerald-500", light: "bg-emerald-50", border: "border-emerald-100", soft: "text-emerald-600" },
+      { bg: "bg-amber-500", text: "text-amber-500", light: "bg-amber-50", border: "border-amber-100", soft: "text-amber-600" },
+      { bg: "bg-violet-500", text: "text-violet-500", light: "bg-violet-50", border: "border-violet-100", soft: "text-violet-600" },
+      { bg: "bg-sky-500", text: "text-sky-500", light: "bg-sky-50", border: "border-sky-100", soft: "text-sky-600" },
+    ];
+
+    if (name === "시스템") return { bg: "bg-slate-500", text: "text-slate-500", light: "bg-slate-50", border: "border-slate-100", soft: "text-slate-600" };
+
+    // Hash based on name
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
   const getAgentPosition = (index: number) => {
     const cols = 4;
     const row = Math.floor(index / cols);
@@ -331,13 +352,13 @@ export default function VirtualOfficeBright() {
               {/* Fake Window Header */}
               <div className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-5 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activeChat === '라운지 미팅' ? 'bg-indigo-50' : 'bg-blue-50'} text-indigo-500`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activeChat === '라운지 미팅' ? 'bg-indigo-50' : getAgentColor(activeChat).light} ${activeChat === '라운지 미팅' ? 'text-indigo-500' : getAgentColor(activeChat).text}`}>
                     {activeChat === '라운지 미팅' ? <Users size={20} /> : <Bot size={20} />}
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-800 text-sm">{activeChat}</h3>
-                    <div className="text-[10px] text-emerald-500 font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 접속 중
+                    <div className={`${activeChat === '라운지 미팅' ? 'text-emerald-500' : getAgentColor(activeChat).soft} text-[10px] font-bold flex items-center gap-1`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${activeChat === '라운지 미팅' ? 'bg-emerald-400' : getAgentColor(activeChat).bg}`}></span> 접속 중
                     </div>
                   </div>
                 </div>
@@ -363,28 +384,34 @@ export default function VirtualOfficeBright() {
 
                   return roomMessages.map((msg, i) => {
                     const isMe = msg.senderId === 'user-1';
+                    const isSystem = msg.type === 'SYSTEM';
+                    const isCollaborating = msg.content.includes('🤝 [협업 요청 수신]');
+                    const agentColor = getAgentColor(msg.senderName);
+
                     return (
                       <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        {!isMe && msg.type !== 'SYSTEM' && (
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0 mr-2 mt-auto mb-1">
+                        {!isMe && !isSystem && (
+                          <div className={`w-8 h-8 rounded-full ${agentColor.light} ${agentColor.text} flex items-center justify-center shrink-0 mr-2 mt-auto mb-1 border ${agentColor.border}`}>
                             {msg.type === 'AGENT' ? <Bot size={14} /> : <User size={14} />}
                           </div>
                         )}
 
-                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>
-                          {!isMe && msg.type !== 'SYSTEM' && (
-                            <span className="text-[10px] text-slate-400 mb-1 ml-1 font-medium">{msg.senderName}</span>
+                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                          {!isMe && !isSystem && (
+                            <span className={`text-[10px] ${agentColor.soft} mb-1 ml-1 font-bold`}>{msg.senderName}</span>
                           )}
                           <div className={`px-4 py-2.5 text-sm ${isMe
-                            ? 'bg-blue-500 text-white rounded-2xl rounded-tr-sm shadow-sm'
-                            : msg.type === 'SYSTEM'
+                            ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm shadow-md'
+                            : isSystem
                               ? 'bg-transparent text-slate-400 font-medium text-xs w-full text-center'
                               : msg.type === 'TOOL'
-                                ? 'bg-slate-100 border border-slate-200 text-slate-600 rounded-lg font-mono text-[11px] w-full'
-                                : 'bg-white border border-slate-100 text-slate-700 rounded-2xl rounded-tl-sm shadow-sm'
+                                ? 'bg-slate-50 border border-slate-200 text-slate-600 rounded-lg font-mono text-[11px] w-full'
+                                : isCollaborating
+                                  ? `bg-gradient-to-br from-white to-${agentColor.light.split('-')[1]}-50 border-2 ${agentColor.border} shadow-lg rounded-2xl rounded-tl-sm`
+                                  : `bg-white border-2 ${agentColor.border} text-slate-700 rounded-2xl rounded-tl-sm shadow-sm`
                             }`}>
                             <div className="prose prose-sm max-w-none">
-                              {msg.type === 'SYSTEM' ? (
+                              {isSystem ? (
                                 <div className="italic">{msg.content}</div>
                               ) : msg.type === 'TOOL' ? (
                                 <div className="flex items-center gap-2 py-1">
@@ -392,25 +419,27 @@ export default function VirtualOfficeBright() {
                                   <span>{msg.content}</span>
                                 </div>
                               ) : (
-                                <ReactMarkdown
-                                  components={{
-                                    p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                                    code: ({ node, ...props }) => (
-                                      <code className="bg-slate-100 text-pink-500 px-1.5 py-0.5 rounded-md font-mono text-[13px]" {...props} />
-                                    ),
-                                    pre: ({ node, ...props }) => (
-                                      <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg my-2 overflow-x-auto font-mono text-xs shadow-inner border border-slate-800" {...props} />
-                                    ),
-                                    ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
-                                    ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
-                                    li: ({ children }) => <li className="mb-0.5">{children}</li>,
-                                    h1: ({ children }) => <h1 className="text-lg font-bold mb-2 border-b pb-1">{children}</h1>,
-                                    h2: ({ children }) => <h2 className="text-base font-bold mb-1.5">{children}</h2>,
-                                    strong: ({ children }) => <strong className="font-bold text-indigo-600">{children}</strong>,
-                                  }}
-                                >
-                                  {msg.content}
-                                </ReactMarkdown>
+                                <div className={isCollaborating ? 'font-medium' : ''}>
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                                      code: ({ node, ...props }) => (
+                                        <code className={`${isMe ? 'bg-blue-400/30 text-white' : 'bg-slate-100 text-pink-500'} px-1.5 py-0.5 rounded-md font-mono text-[13px]`} {...props} />
+                                      ),
+                                      pre: ({ node, ...props }) => (
+                                        <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg my-2 overflow-x-auto font-mono text-xs shadow-inner border border-slate-800" {...props} />
+                                      ),
+                                      ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
+                                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
+                                      li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2 border-b pb-1">{children}</h1>,
+                                      h2: ({ children }) => <h2 className="text-base font-bold mb-1.5">{children}</h2>,
+                                      strong: ({ children }) => <strong className={`font-bold ${isMe ? 'text-blue-100' : agentColor.soft}`}>{children}</strong>,
+                                    }}
+                                  >
+                                    {msg.content}
+                                  </ReactMarkdown>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -464,16 +493,16 @@ export default function VirtualOfficeBright() {
               onClick={() => setActiveChat(agent.name)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3.5 flex-1">
-                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors border border-slate-100 group-hover:border-blue-100">
+                  <div className={`w-10 h-10 rounded-full ${getAgentColor(agent.name).light} flex items-center justify-center group-hover:bg-opacity-80 transition-colors border-2 ${getAgentColor(agent.name).border}`}>
                     {agent.role.toLowerCase().includes('front') ? <Layout size={18} className="text-pink-400" /> :
                       agent.role.toLowerCase().includes('back') ? <Database size={18} className="text-emerald-400" /> :
-                        <Code2 size={18} className="text-blue-400" />}
+                        <Code2 size={18} className={getAgentColor(agent.name).text} />}
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                    <h4 className={`text-sm font-bold ${getAgentColor(agent.name).soft} flex items-center gap-1.5`}>
                       {agent.name}
                       {tasks.some(t => t.agent?.id === agent.id && t.status === 'RUNNING') && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${getAgentColor(agent.name).bg} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
                       )}
                     </h4>
                     <div className="text-[11px] text-slate-400 font-medium">{agent.role}</div>
@@ -490,10 +519,10 @@ export default function VirtualOfficeBright() {
                   <Sparkles size={14} />
                 </button>
               </div>
-              <div className="mt-3 flex items-center justify-between bg-slate-50 rounded-lg py-1.5 px-3">
+              <div className="mt-3 flex items-center justify-between bg-slate-50/50 border border-slate-100/50 rounded-lg py-1.5 px-3">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">모델</span>
-                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
-                  {agent.model.includes('claude') ? 'CLAUDE 3.5' : 'GEMINI PRO'}
+                <span className={`text-[10px] font-bold ${getAgentColor(agent.name).soft} uppercase tracking-widest`}>
+                  {agent.model.includes('claude') ? 'CLAUDE 3.5' : 'GEMINI 2.5'}
                 </span>
               </div>
             </div>
