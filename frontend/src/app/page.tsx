@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee } from "lucide-react";
+import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { Agent, Task, ChatMessage, agentService, taskService, chatService, createWebSocketClient } from "./apiService";
 
@@ -17,6 +17,8 @@ export default function VirtualOfficeBright() {
   const [newAgent, setNewAgent] = useState({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "" });
   const [editingAgentId, setEditingAgentId] = useState<number | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [showActivityPanel, setShowActivityPanel] = useState(true);
+  const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -174,7 +176,18 @@ export default function VirtualOfficeBright() {
     const cols = 4;
     const row = Math.floor(index / cols);
     const col = index % cols;
+    // Adjust Y position to give more room for bottom panel if visible
     return { top: 120 + row * 160, left: 150 + col * 180 };
+  };
+
+  const getRecentFiles = () => {
+    const toolMsgs = messages.filter(m => m.type === 'TOOL' && (m.content.includes('write_file') || m.content.includes('delete_file')));
+    const files = new Set<string>();
+    toolMsgs.forEach(m => {
+      const match = m.content.match(/(?:write_file|delete_file) \({"path":"([^"]+)"/);
+      if (match) files.add(match[1]);
+    });
+    return Array.from(files).slice(-5).reverse();
   };
 
   return (
@@ -292,18 +305,27 @@ export default function VirtualOfficeBright() {
                   {agent.role}
                 </div>
 
-                {/* Activity indicator */}
+                {/* Activity indicator / Status Bubble */}
                 <AnimatePresence>
-                  {isRunning && (
-                    <motion.div
-                      className="absolute -top-11 bg-white border border-indigo-100 text-indigo-600 font-bold text-[10px] px-3 py-1.5 rounded-full shadow-lg z-30 flex items-center gap-1.5"
-                      initial={{ y: 10, opacity: 0, scale: 0.8 }}
-                      animate={{ y: 0, opacity: 1, scale: 1 }}
-                      exit={{ y: 5, opacity: 0, scale: 0.8 }}
-                    >
-                      <Loader2 size={10} className="animate-spin" /> 업무 담당 중...
-                    </motion.div>
-                  )}
+                  {isRunning && (() => {
+                    const lastToolMsg = [...messages].reverse().find(m => m.senderName === agent.name && m.type === 'TOOL');
+                    let statusText = "업무 수행 중...";
+                    if (lastToolMsg?.content.includes('write_file')) statusText = "📝 파일 작성 중...";
+                    else if (lastToolMsg?.content.includes('run_command')) statusText = "💻 명령어 실행 중...";
+                    else if (lastToolMsg?.content.includes('call_agent')) statusText = "🤝 협업 요청 중...";
+                    else if (lastToolMsg?.content.includes('read_file')) statusText = "📖 파일 읽는 중...";
+
+                    return (
+                      <motion.div
+                        className={`absolute -top-12 px-3 py-1.5 rounded-xl shadow-xl z-30 flex items-center gap-2 border-2 ${getAgentColor(agent.name).border} ${getAgentColor(agent.name).light} ${getAgentColor(agent.name).soft} font-bold text-[11px] whitespace-nowrap`}
+                        initial={{ y: 10, opacity: 0, scale: 0.8 }}
+                        animate={{ y: 0, opacity: 1, scale: 1 }}
+                        exit={{ y: 5, opacity: 0, scale: 0.8 }}
+                      >
+                        <Loader2 size={12} className="animate-spin" /> {statusText}
+                      </motion.div>
+                    );
+                  })()}
                 </AnimatePresence>
 
                 {/* Animated Avatar */}
@@ -338,141 +360,226 @@ export default function VirtualOfficeBright() {
               </motion.div>
             );
           })}
-        </div>
-
-        {/* Floating Chat Window (Messenger Style) */}
-        <AnimatePresence>
-          {activeChat && (
-            <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="absolute bottom-8 right-8 w-[600px] h-[650px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-slate-100 flex flex-col overflow-hidden z-50 transition-all duration-300"
+          {/* Activity Dashboard (Draggable Bottom Panel) */}
+          <motion.div
+            drag
+            dragMomentum={false}
+            className="absolute bottom-10 left-10 z-[45] flex flex-col"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+          >
+            <div
+              style={{ width: activityPanelSize.width, height: activityPanelSize.height }}
+              className="bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col cursor-move active:scale-[0.99] transition-transform relative"
             >
-              {/* Fake Window Header */}
-              <div className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-5 shrink-0">
+              <div className="h-9 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between px-4 shrink-0 cursor-grab active:cursor-grabbing">
+                <div className="flex items-center gap-2">
+                  <GripVertical size={14} className="text-slate-500" />
+                  <Terminal size={14} className="text-emerald-400" />
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">실시간 활동 대시보드</span>
+                </div>
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activeChat === '라운지 미팅' ? 'bg-indigo-50' : getAgentColor(activeChat).light} ${activeChat === '라운지 미팅' ? 'text-indigo-500' : getAgentColor(activeChat).text}`}>
-                    {activeChat === '라운지 미팅' ? <Users size={20} /> : <Bot size={20} />}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm">{activeChat}</h3>
-                    <div className={`${activeChat === '라운지 미팅' ? 'text-emerald-500' : getAgentColor(activeChat).soft} text-[10px] font-bold flex items-center gap-1`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${activeChat === '라운지 미팅' ? 'bg-emerald-400' : getAgentColor(activeChat).bg}`}></span> 접속 중
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[9px] font-bold text-emerald-400/80 uppercase">시스템 가동 중</span>
                   </div>
                 </div>
-                <button onClick={() => setActiveChat(null)} className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-                  <X size={16} />
-                </button>
+              </div>
+              <div className="flex-1 flex overflow-hidden">
+                {/* Log Terminal */}
+                <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
+                  {messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-20).map((msg, i) => (
+                    <div key={i} className="flex gap-2">
+                      <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
+                      <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
+                      <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
+                    </div>
+                  ))}
+                  <div className="h-1" ref={consoleScrollRef}></div>
+                </div>
+                {/* Modified Files Side */}
+                <div className="w-[180px] border-l border-slate-700 bg-slate-800/30 p-3 flex flex-col">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-700 pb-1">최근 변경 파일</span>
+                  <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 text-slate-300">
+                    {getRecentFiles().length > 0 ? getRecentFiles().map((file, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[9px] text-slate-300 group cursor-default">
+                        <Code2 size={10} className="text-indigo-400" />
+                        <span className="truncate" title={file}>{file.split('/').pop()}</span>
+                      </div>
+                    )) : (
+                      <div className="text-[9px] text-slate-600 italic mt-2">변경 이력 없음</div>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Chat Messages */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-slate-50/50">
-                {(() => {
-                  const currentRoomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
-                  const roomMessages = messages.filter(msg => msg.roomId === currentRoomId);
+              {/* Resize Handle */}
+              <div
+                className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center text-slate-600 hover:text-slate-400"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const startWidth = activityPanelSize.width;
+                  const startHeight = activityPanelSize.height;
 
-                  if (roomMessages.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3">
-                        <MessageSquare size={32} className="text-slate-300" />
-                        <p className="text-xs font-medium">인사를 나누어 보세요!</p>
+                  const onMouseMove = (moveEvent: MouseEvent) => {
+                    setActivityPanelSize({
+                      width: Math.max(400, startWidth + (moveEvent.clientX - startX)),
+                      height: Math.max(150, startHeight + (moveEvent.clientY - startY))
+                    });
+                  };
+
+                  const onMouseUp = () => {
+                    document.removeEventListener("mousemove", onMouseMove);
+                    document.removeEventListener("mouseup", onMouseUp);
+                  };
+
+                  document.addEventListener("mousemove", onMouseMove);
+                  document.addEventListener("mouseup", onMouseUp);
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="rotate-90">
+                  <path d="M1 9L9 1M4 9L9 4M7 9L9 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Floating Chat Window (Messenger Style) */}
+          <AnimatePresence>
+            {activeChat && (
+              <motion.div
+                initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                className="absolute bottom-8 right-8 w-[600px] h-[650px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-slate-100 flex flex-col overflow-hidden z-50 transition-all duration-300"
+              >
+                {/* Fake Window Header */}
+                <div className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-5 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activeChat === '라운지 미팅' ? 'bg-indigo-50' : getAgentColor(activeChat).light} ${activeChat === '라운지 미팅' ? 'text-indigo-500' : getAgentColor(activeChat).text}`}>
+                      {activeChat === '라운지 미팅' ? <Users size={20} /> : <Bot size={20} />}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm">{activeChat}</h3>
+                      <div className={`${activeChat === '라운지 미팅' ? 'text-emerald-500' : getAgentColor(activeChat).soft} text-[10px] font-bold flex items-center gap-1`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${activeChat === '라운지 미팅' ? 'bg-emerald-400' : getAgentColor(activeChat).bg}`}></span> 접속 중
                       </div>
-                    );
-                  }
+                    </div>
+                  </div>
+                  <button onClick={() => setActiveChat(null)} className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
 
-                  return roomMessages.map((msg, i) => {
-                    const isMe = msg.senderId === 'user-1';
-                    const isSystem = msg.type === 'SYSTEM';
-                    const isCollaborating = msg.content.includes('🤝 [협업 요청 수신]');
-                    const agentColor = getAgentColor(msg.senderName);
+                {/* Chat Messages */}
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-slate-50/50">
+                  {(() => {
+                    const currentRoomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
+                    const roomMessages = messages.filter(msg => msg.roomId === currentRoomId);
 
-                    return (
-                      <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        {!isMe && !isSystem && (
-                          <div className={`w-8 h-8 rounded-full ${agentColor.light} ${agentColor.text} flex items-center justify-center shrink-0 mr-2 mt-auto mb-1 border ${agentColor.border}`}>
-                            {msg.type === 'AGENT' ? <Bot size={14} /> : <User size={14} />}
-                          </div>
-                        )}
+                    if (roomMessages.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3">
+                          <MessageSquare size={32} className="text-slate-300" />
+                          <p className="text-xs font-medium">인사를 나누어 보세요!</p>
+                        </div>
+                      );
+                    }
 
-                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                    return roomMessages.map((msg, i) => {
+                      const isMe = msg.senderId === 'user-1';
+                      const isSystem = msg.type === 'SYSTEM';
+                      const isCollaborating = msg.content.includes('🤝 [협업 요청 수신]');
+                      const agentColor = getAgentColor(msg.senderName);
+
+                      return (
+                        <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                           {!isMe && !isSystem && (
-                            <span className={`text-[10px] ${agentColor.soft} mb-1 ml-1 font-bold`}>{msg.senderName}</span>
+                            <div className={`w-8 h-8 rounded-full ${agentColor.light} ${agentColor.text} flex items-center justify-center shrink-0 mr-2 mt-auto mb-1 border ${agentColor.border}`}>
+                              {msg.type === 'AGENT' ? <Bot size={14} /> : <User size={14} />}
+                            </div>
                           )}
-                          <div className={`px-4 py-2.5 text-sm ${isMe
-                            ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm shadow-md'
-                            : isSystem
-                              ? 'bg-transparent text-slate-400 font-medium text-xs w-full text-center'
-                              : msg.type === 'TOOL'
-                                ? 'bg-slate-50 border border-slate-200 text-slate-600 rounded-lg font-mono text-[11px] w-full'
-                                : isCollaborating
-                                  ? `bg-gradient-to-br from-white to-${agentColor.light.split('-')[1]}-50 border-2 ${agentColor.border} shadow-lg rounded-2xl rounded-tl-sm`
-                                  : `bg-white border-2 ${agentColor.border} text-slate-700 rounded-2xl rounded-tl-sm shadow-sm`
-                            }`}>
-                            <div className="prose prose-sm max-w-none">
-                              {isSystem ? (
-                                <div className="italic">{msg.content}</div>
-                              ) : msg.type === 'TOOL' ? (
-                                <div className="flex items-center gap-2 py-1">
-                                  {msg.content.includes('🛠️') ? <Terminal size={12} className="text-indigo-500" /> : <Code2 size={12} className="text-emerald-500" />}
-                                  <span>{msg.content}</span>
-                                </div>
-                              ) : (
-                                <div className={isCollaborating ? 'font-medium' : ''}>
-                                  <ReactMarkdown
-                                    components={{
-                                      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                                      code: ({ node, ...props }) => (
-                                        <code className={`${isMe ? 'bg-blue-400/30 text-white' : 'bg-slate-100 text-pink-500'} px-1.5 py-0.5 rounded-md font-mono text-[13px]`} {...props} />
-                                      ),
-                                      pre: ({ node, ...props }) => (
-                                        <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg my-2 overflow-x-auto font-mono text-xs shadow-inner border border-slate-800" {...props} />
-                                      ),
-                                      ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
-                                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
-                                      li: ({ children }) => <li className="mb-0.5">{children}</li>,
-                                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2 border-b pb-1">{children}</h1>,
-                                      h2: ({ children }) => <h2 className="text-base font-bold mb-1.5">{children}</h2>,
-                                      strong: ({ children }) => <strong className={`font-bold ${isMe ? 'text-blue-100' : agentColor.soft}`}>{children}</strong>,
-                                    }}
-                                  >
-                                    {msg.content}
-                                  </ReactMarkdown>
-                                </div>
-                              )}
+
+                          <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                            {!isMe && !isSystem && (
+                              <span className={`text-[10px] ${agentColor.soft} mb-1 ml-1 font-bold`}>{msg.senderName}</span>
+                            )}
+                            <div className={`px-4 py-2.5 text-sm ${isMe
+                              ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm shadow-md'
+                              : isSystem
+                                ? 'bg-transparent text-slate-400 font-medium text-xs w-full text-center'
+                                : msg.type === 'TOOL'
+                                  ? 'bg-slate-50 border border-slate-200 text-slate-600 rounded-lg font-mono text-[11px] w-full'
+                                  : isCollaborating
+                                    ? `bg-gradient-to-br from-white to-${agentColor.light.split('-')[1]}-50 border-2 ${agentColor.border} shadow-lg rounded-2xl rounded-tl-sm`
+                                    : `bg-white border-2 ${agentColor.border} text-slate-700 rounded-2xl rounded-tl-sm shadow-sm`
+                              }`}>
+                              <div className="prose prose-sm max-w-none">
+                                {isSystem ? (
+                                  <div className="italic">{msg.content}</div>
+                                ) : msg.type === 'TOOL' ? (
+                                  <div className="flex items-center gap-2 py-1">
+                                    {msg.content.includes('🛠️') ? <Terminal size={12} className="text-indigo-500" /> : <Code2 size={12} className="text-emerald-500" />}
+                                    <span>{msg.content}</span>
+                                  </div>
+                                ) : (
+                                  <div className={isCollaborating ? 'font-medium' : ''}>
+                                    <ReactMarkdown
+                                      components={{
+                                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                                        code: ({ node, ...props }) => (
+                                          <code className={`${isMe ? 'bg-blue-400/30 text-white' : 'bg-slate-100 text-pink-500'} px-1.5 py-0.5 rounded-md font-mono text-[13px]`} {...props} />
+                                        ),
+                                        pre: ({ node, ...props }) => (
+                                          <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg my-2 overflow-x-auto font-mono text-xs shadow-inner border border-slate-800" {...props} />
+                                        ),
+                                        ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
+                                        ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
+                                        li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                                        h1: ({ children }) => <h1 className="text-lg font-bold mb-2 border-b pb-1">{children}</h1>,
+                                        h2: ({ children }) => <h2 className="text-base font-bold mb-1.5">{children}</h2>,
+                                        strong: ({ children }) => <strong className={`font-bold ${isMe ? 'text-blue-100' : agentColor.soft}`}>{children}</strong>,
+                                      }}
+                                    >
+                                      {msg.content}
+                                    </ReactMarkdown>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-4 bg-white border-t border-slate-100 shrink-0">
-                <div className="relative flex items-center">
-                  <input
-                    type="text"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
-                    placeholder="메시지를 입력하세요..."
-                    value={inputValue}
-                    onChange={e => setInputValue(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center transition-colors shadow-md shadow-blue-500/20 text-white"
-                  >
-                    <Send size={15} className="ml-0.5" />
-                  </button>
+                      );
+                    });
+                  })()}
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+                {/* Chat Input */}
+                <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                      placeholder="메시지를 입력하세요..."
+                      value={inputValue}
+                      onChange={e => setInputValue(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center transition-colors shadow-md shadow-blue-500/20 text-white"
+                    >
+                      <Send size={15} className="ml-0.5" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* 3. Right Panel: Crew Deck */}
