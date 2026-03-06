@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service
 import java.io.File
 import com.google.genai.types.Part
 import com.google.genai.types.FunctionCall
+import org.springframework.beans.factory.annotation.Value
 
 @Service
 class AgentExecutor(
@@ -23,9 +24,11 @@ class AgentExecutor(
     private val taskService: TaskService,
     private val projectContextService: ProjectContextService,
     private val messagingTemplate: SimpMessagingTemplate,
-    private val chatMessageRepository: ChatMessageRepository
+    private val chatMessageRepository: ChatMessageRepository,
+    @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val objectMapper = jacksonObjectMapper()
+    private val httpClient = java.net.http.HttpClient.newHttpClient()
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
         val task = taskService.createTask(roomId, userMessage, agent)
@@ -140,6 +143,17 @@ class AgentExecutor(
                     ),
                     "required" to listOf("agent_name", "task")
                 )
+            ),
+            mapOf(
+                "name" to "web_search",
+                "description" to "실시간 인터넷 검색을 수행하여 최신 정보를 가져옵니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "query" to mapOf("type" to "string", "description" to "검색어")
+                    ),
+                    "required" to listOf("query")
+                )
             )
         )
 
@@ -232,9 +246,10 @@ class AgentExecutor(
                             "read_file" -> handleReadFile(input["path"] as? String ?: "")
                             "write_file" -> handleWriteFile(input["path"] as? String ?: "", input["content"] as? String ?: "")
                             "list_directory" -> handleListDirectory(input["path"] as? String ?: ".")
-                            "delete_file" -> handleDeleteFile(input["path"] as? String ?: "")
+                             "delete_file" -> handleDeleteFile(input["path"] as? String ?: "")
                             "run_command" -> handleRunCommand(input["command"] as? String ?: "")
                             "call_agent" -> handleCallAgent(input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
+                            "web_search" -> handleWebSearch(input["query"] as? String ?: "")
                             else -> "알 수 없는 도구: $toolName"
                         }
                     } catch (e: Exception) {
@@ -350,6 +365,42 @@ class AgentExecutor(
             }
         } catch (e: Exception) {
             "명령어 실행 오류: ${e.message}"
+        }
+    }
+
+    private fun handleWebSearch(query: String): String {
+        if (serperApiKey.isEmpty()) {
+            return "검색 기능이 설정되지 않았습니다. SERPER_API_KEY를 설정해주세요."
+        }
+        
+        return try {
+            val body = mapOf("q" to query)
+            val request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("https://google.serper.dev/search"))
+                .header("X-API-KEY", serperApiKey)
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                .build()
+
+            val response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+            if (response.statusCode() != 200) {
+                return "검색 오류 (${response.statusCode()}): ${response.body()}"
+            }
+            
+            val json = objectMapper.readTree(response.body())
+            val organic = json["organic"]
+            val results = mutableListOf<String>()
+            
+            organic?.forEach { node ->
+                val title = node["title"]?.asText() ?: ""
+                val link = node["link"]?.asText() ?: ""
+                val snippet = node["snippet"]?.asText() ?: ""
+                results.add("- **$title**\n  $link\n  $snippet")
+            }
+            
+            if (results.isEmpty()) "검색 결과가 없습니다." else "검색 결과:\n" + results.joinToString("\n\n")
+        } catch (e: Exception) {
+            "검색 실행 중 오류: ${e.message}"
         }
     }
 

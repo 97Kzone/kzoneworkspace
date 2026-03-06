@@ -32,11 +32,11 @@ class GeminiClient(
 
         if (tools != null && tools.isNotEmpty()) {
             val googleTools = tools.map { tool ->
+                // ... (rest of tool mapping)
                 val name = tool["name"] as String
                 val description = tool["description"] as String
                 val inputSchema = tool["input_schema"] as Map<String, Any>
                 
-                // 간단한 스키마 변환 (Object 타입만 지원하는 현재 구현에 맞춤)
                 val properties = inputSchema["properties"] as Map<String, Any>
                 val required = inputSchema["required"] as List<String>
                 
@@ -65,6 +65,13 @@ class GeminiClient(
                     .build()
             }
             configBuilder.tools(googleTools)
+        } else {
+            // Only enable Google Search grounding if NO custom tools are provided
+            // Gemini does not support combining built-in tools and custom functions in the same request.
+            val searchTool = com.google.genai.types.Tool.builder()
+                .googleSearch(com.google.genai.types.GoogleSearch.builder().build())
+                .build()
+            configBuilder.tools(listOf(searchTool))
         }
 
         val contents = messages.map { msg ->

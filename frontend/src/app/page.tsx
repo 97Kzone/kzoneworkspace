@@ -19,6 +19,7 @@ export default function VirtualOfficeBright() {
   const [isDeploying, setIsDeploying] = useState(false);
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
+  const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -51,6 +52,18 @@ export default function VirtualOfficeBright() {
 
       if (msg.type === 'AGENT') {
         taskService.getByRoom("default").then(res => setTasks(res.data));
+      }
+
+      // Connection Line Logic
+      if (msg.type === 'AGENT' || msg.type === 'CHAT') {
+        const mentionMatch = msg.content.match(/@([\w가-힣]+)/);
+        if (mentionMatch) {
+          const targetName = mentionMatch[1];
+          setActiveConnections(prev => [...prev, { from: msg.senderName, to: targetName, timestamp: Date.now() }]);
+          setTimeout(() => {
+            setActiveConnections(prev => prev.filter(conn => conn.timestamp > Date.now() - 3000));
+          }, 3000);
+        }
       }
     });
 
@@ -191,23 +204,30 @@ export default function VirtualOfficeBright() {
   };
 
   return (
-    <div className="flex bg-[#f4f7fb] text-slate-700 h-screen w-full font-sans overflow-hidden selection:bg-indigo-100">
+    <div className="flex bg-[#fcfdfe] text-slate-700 h-screen w-full font-sans overflow-hidden selection:bg-indigo-100">
 
-      {/* 1. Left Panel: Activity Feed (Light Theme) */}
-      <div className="w-[420px] border-r border-indigo-100 bg-white flex flex-col shrink-0 relative z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-500">
-        <div className="h-14 border-b border-slate-100 flex items-center px-5 shrink-0 bg-white/50 backdrop-blur-sm">
-          <Terminal size={18} className="text-indigo-400 mr-2" />
-          <span className="text-sm font-bold tracking-wide text-slate-700 uppercase">활동 기록</span>
-          <div className="ml-auto flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)] animate-pulse"></span>
-            <span className="text-[10px] font-bold text-emerald-600 uppercase">실시간</span>
+      {/* 1. Left Panel: Activity Feed (Glassmorphism) */}
+      <div className="w-[420px] border-r border-indigo-50/50 bg-white/70 backdrop-blur-2xl flex flex-col shrink-0 relative z-20 shadow-[10px_0_40px_rgba(0,0,0,0.02)] transition-all duration-500">
+        <div className="h-16 border-b border-slate-100/50 flex items-center px-6 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center mr-3 shadow-inner">
+            <Terminal size={18} className="text-indigo-400" />
+          </div>
+          <span className="text-[11px] font-black tracking-[0.2em] text-slate-500 uppercase">활동 기록</span>
+          <div className="ml-auto flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100/50">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)] animate-pulse"></span>
+            <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-tighter">실시간</span>
           </div>
         </div>
 
-        <div ref={consoleScrollRef} className="flex-1 overflow-y-auto p-5 text-xs leading-relaxed space-y-4 custom-scrollbar bg-slate-50/50">
-          <div className="text-indigo-500/70 font-medium mb-4 flex items-center gap-2">
-            <Sparkles size={14} />
-            <span>K-Zone AI 워크스페이스에 오신 것을 환영합니다!</span>
+        <div ref={consoleScrollRef} className="flex-1 overflow-y-auto p-6 text-[11px] leading-relaxed space-y-5 custom-scrollbar bg-white/30">
+          <div className="bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border border-indigo-100/30 rounded-2xl p-4 mb-6 flex items-start gap-4">
+            <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0">
+              <Sparkles size={18} className="text-indigo-400" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-700 mb-1 font-mono">K-Zone 워크스페이스</h4>
+              <p className="text-slate-400 font-medium leading-normal">AI 오케스트레이션 준비 완료. 캔버스에서 에이전트와 소통하세요.</p>
+            </div>
           </div>
 
           {messages.slice(-50).map((msg, i) => (
@@ -269,23 +289,77 @@ export default function VirtualOfficeBright() {
         <div
           className="w-full h-full relative"
           style={{
-            backgroundImage: `radial-gradient(#cbd5e1 1.5px, transparent 1.5px)`,
-            backgroundSize: '40px 40px',
+            backgroundImage: `radial-gradient(circle, rgba(99, 102, 241, 0.08) 1.5px, transparent 1.5px)`,
+            backgroundSize: '48px 48px',
             backgroundPosition: '0 0'
           }}
         >
-          {/* Environment Props */}
-          <div className="absolute top-[100px] left-[60px] w-28 h-48 border-2 border-slate-200 bg-white rounded-xl flex flex-col items-center p-3 justify-center gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rotate-[-2deg]">
-            <Layout size={36} className="text-sky-300" />
-            <span className="text-xs text-slate-400 font-bold tracking-widest uppercase">아이디어</span>
+          {/* Subtle Glow Orbs for depth */}
+          <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-indigo-200/20 blur-[100px] rounded-full -z-10"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-200/20 blur-[100px] rounded-full -z-10"></div>
+
+          {/* Environment Props - Work Zones (Glassmorphism) */}
+          <div className="absolute top-[120px] left-[60px] w-36 h-56 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl flex flex-col items-center p-4 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[-1deg] hover:rotate-0 transition-transform duration-500 group">
+            <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform shadow-inner">
+              <Layout size={24} />
+            </div>
+            <span className="text-[10px] text-slate-400 font-extrabold tracking-[0.2em] uppercase">아이디어</span>
+            <div className="w-full h-1 bg-gradient-to-r from-transparent via-sky-200 to-transparent rounded-full opacity-50"></div>
           </div>
 
-          <div className="absolute bottom-[100px] left-[60px] w-56 h-36 border-2 border-dashed border-indigo-300 rounded-2xl flex flex-col items-center justify-center bg-indigo-50/50 cursor-pointer hover:bg-indigo-50 transition-colors shadow-sm group"
+          <div className="absolute bottom-[100px] left-[100px] w-72 h-44 bg-indigo-50/40 backdrop-blur-lg border border-indigo-100/60 rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/60 transition-all duration-500 shadow-[0_20px_40px_rgba(0,0,0,0.03)] group"
             onClick={() => setActiveChat('라운지 미팅')}>
-            <Coffee size={36} className="text-indigo-300 group-hover:text-indigo-400 group-hover:scale-110 transition-all duration-300" />
-            <span className="text-sm text-indigo-500 mt-3 font-bold uppercase tracking-widest">미팅 라운지</span>
-            <div className="text-[10px] text-indigo-400/70 mt-1 font-medium">클릭하여 브레인스토밍</div>
+            <div className="relative">
+              <div className="absolute -inset-4 bg-indigo-400/10 rounded-full blur-xl group-hover:bg-indigo-400/20 transition-colors"></div>
+              <Coffee size={40} className="text-indigo-400 relative z-10 group-hover:scale-110 transition-transform duration-500" />
+            </div>
+            <span className="text-xs text-indigo-500 mt-5 font-black uppercase tracking-widest">미팅 라운지</span>
+            <div className="text-[9px] text-indigo-300 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+              <Plus size={10} /> 클릭하여 브레인스토밍
+            </div>
           </div>
+
+          {/* Connection Lines (Pulse Lines) */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+            <defs>
+              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(99, 102, 241, 0)" />
+                <stop offset="50%" stopColor="rgba(99, 102, 241, 0.5)" />
+                <stop offset="100%" stopColor="rgba(99, 102, 241, 0)" />
+              </linearGradient>
+            </defs>
+            <AnimatePresence>
+              {activeConnections.map((conn, i) => {
+                const fromAgent = agents.find(a => a.name === conn.from);
+                const toAgent = agents.find(a => a.name === conn.to);
+
+                // If 'from' is user/lounge, use fixed position
+                const fromPos = fromAgent ? getAgentPosition(agents.indexOf(fromAgent)) : { top: 480, left: 240 }; // Lounge approx pos
+                const toPos = toAgent ? getAgentPosition(agents.indexOf(toAgent)) : null;
+
+                if (!toPos) return null;
+
+                const x1 = fromPos.left + 32;
+                const y1 = fromPos.top + 32;
+                const x2 = toPos.left + 32;
+                const y2 = toPos.top + 32;
+
+                return (
+                  <motion.path
+                    key={`conn-${i}-${conn.timestamp}`}
+                    d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2 - 50} ${x2} ${y2}`}
+                    stroke="url(#lineGradient)"
+                    strokeWidth="3"
+                    fill="none"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                  />
+                );
+              })}
+            </AnimatePresence>
+          </svg>
 
           {/* Agents */}
           {agents.map((agent, i) => {
@@ -309,20 +383,24 @@ export default function VirtualOfficeBright() {
                 <AnimatePresence>
                   {isRunning && (() => {
                     const lastToolMsg = [...messages].reverse().find(m => m.senderName === agent.name && m.type === 'TOOL');
-                    let statusText = "업무 수행 중...";
-                    if (lastToolMsg?.content.includes('write_file')) statusText = "📝 파일 작성 중...";
-                    else if (lastToolMsg?.content.includes('run_command')) statusText = "💻 명령어 실행 중...";
-                    else if (lastToolMsg?.content.includes('call_agent')) statusText = "🤝 협업 요청 중...";
-                    else if (lastToolMsg?.content.includes('read_file')) statusText = "📖 파일 읽는 중...";
+                    let statusText = "업무 중...";
+                    let Icon = Loader2;
+
+                    if (lastToolMsg?.content.includes('write_file')) { statusText = "파일 작성 중"; Icon = Code2; }
+                    else if (lastToolMsg?.content.includes('run_command')) { statusText = "명령어 실행 중"; Icon = Terminal; }
+                    else if (lastToolMsg?.content.includes('call_agent')) { statusText = "협업 중"; Icon = Users; }
+                    else if (lastToolMsg?.content.includes('read_file')) { statusText = "파일 읽는 중"; Icon = Database; }
 
                     return (
                       <motion.div
-                        className={`absolute -top-12 px-3 py-1.5 rounded-xl shadow-xl z-30 flex items-center gap-2 border-2 ${getAgentColor(agent.name).border} ${getAgentColor(agent.name).light} ${getAgentColor(agent.name).soft} font-bold text-[11px] whitespace-nowrap`}
-                        initial={{ y: 10, opacity: 0, scale: 0.8 }}
+                        className={`absolute -top-14 px-4 py-2 rounded-2xl shadow-[0_10px_25px_rgba(0,0,0,0.1)] z-30 flex items-center gap-2.5 border border-white/60 bg-white/80 backdrop-blur-md ${getAgentColor(agent.name).soft} font-extrabold text-[10px] whitespace-nowrap tracking-tight`}
+                        initial={{ y: 15, opacity: 0, scale: 0.9 }}
                         animate={{ y: 0, opacity: 1, scale: 1 }}
-                        exit={{ y: 5, opacity: 0, scale: 0.8 }}
+                        exit={{ y: 10, opacity: 0, scale: 0.9 }}
                       >
-                        <Loader2 size={12} className="animate-spin" /> {statusText}
+                        <Icon size={14} className={Icon === Loader2 ? "animate-spin" : "animate-pulse"} />
+                        <span className="uppercase">{statusText}</span>
+                        <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-white/80 border-r border-b border-white/60`}></div>
                       </motion.div>
                     );
                   })()}
@@ -330,25 +408,33 @@ export default function VirtualOfficeBright() {
 
                 {/* Animated Avatar */}
                 <div className="relative z-10 w-16 h-16 flex items-center justify-center">
+                  {/* Character Glow */}
+                  {isRunning && (
+                    <motion.div
+                      className={`absolute inset-0 rounded-full blur-2xl ${getAgentColor(agent.name).bg} opacity-30`}
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.4, 0.2] }}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                    />
+                  )}
+
                   {/* Cute Desk Base */}
-                  <div className="absolute bottom-0 w-20 h-10 bg-white rounded-xl border border-slate-200 shadow-sm -z-10 transform perspective-100 rotateX-[25deg]"></div>
+                  <div className="absolute bottom-0 w-24 h-12 bg-white/60 backdrop-blur-sm rounded-[2rem] border border-white/80 shadow-sm -z-10 transform perspective-[500px] rotateX-[30deg]"></div>
 
                   {/* Avatar Character */}
                   <motion.div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center border-4 shadow-xl ${isRunning ? 'bg-indigo-500 border-indigo-100' : 'bg-slate-100 border-white'}`}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center border-4 shadow-2xl transition-colors duration-500 ${isRunning ? `${getAgentColor(agent.name).bg} border-white` : 'bg-white border-slate-100'}`}
                     animate={isRunning ? {
-                      y: [0, -6, 0],
-                      rotate: [-3, 3, -3]
+                      y: [0, -8, 0],
                     } : {
                       y: [0, -2, 0]
                     }}
                     transition={{
                       repeat: Infinity,
-                      duration: isRunning ? 0.4 : 2.5,
+                      duration: isRunning ? 0.6 : 3,
                       ease: "easeInOut"
                     }}
                   >
-                    <Bot size={24} className={isRunning ? 'text-white' : 'text-slate-400'} />
+                    <Bot size={28} className={isRunning ? 'text-white' : 'text-slate-300'} />
                   </motion.div>
                 </div>
 
@@ -582,25 +668,25 @@ export default function VirtualOfficeBright() {
         </div>
       </div>
 
-      {/* 3. Right Panel: Crew Deck */}
-      <div className="w-[320px] border-l border-slate-200 bg-white flex flex-col shrink-0 relative z-20 shadow-[-4px_0_24px_rgba(0,0,0,0.02)]">
-        <div className="h-16 border-b border-slate-100 flex items-center justify-between px-6 shrink-0 bg-white">
-          <h2 className="font-extrabold text-base text-slate-800 flex items-center gap-2">
-            <Users size={20} className="text-blue-500" /> 크루 명단
+      {/* 3. Right Panel: Crew Deck (Glassmorphism) */}
+      <div className="w-[320px] border-l border-indigo-50/50 bg-white/70 backdrop-blur-2xl flex flex-col shrink-0 relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.02)]">
+        <div className="h-16 border-b border-slate-100/50 flex items-center justify-between px-6 shrink-0">
+          <h2 className="font-black text-[11px] text-slate-500 flex items-center gap-3 uppercase tracking-[0.2em]">
+            <Users size={18} className="text-blue-400" /> 크루 명단
           </h2>
-          <span className="text-[10px] bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full font-bold uppercase tracking-widest">
+          <span className="text-[9px] bg-blue-50/80 text-blue-600 px-2.5 py-1 rounded-full font-bold uppercase tracking-widest border border-blue-100/50">
             {agents.length} 온라인
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar bg-white/30">
           {agents.map(agent => (
             <div key={agent.id}
-              className="bg-white border border-slate-100 rounded-xl p-4 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group shadow-sm"
+              className="bg-white/60 backdrop-blur-sm border border-white/80 rounded-2xl p-4 hover:border-blue-200/50 hover:bg-white/80 hover:shadow-[0_10px_25px_rgba(0,0,0,0.03)] transition-all cursor-pointer group shadow-sm"
               onClick={() => setActiveChat(agent.name)}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3.5 flex-1">
-                  <div className={`w-10 h-10 rounded-full ${getAgentColor(agent.name).light} flex items-center justify-center group-hover:bg-opacity-80 transition-colors border-2 ${getAgentColor(agent.name).border}`}>
+                <div className="flex items-center gap-4 flex-1">
+                  <div className={`w-11 h-11 rounded-2xl ${getAgentColor(agent.name).light} flex items-center justify-center group-hover:scale-105 transition-transform border border-white shrink-0 shadow-sm`}>
                     {agent.role.toLowerCase().includes('front') ? <Layout size={18} className="text-pink-400" /> :
                       agent.role.toLowerCase().includes('back') ? <Database size={18} className="text-emerald-400" /> :
                         <Code2 size={18} className={getAgentColor(agent.name).text} />}
