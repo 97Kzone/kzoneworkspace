@@ -186,6 +186,7 @@ class AgentExecutor(
                         } else if (blockType == "tool_use") {
                             val id = block["id"].asText()
                             val name = block["name"].asText()
+                            @Suppress("UNCHECKED_CAST")
                             val input = objectMapper.convertValue(block["input"], Map::class.java) as Map<String, Any>
                             assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to input))
                             toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to input))
@@ -217,7 +218,8 @@ class AgentExecutor(
                             val fc: FunctionCall = fcOpt.get()
                             val id = "gemini-${System.currentTimeMillis()}"
                             val name = fc.name().orElse("")
-                            val args = fc.args().orElse(emptyMap<String, Any>()) as Map<String, Any>
+                             @Suppress("UNCHECKED_CAST")
+                             val args = fc.args().orElse(emptyMap<String, Any>()) as Map<String, Any>
                             assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to args))
                             toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to args))
                         }
@@ -235,6 +237,7 @@ class AgentExecutor(
                 for (block in toolUseBlocks) {
                     val toolUseId = block["id"] as String
                     val toolName = block["name"] as String
+                    @Suppress("UNCHECKED_CAST")
                     val input = block["input"] as Map<String, Any>
                     
                     val inputStr = objectMapper.writeValueAsString(input)

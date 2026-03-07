@@ -35,24 +35,25 @@ class GeminiClient(
                 // ... (rest of tool mapping)
                 val name = tool["name"] as String
                 val description = tool["description"] as String
-                val inputSchema = tool["input_schema"] as Map<String, Any>
+                val inputSchema = tool["input_schema"] as? Map<*, *> ?: emptyMap<String, Any>()
                 
-                val properties = inputSchema["properties"] as Map<String, Any>
-                val required = inputSchema["required"] as List<String>
+                val properties = inputSchema["properties"] as? Map<*, *>
+                val required = inputSchema["required"] as? List<*>
                 
                 val schemaBuilder = com.google.genai.types.Schema.builder()
                     .type("OBJECT")
                 
-                val propSchemas = properties.mapValues { (_, value) ->
-                    val vMap = value as Map<String, Any>
-                    com.google.genai.types.Schema.builder()
-                        .type(vMap["type"] as String)
-                        .description(vMap["description"] as String)
+                val propSchemas = properties?.map { (k, v) ->
+                    val key = k as? String ?: ""
+                    val vMap = v as? Map<*, *>
+                    key to com.google.genai.types.Schema.builder()
+                        .type(vMap?.get("type") as? String ?: "string")
+                        .description(vMap?.get("description") as? String ?: "")
                         .build()
-                }
+                }?.toMap() ?: emptyMap()
                 
                 schemaBuilder.properties(propSchemas)
-                schemaBuilder.required(required)
+                schemaBuilder.required(required?.filterIsInstance<String>() ?: emptyList())
 
                 com.google.genai.types.Tool.builder()
                     .functionDeclarations(listOf(
@@ -83,14 +84,17 @@ class GeminiClient(
                 parts.add(Part.fromText(body))
             } else if (body is List<*>) {
                 body.forEach { block ->
+                    @Suppress("UNCHECKED_CAST")
                     val blockMap = block as? Map<String, Any>
                     val type = blockMap?.get("type") as? String
                     when (type) {
                         "text" -> parts.add(Part.fromText(blockMap["text"] as String))
                         "tool_use" -> {
+                            @Suppress("UNCHECKED_CAST")
+                            val argsMap = blockMap["input"] as? Map<String, Any?> ?: emptyMap()
                             val fc = FunctionCall.builder()
-                                .name(blockMap["name"] as String)
-                                .args(blockMap["input"] as Map<String, Any>)
+                                .name(blockMap["name"] as? String ?: "")
+                                .args(argsMap)
                                 .build()
                             parts.add(Part.builder().functionCall(fc).build())
                         }
