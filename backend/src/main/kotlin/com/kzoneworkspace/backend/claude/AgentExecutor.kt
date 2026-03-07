@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service
 import java.io.File
 import com.google.genai.types.Part
 import com.google.genai.types.FunctionCall
+import com.kzoneworkspace.backend.tools.BrowserService
 import org.springframework.beans.factory.annotation.Value
+import java.net.URLEncoder
 
 @Service
 class AgentExecutor(
@@ -25,6 +27,7 @@ class AgentExecutor(
     private val projectContextService: ProjectContextService,
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatMessageRepository: ChatMessageRepository,
+    private val browserService: BrowserService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val objectMapper = jacksonObjectMapper()
@@ -154,6 +157,17 @@ class AgentExecutor(
                     ),
                     "required" to listOf("query")
                 )
+            ),
+            mapOf(
+                "name" to "browse",
+                "description" to "특정 웹 페이지의 내용을 읽어옵니다. (URL 입력)",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "url" to mapOf("type" to "string", "description" to "접속할 웹 페이지 URL")
+                    ),
+                    "required" to listOf("url")
+                )
             )
         )
 
@@ -253,6 +267,7 @@ class AgentExecutor(
                             "run_command" -> handleRunCommand(input["command"] as? String ?: "")
                             "call_agent" -> handleCallAgent(input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
                             "web_search" -> handleWebSearch(input["query"] as? String ?: "")
+                            "browse" -> handleBrowse(input["url"] as? String ?: "")
                             else -> "알 수 없는 도구: $toolName"
                         }
                     } catch (e: Exception) {
@@ -357,7 +372,14 @@ class AgentExecutor(
 
     private fun handleRunCommand(command: String): String {
         return try {
-            val process = Runtime.getRuntime().exec(command)
+            val isWindows = System.getProperty("os.name").lowercase().contains("win")
+            val processBuilder = if (isWindows) {
+                ProcessBuilder("cmd.exe", "/c", command)
+            } else {
+                ProcessBuilder("sh", "-c", command)
+            }
+            
+            val process = processBuilder.start()
             val output = process.inputStream.bufferedReader().readText()
             val error = process.errorStream.bufferedReader().readText()
             
@@ -373,7 +395,9 @@ class AgentExecutor(
 
     private fun handleWebSearch(query: String): String {
         if (serperApiKey.isEmpty()) {
-            return "검색 기능이 설정되지 않았습니다. SERPER_API_KEY를 설정해주세요."
+            val searchUrl = "https://www.google.com/search?q=${URLEncoder.encode(query, "UTF-8")}"
+            return "SERPER_API_KEY가 설정되어 있지 않아 브라우저를 통해 직접 검색을 시도합니다...\n\n" +
+                   handleBrowse(searchUrl)
         }
         
         return try {
@@ -404,6 +428,19 @@ class AgentExecutor(
             if (results.isEmpty()) "검색 결과가 없습니다." else "검색 결과:\n" + results.joinToString("\n\n")
         } catch (e: Exception) {
             "검색 실행 중 오류: ${e.message}"
+        }
+    }
+
+    private fun handleBrowse(url: String): String {
+        return try {
+            val content = browserService.navigateAndGetText(url)
+            if (content.length > 5000) {
+                content.take(5000) + "\n... (truncated for brevity)"
+            } else {
+                content
+            }
+        } catch (e: Exception) {
+            "브라우저 탐색 중 오류: ${e.message}"
         }
     }
 

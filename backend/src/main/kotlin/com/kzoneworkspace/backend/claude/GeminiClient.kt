@@ -30,11 +30,15 @@ class GeminiClient(
                 com.google.genai.types.Part.fromText(systemPrompt)
             ))
 
+        val googleTools = mutableListOf<com.google.genai.types.Tool>()
+        
+        // Add custom tools if provided
         if (tools != null && tools.isNotEmpty()) {
-            val googleTools = tools.map { tool ->
-                // ... (rest of tool mapping)
+            googleTools.addAll(tools.map { tool ->
                 val name = tool["name"] as String
                 val description = tool["description"] as String
+                
+                @Suppress("UNCHECKED_CAST")
                 val inputSchema = tool["input_schema"] as? Map<*, *> ?: emptyMap<String, Any>()
                 
                 val properties = inputSchema["properties"] as? Map<*, *>
@@ -64,11 +68,10 @@ class GeminiClient(
                             .build()
                     ))
                     .build()
-            }
+            })
             configBuilder.tools(googleTools)
         } else {
-            // Only enable Google Search grounding if NO custom tools are provided
-            // Gemini does not support combining built-in tools and custom functions in the same request.
+            // Only add Google Search grounding if NO custom tools are provided
             val searchTool = com.google.genai.types.Tool.builder()
                 .googleSearch(com.google.genai.types.GoogleSearch.builder().build())
                 .build()
