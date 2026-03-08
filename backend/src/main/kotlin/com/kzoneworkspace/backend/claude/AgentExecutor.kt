@@ -16,6 +16,7 @@ import com.google.genai.types.Part
 import com.google.genai.types.FunctionCall
 import com.kzoneworkspace.backend.tools.BrowserService
 import org.springframework.beans.factory.annotation.Value
+import com.kzoneworkspace.backend.agent.service.MemoryService
 import java.net.URLEncoder
 
 @Service
@@ -28,6 +29,7 @@ class AgentExecutor(
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatMessageRepository: ChatMessageRepository,
     private val browserService: BrowserService,
+    private val memoryService: MemoryService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val objectMapper = jacksonObjectMapper()
@@ -41,6 +43,16 @@ class AgentExecutor(
         try {
             val messages = mutableListOf<Map<String, Any>>()
             
+            // 장기 기억 조회 (Semantic Search)
+            val relatedMemories = memoryService.searchSimilarMemories(agent.id, userMessage)
+            if (relatedMemories.isNotEmpty()) {
+                val memoryContext = relatedMemories.joinToString("\n---\n")
+                messages.add(mapOf(
+                    "role" to "user",
+                    "content" to "[System: Relevant Long-term Memories]\n$memoryContext\n\n[System Context: Please use the above memories if relevant to the user goal.]"
+                ))
+            }
+
             // 프로젝트 컨텍스트 주입 (지능 고도화)
             val projectContext = projectContextService.getProjectContext()
             messages.add(mapOf(
@@ -52,6 +64,9 @@ class AgentExecutor(
 
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
+
+            // 장기 기억 저장
+            memoryService.saveMemory(agent.id, roomId, "User: $userMessage\nAgent: $lastResponse")
 
         } catch (e: Exception) {
             val errorMsg = "업무 수행 중 오류가 발생했습니다: ${e.message}"

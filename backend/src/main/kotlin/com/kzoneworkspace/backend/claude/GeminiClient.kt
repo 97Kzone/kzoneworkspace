@@ -124,4 +124,15 @@ class GeminiClient(
             configBuilder.build()
         )
     }
+
+    fun embedText(text: String, model: String = "gemini-embedding-001"): List<Float> {
+        val response = client.models.embedContent(
+            model,
+            text,
+            null
+        )
+        val embeddings = response.embeddings().orElse(emptyList())
+        if (embeddings.isEmpty()) return emptyList()
+        return embeddings[0].values().orElse(emptyList())
+    }
 }
