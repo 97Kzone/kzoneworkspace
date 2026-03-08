@@ -10,6 +10,8 @@ class ChatHistoryController(
 
     @GetMapping("/history")
     fun getHistory(@RequestParam roomId: String): List<ChatMessage> {
-        return chatMessageRepository.findByRoomIdOrderByTimestampAsc(roomId)
+        val history = chatMessageRepository.findByRoomIdOrderByTimestampAsc(roomId)
+        println("📜 Fetching history for room: $roomId, count: ${history.size}")
+        return history
     }
 }

@@ -19,6 +19,7 @@ class ChatController(
     fun sendMessage(@Payload message: ChatMessage) {
         // DB에 메시지 저장
         val savedMessage = chatMessageRepository.save(message)
+        println("📝 Message saved to DB: ID=${savedMessage.id}, Room=${savedMessage.roomId}, Sender=${savedMessage.senderName}")
 
         // 내 메시지 먼저 채팅방에 전송
         messagingTemplate.convertAndSend(

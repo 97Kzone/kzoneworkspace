@@ -5,28 +5,36 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "chat_messages")
-data class ChatMessage(
+class ChatMessage(
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    val id: Long? = null,
+    var id: Long? = null,
 
     @Column(nullable = false)
-    val roomId: String,
+    var roomId: String = "",
 
     @Column(nullable = false)
-    val senderId: String,
+    var senderId: String = "",
 
     @Column(nullable = false)
-    val senderName: String,
+    var senderName: String = "",
 
     @Column(columnDefinition = "TEXT", nullable = false)
-    val content: String,
+    var content: String = "",
 
     @Enumerated(EnumType.STRING)
-    val type: MessageType,
+    var type: MessageType = MessageType.CHAT,
 
-    val timestamp: LocalDateTime? = LocalDateTime.now()
-)
+    @Column(nullable = false)
+    var timestamp: LocalDateTime? = null
+) {
+    @PrePersist
+    fun onPrePersist() {
+        if (timestamp == null) {
+            timestamp = LocalDateTime.now()
+        }
+    }
+}
 
 enum class MessageType {
     CHAT,       // 일반 채팅
