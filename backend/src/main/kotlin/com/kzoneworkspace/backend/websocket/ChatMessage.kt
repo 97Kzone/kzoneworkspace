@@ -26,13 +26,11 @@ class ChatMessage(
     var type: MessageType = MessageType.CHAT,
 
     @Column(nullable = false)
-    var timestamp: LocalDateTime? = null
+    var timestamp: LocalDateTime = LocalDateTime.now()
 ) {
     @PrePersist
     fun onPrePersist() {
-        if (timestamp == null) {
-            timestamp = LocalDateTime.now()
-        }
+        // Redundant but safe for JPA
     }
 }
 
@@ -41,5 +39,6 @@ enum class MessageType {
     SYSTEM,     // 시스템 메시지 (입장/퇴장)
     AGENT,      // 에이전트 응답
     COMMAND,    // 업무 지시
-    TOOL        // 도구 사용 및 결과
+    TOOL,       // 도구 사용 및 결과
+    THINKING    // 에이전트 추론 과정
 }

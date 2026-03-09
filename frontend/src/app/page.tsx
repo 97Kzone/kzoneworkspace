@@ -20,6 +20,7 @@ export default function VirtualOfficeBright() {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING'>('LOGS');
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -194,13 +195,25 @@ export default function VirtualOfficeBright() {
   };
 
   const getRecentFiles = () => {
-    const toolMsgs = messages.filter(m => m.type === 'TOOL' && (m.content.includes('write_file') || m.content.includes('delete_file')));
+    const toolMsgs = messages.filter(m => m.type === 'TOOL' && (m.content.includes('write_file') || m.content.includes('delete_file') || m.content.includes('read_file')));
     const files = new Set<string>();
     toolMsgs.forEach(m => {
-      const match = m.content.match(/(?:write_file|delete_file) \({"path":"([^"]+)"/);
-      if (match) files.add(match[1]);
+      const match = m.content.match(/(?:"path":"([^"]+)"|'([^']+)')/);
+      if (match) {
+        const path = match[1] || match[2];
+        files.add(path);
+      }
     });
     return Array.from(files).slice(-5).reverse();
+  };
+
+  const getFileName = (content: string) => {
+    const match = content.match(/(?:"path":"([^"]+)"|'([^']+)')/);
+    if (match) {
+      const path = match[1] || match[2];
+      return path.split(/[\\/]/).pop();
+    }
+    return null;
   };
 
   return (
@@ -231,15 +244,16 @@ export default function VirtualOfficeBright() {
           </div>
 
           {messages.slice(-50).map((msg, i) => (
-            <div key={i} className={`flex gap-2.5 items-start ${msg.type === 'SYSTEM' ? 'text-slate-400' : ''}`}>
+            <div key={i} className={`flex gap-2.5 items-start ${msg.type === 'SYSTEM' ? 'text-slate-400' : msg.type === 'THINKING' ? 'text-indigo-400/80' : ''}`}>
               <span className="text-slate-400 shrink-0 font-mono text-[10px] mt-0.5">
                 {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' }) : '방금'}
               </span>
               <div>
-                <span className={`font-semibold mr-1.5 ${msg.senderId === 'user-1' ? 'text-blue-500' : msg.type === 'AGENT' ? 'text-indigo-500' : 'text-slate-500'}`}>
-                  {msg.senderId === 'user-1' ? '나' : msg.senderName}
+                <span className={`font-semibold mr-1.5 ${msg.senderId === 'user-1' ? 'text-blue-500' : msg.type === 'AGENT' ? 'text-indigo-500' : msg.type === 'THINKING' ? 'text-indigo-400' : 'text-slate-500'}`}>
+                  {msg.senderId === 'user-1' ? '나' : msg.senderName} 
+                  {msg.type === 'THINKING' && <span className="ml-1 text-[8px] font-black uppercase tracking-tighter opacity-50">[Thinking]</span>}
                 </span>
-                <div className="prose prose-sm max-w-none text-slate-600 italic">
+                <div className={`prose prose-sm max-w-none ${msg.type === 'THINKING' ? 'text-indigo-400/70 italic bg-indigo-50/30 px-2 py-0.5 rounded-lg border border-indigo-100/20' : 'text-slate-600 italic'}`}>
                   <ReactMarkdown
                     components={{
                       p: ({ children }) => <span className="inline">{children}</span>,
@@ -399,7 +413,12 @@ export default function VirtualOfficeBright() {
                         exit={{ y: 10, opacity: 0, scale: 0.9 }}
                       >
                         <Icon size={14} className={Icon === Loader2 ? "animate-spin" : "animate-pulse"} />
-                        <span className="uppercase">{statusText}</span>
+                        <div className="flex flex-col">
+                          <span className="uppercase">{statusText}</span>
+                          {getFileName(lastToolMsg?.content || "") && (
+                             <span className="text-[8px] opacity-70 truncate max-w-[100px]">{getFileName(lastToolMsg?.content || "")}</span>
+                          )}
+                        </div>
                         <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-white/80 border-r border-b border-white/60`}></div>
                       </motion.div>
                     );
@@ -465,6 +484,20 @@ export default function VirtualOfficeBright() {
                   <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">실시간 활동 대시보드</span>
                 </div>
                 <div className="flex items-center gap-3">
+                  <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                    <button
+                      onClick={() => setActiveTab('LOGS')}
+                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'LOGS' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      LOGS
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('REASONING')}
+                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'REASONING' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      REASONING
+                    </button>
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span className="text-[9px] font-bold text-emerald-400/80 uppercase">시스템 가동 중</span>
@@ -474,13 +507,30 @@ export default function VirtualOfficeBright() {
               <div className="flex-1 flex overflow-hidden">
                 {/* Log Terminal */}
                 <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
-                  {messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-20).map((msg, i) => (
-                    <div key={i} className="flex gap-2">
-                      <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
-                      <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
-                      <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
-                    </div>
-                  ))}
+                  {activeTab === 'LOGS' ? (
+                    messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-50).map((msg, i) => (
+                      <div key={i} className="flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                        <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
+                        <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
+                        <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
+                      </div>
+                    ))
+                  ) : (
+                    messages.filter(m => m.type === 'THINKING' || m.type === 'AGENT').slice(-30).map((msg, i) => (
+                      <div key={i} className={`flex gap-3 p-2 rounded-lg border ${msg.type === 'THINKING' ? 'bg-indigo-500/5 border-indigo-500/10' : 'bg-slate-800/50 border-slate-700/50'} animate-in zoom-in-95 duration-500`}>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.type === 'THINKING' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                          {msg.type === 'THINKING' ? <Sparkles size={10} className="animate-pulse" /> : <Bot size={10} />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className={`font-bold ${getAgentColor(msg.senderName).soft}`}>{msg.senderName}</span>
+                            <span className="text-[8px] text-slate-500">{msg.type}</span>
+                          </div>
+                          <p className={`leading-relaxed ${msg.type === 'THINKING' ? 'text-indigo-200/90 italic' : 'text-slate-200'}`}>{msg.content}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                   <div className="h-1" ref={consoleScrollRef}></div>
                 </div>
                 {/* Modified Files Side */}

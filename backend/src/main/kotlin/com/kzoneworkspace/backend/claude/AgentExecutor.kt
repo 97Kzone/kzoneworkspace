@@ -38,12 +38,13 @@ class AgentExecutor(
     fun execute(agent: Agent, roomId: String, userMessage: String) {
         val task = taskService.createTask(roomId, userMessage, agent)
         taskService.updateStatus(task.id, TaskStatus.RUNNING)
-        sendMessage(roomId, agent.name, "업무 분석 중...", MessageType.AGENT)
+        sendMessage(roomId, agent.name, "사용자 요청을 분석하고 있습니다...", MessageType.THINKING)
 
         try {
             val messages = mutableListOf<Map<String, Any>>()
             
             // 장기 기억 조회 (Semantic Search)
+            sendMessage(roomId, agent.name, "관련된 과거 기억을 조회 중입니다...", MessageType.THINKING)
             val relatedMemories = memoryService.searchSimilarMemories(agent.id, userMessage)
             if (relatedMemories.isNotEmpty()) {
                 val memoryContext = relatedMemories.joinToString("\n---\n")
@@ -54,18 +55,21 @@ class AgentExecutor(
             }
 
             // 프로젝트 컨텍스트 주입 (지능 고도화)
+            sendMessage(roomId, agent.name, "프로젝트 구조와 설정을 분석하고 있습니다...", MessageType.THINKING)
             val projectContext = projectContextService.getProjectContext()
             messages.add(mapOf(
                 "role" to "user", 
                 "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage"
             ))
 
+            sendMessage(roomId, agent.name, "최적의 해결 방법을 계획하고 있습니다...", MessageType.THINKING)
             val lastResponse = runReasoningLoop(agent, roomId, messages)
 
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
             // 장기 기억 저장
+            sendMessage(roomId, agent.name, "대화 내용을 장기 기억에 저장 중입니다...", MessageType.THINKING)
             memoryService.saveMemory(agent.id, roomId, "User: $userMessage\nAgent: $lastResponse")
 
         } catch (e: Exception) {

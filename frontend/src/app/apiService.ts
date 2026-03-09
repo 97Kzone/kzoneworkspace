@@ -33,7 +33,7 @@ export interface ChatMessage {
     senderId: string;
     senderName: string;
     content: string;
-    type: 'CHAT' | 'SYSTEM' | 'AGENT' | 'COMMAND' | 'TOOL';
+    type: 'CHAT' | 'SYSTEM' | 'AGENT' | 'COMMAND' | 'TOOL' | 'THINKING';
     timestamp?: string;
 }
 
