@@ -7,7 +7,7 @@ import java.io.File
 class ProjectContextService {
 
     fun getProjectContext(): String {
-        val root = File(".")
+        val root = findProjectRoot()
         val context = StringBuilder()
 
         context.append("# 🚀 Project Context (Intelligence Boosted)\n\n")
@@ -19,25 +19,24 @@ class ProjectContextService {
         context.append("```\n\n")
 
         // 2. Automatically Identify Important Files
-        val importantFilePatterns = listOf(
-            "README.md", "../README.md",
-            "compose.yaml", "../compose.yaml",
-            "docker-compose.yml", "../docker-compose.yml",
-            "build.gradle.kts", "backend/build.gradle.kts",
-            "src/main/resources/application.properties", "backend/src/main/resources/application.properties",
-            ".env", "backend/.env",
-            "../frontend/package.json", "frontend/package.json",
-            "../frontend/next.config.js", "frontend/next.config.js",
-            "../frontend/src/app/page.tsx", "frontend/src/app/page.tsx"
+        val importantFilePaths = listOf(
+            "README.md",
+            "compose.yaml",
+            "docker-compose.yml",
+            "backend/build.gradle.kts",
+            "backend/src/main/resources/application.properties",
+            "backend/.env",
+            "frontend/package.json",
+            "frontend/next.config.js",
+            "frontend/src/app/page.tsx"
         )
 
         context.append("## 📄 Key Project Files\n")
-        for (filePath in importantFilePatterns) {
-            val file = File(filePath)
+        for (relPath in importantFilePaths) {
+            val file = File(root, relPath)
             if (file.exists() && file.isFile) {
-                context.append("### FILE: $filePath\n")
+                context.append("### FILE: $relPath\n")
                 context.append("```\n")
-                // Read up to 1500 chars per file to stay within context limits
                 val content = file.readText().take(1500)
                 context.append(content)
                 if (file.length() > 1500) context.append("\n... (truncated for brevity)")
@@ -45,13 +44,55 @@ class ProjectContextService {
             }
         }
 
-        // 3. Tech Stack Summary (Derived from files)
+        // 3. Intelligent Component Discovery
+        context.append("## 🧩 Identified Components\n")
+        discoverComponents(root, context)
+        context.append("\n")
+
+        // 4. Tech Stack Summary
         context.append("## 🛠️ Tech Stack Summary\n")
-        if (File("backend").exists()) context.append("- **Backend**: Kotlin, Spring Boot, Gradle, PostgreSQL (pgvector)\n")
-        if (File("frontend").exists()) context.append("- **Frontend**: Next.js, React, TypeScript, Tailwind CSS\n")
-        if (File("compose.yaml").exists() || File("docker-compose.yml").exists()) context.append("- **Infrastructure**: Docker Compose\n")
+        if (File(root, "backend").exists()) context.append("- **Backend**: Kotlin, Spring Boot, Gradle, PostgreSQL (pgvector)\n")
+        if (File(root, "frontend").exists()) context.append("- **Frontend**: Next.js, React, TypeScript, Tailwind CSS\n")
+        if (File(root, "compose.yaml").exists() || File(root, "docker-compose.yml").exists()) context.append("- **Infrastructure**: Docker Compose\n")
 
         return context.toString()
+    }
+
+    private fun findProjectRoot(): File {
+        var current = File(".").absoluteFile
+        while (current.parentFile != null) {
+            if (File(current, "backend").exists() && File(current, "frontend").exists()) {
+                return current
+            }
+            if (File(current, "src/main/kotlin").exists()) { // We are inside backend
+                return current.parentFile ?: current
+            }
+            current = current.parentFile
+        }
+        return File(".")
+    }
+
+    private fun discoverComponents(root: File, context: StringBuilder) {
+        val backendSrc = File(root, "backend/src/main/kotlin")
+        if (!backendSrc.exists()) return
+
+        val entities = mutableListOf<String>()
+        val controllers = mutableListOf<String>()
+
+        backendSrc.walkTopDown().forEach { file ->
+            if (file.isFile && file.extension == "kt") {
+                val content = file.readText()
+                if (content.contains("@Entity")) entities.add(file.nameWithoutExtension)
+                if (content.contains("@RestController") || content.contains("@Controller")) controllers.add(file.nameWithoutExtension)
+            }
+        }
+
+        if (entities.isNotEmpty()) {
+            context.append("- **Entities**: ${entities.joinToString(", ")}\n")
+        }
+        if (controllers.isNotEmpty()) {
+            context.append("- **Controllers**: ${controllers.joinToString(", ")}\n")
+        }
     }
 
     private fun generateDirectoryTree(file: File, indent: String, depth: Int, maxDepth: Int, context: StringBuilder) {
