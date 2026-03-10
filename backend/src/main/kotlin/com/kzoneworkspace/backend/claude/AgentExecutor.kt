@@ -17,6 +17,7 @@ import com.google.genai.types.FunctionCall
 import com.kzoneworkspace.backend.tools.BrowserService
 import org.springframework.beans.factory.annotation.Value
 import com.kzoneworkspace.backend.agent.service.MemoryService
+import com.kzoneworkspace.backend.tools.GitService
 import java.net.URLEncoder
 
 @Service
@@ -30,6 +31,7 @@ class AgentExecutor(
     private val chatMessageRepository: ChatMessageRepository,
     private val browserService: BrowserService,
     private val memoryService: MemoryService,
+    private val gitService: GitService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val objectMapper = jacksonObjectMapper()
@@ -187,6 +189,38 @@ class AgentExecutor(
                     ),
                     "required" to listOf("url")
                 )
+            ),
+            mapOf(
+                "name" to "git_status",
+                "description" to "현재 로컬 저장소의 변경 상태를 확인합니다.",
+                "input_schema" to mapOf("type" to "object", "properties" to mapOf())
+            ),
+            mapOf(
+                "name" to "git_diff",
+                "description" to "수정된 파일의 상세 변경 내용을 확인합니다.",
+                "input_schema" to mapOf("type" to "object", "properties" to mapOf())
+            ),
+            mapOf(
+                "name" to "git_add",
+                "description" to "파일을 스테이징 영역에 추가합니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "path" to mapOf("type" to "string", "description" to "스테이징할 파일 경로 ('.' 은 모든 변경사항)")
+                    ),
+                    "required" to listOf("path")
+                )
+            ),
+            mapOf(
+                "name" to "git_commit",
+                "description" to "스테이징된 변경 사항을 커밋합니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "message" to mapOf("type" to "string", "description" to "커밋 메시지")
+                    ),
+                    "required" to listOf("message")
+                )
             )
         )
 
@@ -287,6 +321,10 @@ class AgentExecutor(
                             "call_agent" -> handleCallAgent(input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
                             "web_search" -> handleWebSearch(input["query"] as? String ?: "")
                             "browse" -> handleBrowse(input["url"] as? String ?: "")
+                            "git_status" -> gitService.status()
+                            "git_diff" -> gitService.diff()
+                            "git_add" -> gitService.add(input["path"] as? String ?: ".")
+                            "git_commit" -> gitService.commit(input["message"] as? String ?: "")
                             else -> "알 수 없는 도구: $toolName"
                         }
                     } catch (e: Exception) {
