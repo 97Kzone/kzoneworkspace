@@ -5,13 +5,17 @@ import com.kzoneworkspace.backend.agent.repository.MemoryRepository
 import com.kzoneworkspace.backend.claude.GeminiClient
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mock
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.MockitoAnnotations
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MemoryServiceTest {
 
@@ -30,7 +34,8 @@ class MemoryServiceTest {
     }
 
     @Test
-    fun testSaveMemory() {
+    fun `saveMemory should save memory when content is valid`() {
+        // Given
         val agentId = 1L
         val roomId = "test-room"
         val content = "This is a test memory"
@@ -38,14 +43,27 @@ class MemoryServiceTest {
         
         `when`(geminiClient.embedText(content)).thenReturn(embedding)
         
+        // When
         memoryService.saveMemory(agentId, roomId, content)
         
+        // Then
         verify(geminiClient).embedText(content)
-        // verify(memoryRepository).save(...) - We'd need an argument captor or equality check for the entity
+        verify(memoryRepository).save(any())
     }
 
     @Test
-    fun testSearchSimilarMemories() {
+    fun `saveMemory should not save when content is blank`() {
+        // When
+        memoryService.saveMemory(1L, "room", "   ")
+        
+        // Then
+        verifyNoInteractions(geminiClient)
+        verifyNoInteractions(memoryRepository)
+    }
+
+    @Test
+    fun `searchSimilarMemories should return list of contents when query is valid`() {
+        // Given
         val agentId = 1L
         val query = "test query"
         val embedding = listOf(0.1f, 0.2f, 0.3f)
@@ -55,12 +73,40 @@ class MemoryServiceTest {
         )
 
         `when`(geminiClient.embedText(query)).thenReturn(embedding)
-        `when`(memoryRepository.findSimilarMemories(agentId, embedding.toString(), 3)).thenReturn(mockMemories)
+        `when`(memoryRepository.findSimilarMemories(eq(agentId), eq(embedding.toString()), eq(3)))
+            .thenReturn(mockMemories)
 
+        // When
         val results = memoryService.searchSimilarMemories(agentId, query)
 
+        // Then
         assertEquals(2, results.size)
         assertEquals("Result 1", results[0])
         assertEquals("Result 2", results[1])
+        verify(geminiClient).embedText(query)
+        verify(memoryRepository).findSimilarMemories(eq(agentId), eq(embedding.toString()), eq(3))
+    }
+
+    @Test
+    fun `searchSimilarMemories should return empty list when query is blank`() {
+        // When
+        val results = memoryService.searchSimilarMemories(1L, "")
+        
+        // Then
+        assertTrue(results.isEmpty())
+        verifyNoInteractions(geminiClient)
+        verifyNoInteractions(memoryRepository)
+    }
+
+    @Test
+    fun `searchSimilarMemories should return empty list when exception occurs`() {
+        // Given
+        `when`(geminiClient.embedText(any())).thenThrow(RuntimeException("API Error"))
+        
+        // When
+        val results = memoryService.searchSimilarMemories(1L, "error query")
+        
+        // Then
+        assertTrue(results.isEmpty())
     }
 }

@@ -17,6 +17,7 @@ import com.google.genai.types.FunctionCall
 import com.kzoneworkspace.backend.tools.BrowserService
 import org.springframework.beans.factory.annotation.Value
 import com.kzoneworkspace.backend.agent.service.MemoryService
+import com.kzoneworkspace.backend.agent.service.MemoryExtractionService
 import com.kzoneworkspace.backend.tools.GitService
 import java.net.URLEncoder
 
@@ -31,6 +32,7 @@ class AgentExecutor(
     private val chatMessageRepository: ChatMessageRepository,
     private val browserService: BrowserService,
     private val memoryService: MemoryService,
+    private val memoryExtractionService: MemoryExtractionService,
     private val gitService: GitService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
@@ -70,9 +72,10 @@ class AgentExecutor(
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
-            // 장기 기억 저장
-            sendMessage(roomId, agent.name, "대화 내용을 장기 기억에 저장 중입니다...", MessageType.THINKING)
-            memoryService.saveMemory(agent.id, roomId, "User: $userMessage\nAgent: $lastResponse")
+            // 장기 기억 추출 및 저장 (단순 저장이 아닌 지능적 추출)
+            sendMessage(roomId, agent.name, "대화 내용에서 중요한 정보를 추출하여 기억하고 있습니다...", MessageType.THINKING)
+            val fullDialogue = "User: $userMessage\nAgent: $lastResponse"
+            memoryExtractionService.extractAndSaveMemory(agent.id, roomId, fullDialogue)
 
         } catch (e: Exception) {
             val errorMsg = "업무 수행 중 오류가 발생했습니다: ${e.message}"
@@ -193,12 +196,12 @@ class AgentExecutor(
             mapOf(
                 "name" to "git_status",
                 "description" to "현재 로컬 저장소의 변경 상태를 확인합니다.",
-                "input_schema" to mapOf("type" to "object", "properties" to mapOf())
+                "input_schema" to mapOf("type" to "object", "properties" to mapOf<String, Any>())
             ),
             mapOf(
                 "name" to "git_diff",
                 "description" to "수정된 파일의 상세 변경 내용을 확인합니다.",
-                "input_schema" to mapOf("type" to "object", "properties" to mapOf())
+                "input_schema" to mapOf("type" to "object", "properties" to mapOf<String, Any>())
             ),
             mapOf(
                 "name" to "git_add",
