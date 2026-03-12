@@ -29,6 +29,7 @@ class AgentService(
         agent.systemPrompt = updated.systemPrompt
         agent.provider = updated.provider
         agent.model = updated.model
+        agent.assignedSkills = updated.assignedSkills
         agent.updatedAt = LocalDateTime.now()
         return agentRepository.save(agent)
     }

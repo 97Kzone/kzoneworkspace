@@ -1,12 +1,15 @@
 package com.kzoneworkspace.backend.agent.entity
 
+import jakarta.persistence.CollectionTable
 import jakarta.persistence.Column
+import jakarta.persistence.ElementCollection
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
 import jakarta.persistence.Table
 import java.time.LocalDateTime
 
@@ -35,11 +38,26 @@ class Agent(
     @Enumerated(EnumType.STRING)
     var status: AgentStatus = AgentStatus.IDLE,
 
+    @ElementCollection
+    @CollectionTable(name = "agent_skills", joinColumns = [JoinColumn(name = "agent_id")])
+    @Column(name = "skill_name")
+    var assignedSkills: MutableList<String> = mutableListOf(),
+
     @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
 
     var updatedAt: LocalDateTime = LocalDateTime.now()
-)
+) {
+    fun addSkill(skill: String) {
+        if (!assignedSkills.contains(skill)) {
+            assignedSkills.add(skill)
+        }
+    }
+
+    fun removeSkill(skill: String) {
+        assignedSkills.remove(skill)
+    }
+}
 
 enum class AgentStatus {
     IDLE, RUNNING, COMPLETED, ERROR

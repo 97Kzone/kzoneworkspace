@@ -9,13 +9,15 @@ data class AgentRequest (
     val role: String,
     val systemPrompt: String = "",
     val provider: AiProvider,
-    val model: String
+    val model: String,
+    val assignedSkills: List<String> = emptyList()
 ) {
     fun toEntity(): Agent = Agent(
         name = name,
         role = role,
         systemPrompt = systemPrompt,
         provider = provider,
-        model = model
+        model = model,
+        assignedSkills = assignedSkills.toMutableList()
     )
 }

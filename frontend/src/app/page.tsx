@@ -4,17 +4,19 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
-import { Agent, Task, ChatMessage, agentService, taskService, chatService, createWebSocketClient } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, agentService, taskService, chatService, skillService, createWebSocketClient } from "./apiService";
 
 export default function VirtualOfficeBright() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [skills, setSkills] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [isSkillInventoryOpen, setIsSkillInventoryOpen] = useState(false);
 
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
-  const [newAgent, setNewAgent] = useState({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "" });
+  const [newAgent, setNewAgent] = useState({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "", assignedSkills: [] as string[] });
   const [editingAgentId, setEditingAgentId] = useState<number | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
   const [showActivityPanel, setShowActivityPanel] = useState(true);
@@ -28,15 +30,16 @@ export default function VirtualOfficeBright() {
 
   const fetchInitialData = async () => {
     try {
-      const [agentRes, taskRes, historyRes] = await Promise.all([
+      const [agentRes, taskRes, historyRes, skillRes] = await Promise.all([
         agentService.getAll(),
         taskService.getByRoom("default"),
-        chatService.getHistory("default")
+        chatService.getHistory("default"),
+        skillService.getAll()
       ]);
       setAgents(agentRes.data);
       setTasks(taskRes.data);
-      // 초기 라운지 메시지 설정
       setMessages(historyRes.data);
+      setSkills(skillRes.data);
     } catch (err) {
       console.error("데이터 로드 실패:", err);
     }
@@ -144,7 +147,7 @@ export default function VirtualOfficeBright() {
       }
       await fetchInitialData();
       setIsDeployModalOpen(false);
-      setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "" });
+      setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "", assignedSkills: [] });
       setEditingAgentId(null);
     } catch (err) {
       console.error("작업 실패:", err);
@@ -159,7 +162,8 @@ export default function VirtualOfficeBright() {
       name: agent.name,
       role: agent.role,
       model: agent.model,
-      systemPrompt: agent.systemPrompt || ""
+      systemPrompt: agent.systemPrompt || "",
+      assignedSkills: agent.assignedSkills || []
     });
     setEditingAgentId(agent.id);
     setIsDeployModalOpen(true);
@@ -250,7 +254,7 @@ export default function VirtualOfficeBright() {
               </span>
               <div>
                 <span className={`font-semibold mr-1.5 ${msg.senderId === 'user-1' ? 'text-blue-500' : msg.type === 'AGENT' ? 'text-indigo-500' : msg.type === 'THINKING' ? 'text-indigo-400' : 'text-slate-500'}`}>
-                  {msg.senderId === 'user-1' ? '나' : msg.senderName} 
+                  {msg.senderId === 'user-1' ? '나' : msg.senderName}
                   {msg.type === 'THINKING' && <span className="ml-1 text-[8px] font-black uppercase tracking-tighter opacity-50">[Thinking]</span>}
                 </span>
                 <div className={`prose prose-sm max-w-none ${msg.type === 'THINKING' ? 'text-indigo-400/70 italic bg-indigo-50/30 px-2 py-0.5 rounded-lg border border-indigo-100/20' : 'text-slate-600 italic'}`}>
@@ -297,6 +301,14 @@ export default function VirtualOfficeBright() {
             </div>
             가상 오피스
           </h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSkillInventoryOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl border border-indigo-100 transition-all font-bold text-xs"
+            >
+              <Database size={16} /> 기술 인벤토리
+            </button>
+          </div>
         </div>
 
         {/* The 2D Map Floor (Very subtle cute grid) */}
@@ -416,7 +428,7 @@ export default function VirtualOfficeBright() {
                         <div className="flex flex-col">
                           <span className="uppercase">{statusText}</span>
                           {getFileName(lastToolMsg?.content || "") && (
-                             <span className="text-[8px] opacity-70 truncate max-w-[100px]">{getFileName(lastToolMsg?.content || "")}</span>
+                            <span className="text-[8px] opacity-70 truncate max-w-[100px]">{getFileName(lastToolMsg?.content || "")}</span>
                           )}
                         </div>
                         <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-white/80 border-r border-b border-white/60`}></div>
@@ -805,7 +817,7 @@ export default function VirtualOfficeBright() {
                 <button onClick={() => {
                   setIsDeployModalOpen(false);
                   setEditingAgentId(null);
-                  setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "" });
+                  setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "", assignedSkills: [] });
                 }} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
                   <X size={18} />
                 </button>
@@ -855,9 +867,34 @@ export default function VirtualOfficeBright() {
                   <textarea
                     value={newAgent.systemPrompt}
                     onChange={e => setNewAgent({ ...newAgent, systemPrompt: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 font-medium focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all h-28 resize-none placeholder:text-slate-300"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 font-medium focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all h-24 resize-none placeholder:text-slate-300"
                     placeholder="밝고 활기차며 창의적인 플래너로 활동하세요..."
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">할당된 기술 (Skills)</label>
+                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto custom-scrollbar pr-2">
+                    {skills.map(skill => (
+                      <label key={skill.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-indigo-200 cursor-pointer transition-all">
+                        <input
+                          type="checkbox"
+                          checked={newAgent.assignedSkills.includes(skill.name)}
+                          onChange={e => {
+                            const updated = e.target.checked
+                              ? [...newAgent.assignedSkills, skill.name]
+                              : newAgent.assignedSkills.filter(s => s !== skill.name);
+                            setNewAgent({ ...newAgent, assignedSkills: updated });
+                          }}
+                          className="w-4 h-4 text-indigo-500 rounded focus:ring-indigo-400"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-700">{skill.name}</span>
+                          <span className="text-[9px] text-slate-400 truncate w-32">{skill.description}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="pt-2 flex justify-end gap-3 mt-4">
@@ -878,6 +915,75 @@ export default function VirtualOfficeBright() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSkillInventoryOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="w-[700px] h-[600px] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+                    <Database size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-extrabold text-slate-800">기술 인벤토리</h3>
+                    <p className="text-xs text-slate-400 font-medium tracking-tight">현재 시스템에 설치된 기술 리스트</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsSkillInventoryOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-slate-50/30">
+                <div className="grid grid-cols-2 gap-6">
+                  {skills.map(skill => (
+                    <div key={skill.id} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all group">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Code2 size={24} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-50/50 px-2 py-1 rounded-md">
+                          Skill ID: {skill.id}
+                        </span>
+                      </div>
+                      <h4 className="text-base font-bold text-slate-800 mb-2">{skill.name}</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed mb-4">{skill.description}</p>
+                      <div className="flex items-center gap-2 mt-auto">
+                        <div className="text-[9px] font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded truncate flex-1">
+                          {skill.path}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {skills.length === 0 && (
+                    <div className="col-span-2 flex flex-col items-center justify-center h-64 text-slate-400">
+                      <Loader2 size={32} className="animate-spin mb-4 opacity-20" />
+                      <p className="text-sm font-medium">설치된 기술을 불러오는 중이거나 없습니다.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-white shrink-0 flex justify-center">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles size={12} className="text-indigo-400" /> 새로운 기슬은 .agent/skills 에 clone 하세요
+                </p>
+              </div>
             </motion.div>
           </motion.div>
         )}

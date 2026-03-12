@@ -91,7 +91,9 @@ class AgentExecutor(
         messages: MutableList<Map<String, Any>>
     ): String {
         // 도구(Tools) 정의
-        val tools = mutableListOf(
+        val allToolsMap = mutableMapOf<String, List<Map<String, Any>>>()
+
+        allToolsMap["Files"] = listOf(
             mapOf(
                 "name" to "search_files",
                 "description" to "워크스페이스 내의 파일을 검색합니다. (파일명 패턴 입력)",
@@ -158,7 +160,10 @@ class AgentExecutor(
                     ),
                     "required" to listOf("command")
                 )
-            ),
+            )
+        )
+
+        allToolsMap["Collaboration"] = listOf(
             mapOf(
                 "name" to "call_agent",
                 "description" to "다른 에이전트에게 업무를 요청합니다.",
@@ -170,7 +175,10 @@ class AgentExecutor(
                     ),
                     "required" to listOf("agent_name", "task")
                 )
-            ),
+            )
+        )
+
+        allToolsMap["Search"] = listOf(
             mapOf(
                 "name" to "web_search",
                 "description" to "실시간 인터넷 검색을 수행하여 최신 정보를 가져옵니다.",
@@ -192,7 +200,10 @@ class AgentExecutor(
                     ),
                     "required" to listOf("url")
                 )
-            ),
+            )
+        )
+
+        allToolsMap["Git"] = listOf(
             mapOf(
                 "name" to "git_status",
                 "description" to "현재 로컬 저장소의 변경 상태를 확인합니다.",
@@ -226,6 +237,16 @@ class AgentExecutor(
                 )
             )
         )
+
+        // 에이전트에게 할당된 기술에 맞는 도구만 필터링
+        val tools = if (agent.assignedSkills.isEmpty()) {
+            // 기본 도구 (모든 에이전트가 공통으로 가짐)
+            allToolsMap["Files"] ?: emptyList()
+        } else {
+            agent.assignedSkills.flatMap { skillName ->
+                allToolsMap[skillName] ?: emptyList()
+            }
+        }
 
         var loop = true
         var lastResponse: String = ""

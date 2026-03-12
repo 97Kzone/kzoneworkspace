@@ -16,6 +16,14 @@ export interface Agent {
     status: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'ERROR';
     provider: string;
     model: string;
+    assignedSkills: string[];
+}
+
+export interface Skill {
+    id: string;
+    name: string;
+    description: string;
+    path: string;
 }
 
 export interface Task {
@@ -49,6 +57,10 @@ export const taskService = {
 
 export const chatService = {
     getHistory: (roomId: String) => api.get<ChatMessage[]>(`/chat/history?roomId=${roomId}`),
+};
+
+export const skillService = {
+    getAll: () => api.get<Skill[]>('/skills'),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
