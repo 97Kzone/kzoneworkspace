@@ -63,6 +63,11 @@ export const skillService = {
     getAll: () => api.get<Skill[]>('/skills'),
 };
 
+export const codeReviewService = {
+    perform: (roomId: string, agentName: string) =>
+        api.post<string>(`/code-review/perform?roomId=${roomId}&agentName=${agentName}`),
+};
+
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
         webSocketFactory: () => new SockJS(WS_URL),

@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value
 import com.kzoneworkspace.backend.agent.service.MemoryService
 import com.kzoneworkspace.backend.agent.service.MemoryExtractionService
 import com.kzoneworkspace.backend.tools.GitService
+import com.kzoneworkspace.backend.tools.CodeReviewService
 import java.net.URLEncoder
 
 @Service
@@ -34,6 +35,8 @@ class AgentExecutor(
     private val memoryService: MemoryService,
     private val memoryExtractionService: MemoryExtractionService,
     private val gitService: GitService,
+    private val collaborationService: com.kzoneworkspace.backend.agent.service.CollaborationService,
+    private val codeReviewService: CodeReviewService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val objectMapper = jacksonObjectMapper()
@@ -349,6 +352,10 @@ class AgentExecutor(
                             "git_diff" -> gitService.diff()
                             "git_add" -> gitService.add(input["path"] as? String ?: ".")
                             "git_commit" -> gitService.commit(input["message"] as? String ?: "")
+                            "request_code_review" -> {
+                                val diff = codeReviewService.getDiff()
+                                handleCallAgent(input["agent_name"] as? String ?: "Reviewer", "다음 Git 변경 사항을 리뷰하고 개선안을 제안해줘:\n\n$diff", roomId)
+                            }
                             else -> "알 수 없는 도구: $toolName"
                         }
                     } catch (e: Exception) {
@@ -375,6 +382,10 @@ class AgentExecutor(
     private fun handleCallAgent(agentName: String, task: String, roomId: String): String {
         val targetAgent = agentService.getAllAgents().find { it.name == agentName }
             ?: return "에이전트 '$agentName'(을)를 찾을 수 없습니다."
+
+        // 협업 로깅
+        val fromAgentName = agentService.getAllAgents().find { it.status.name != "OFFLINE" }?.name ?: "System" // Approximate current agent
+        collaborationService.logInteraction(roomId, fromAgentName, agentName, task, "REQUESTED")
 
         sendMessage(roomId, agentName, "🤝 **[협업 요청 수신]**\n> **요청 내용**: $task", MessageType.AGENT)
         

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
-import { Agent, Task, ChatMessage, Skill, agentService, taskService, chatService, skillService, createWebSocketClient } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, agentService, taskService, chatService, skillService, createWebSocketClient, codeReviewService } from "./apiService";
 
 export default function VirtualOfficeBright() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -23,6 +23,7 @@ export default function VirtualOfficeBright() {
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
   const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING'>('LOGS');
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,6 +129,22 @@ export default function VirtualOfficeBright() {
     });
 
     setInputValue("");
+  };
+
+  const handleStartCodeReview = async () => {
+    const reviewer = agents.find(a => a.name === "Reviewer") || agents[0];
+    if (!reviewer) return;
+
+    setIsReviewing(true);
+    const roomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
+    try {
+      await codeReviewService.perform(roomId, reviewer.name);
+    } catch (err) {
+      console.error("리뷰 요청 실패:", err);
+      alert("코드 리뷰 요청에 실패했습니다.");
+    } finally {
+      setIsReviewing(false);
+    }
   };
 
   const handleDeployAgent = async (e: React.FormEvent) => {
@@ -307,6 +324,14 @@ export default function VirtualOfficeBright() {
               className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl border border-indigo-100 transition-all font-bold text-xs"
             >
               <Database size={16} /> 기술 인벤토리
+            </button>
+            <button
+              onClick={handleStartCodeReview}
+              disabled={isReviewing}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-xs disabled:opacity-50"
+            >
+              <Code2 size={16} className={isReviewing ? "animate-pulse" : ""} />
+              {isReviewing ? "리뷰 분석 중..." : "코드 리뷰 시작"}
             </button>
           </div>
         </div>
