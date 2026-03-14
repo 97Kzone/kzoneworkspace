@@ -207,12 +207,40 @@ export default function VirtualOfficeBright() {
     return colors[index];
   };
 
-  const getAgentPosition = (index: number) => {
-    const cols = 4;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    // Adjust Y position to give more room for bottom panel if visible
-    return { top: 120 + row * 160, left: 150 + col * 180 };
+  const getAgentPosition = (agent: Agent, index: number) => {
+    // Default positions (Lounge area)
+    const loungeBase = { top: 450, left: 150 };
+
+    // Check if agent is running a task
+    const isRunning = tasks.some(t => t.agent?.id === agent.id && t.status === 'RUNNING');
+    if (!isRunning) {
+      // Idle agents stay in the lounge but spread out
+      const cols = 3;
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      return { top: loungeBase.top + (row * 100), left: loungeBase.left + (col * 120) };
+    }
+
+    // Agent is active, determine zone based on last tool message
+    const lastToolMsg = [...messages].reverse().find(m => m.senderName === agent.name && m.type === 'TOOL');
+    const content = lastToolMsg?.content || "";
+
+    if (content.includes('write_file') || content.includes('read_file') || content.includes('search_files') || content.includes('git_')) {
+      // Coding Desk (Top Right Area)
+      return { top: 150 + (index * 80), left: 600 + (Math.random() * 50) };
+    } else if (content.includes('call_agent') || content.includes('request_code_review')) {
+      // Meeting/Brainstorm Zone (Left Middle)
+      return { top: 250 + (Math.random() * 60), left: 100 + (Math.random() * 60) };
+    } else if (content.includes('run_command')) {
+      // Terminal execution zone (Center Right)
+      return { top: 300 + (index * 60), left: 500 };
+    } else if (content.includes('web_search') || content.includes('browse')) {
+      // Research/Idea zone (Top Left)
+      return { top: 120 + (Math.random() * 50), left: 60 + (Math.random() * 50) };
+    }
+
+    // Default active position (thinking, no tool yet)
+    return { top: 350, left: 350 + (index * 80) };
   };
 
   const getRecentFiles = () => {
@@ -350,12 +378,24 @@ export default function VirtualOfficeBright() {
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-200/20 blur-[100px] rounded-full -z-10"></div>
 
           {/* Environment Props - Work Zones (Glassmorphism) */}
-          <div className="absolute top-[120px] left-[60px] w-36 h-56 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl flex flex-col items-center p-4 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[-1deg] hover:rotate-0 transition-transform duration-500 group">
+          {/* 1. Idea/Research Zone (Top Left) */}
+          <div className="absolute top-[80px] left-[40px] w-48 h-56 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl flex flex-col items-center p-4 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[-2deg] hover:rotate-0 transition-transform duration-500 group">
             <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform shadow-inner">
-              <Layout size={24} />
+              <Sparkles size={24} />
             </div>
-            <span className="text-[10px] text-slate-400 font-extrabold tracking-[0.2em] uppercase">아이디어</span>
+            <span className="text-[10px] text-slate-400 font-extrabold tracking-[0.2em] uppercase">리서치 센터</span>
             <div className="w-full h-1 bg-gradient-to-r from-transparent via-sky-200 to-transparent rounded-full opacity-50"></div>
+            <div className="text-[9px] text-slate-400 text-center font-medium mt-2">인터넷 검색 및 분석</div>
+          </div>
+
+          {/* 2. Coding Desk Zone (Top Right) */}
+          <div className="absolute top-[100px] right-[400px] w-64 h-72 bg-slate-800/5 backdrop-blur-md border border-slate-800/10 rounded-3xl flex flex-col items-center p-6 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[1deg] hover:rotate-0 transition-transform duration-500 group">
+            <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform shadow-lg">
+              <Code2 size={28} />
+            </div>
+            <span className="text-[11px] text-slate-600 font-extrabold tracking-[0.2em] uppercase">개발 스튜디오</span>
+            <div className="w-full h-1 bg-gradient-to-r from-transparent via-emerald-300 to-transparent rounded-full opacity-50"></div>
+            <div className="text-[9px] text-slate-500 text-center font-medium mt-2">파일 편집 및 깃허브 리뷰</div>
           </div>
 
           <div className="absolute bottom-[100px] left-[100px] w-72 h-44 bg-indigo-50/40 backdrop-blur-lg border border-indigo-100/60 rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/60 transition-all duration-500 shadow-[0_20px_40px_rgba(0,0,0,0.03)] group"
@@ -385,8 +425,8 @@ export default function VirtualOfficeBright() {
                 const toAgent = agents.find(a => a.name === conn.to);
 
                 // If 'from' is user/lounge, use fixed position
-                const fromPos = fromAgent ? getAgentPosition(agents.indexOf(fromAgent)) : { top: 480, left: 240 }; // Lounge approx pos
-                const toPos = toAgent ? getAgentPosition(agents.indexOf(toAgent)) : null;
+                const fromPos = fromAgent ? getAgentPosition(fromAgent, agents.indexOf(fromAgent)) : { top: 480, left: 240 }; // Lounge approx pos
+                const toPos = toAgent ? getAgentPosition(toAgent, agents.indexOf(toAgent)) : null;
 
                 if (!toPos) return null;
 
@@ -414,16 +454,19 @@ export default function VirtualOfficeBright() {
 
           {/* Agents */}
           {agents.map((agent, i) => {
-            const pos = getAgentPosition(i);
+            const pos = getAgentPosition(agent, i);
             const isRunning = tasks.some(t => t.agent?.id === agent.id && t.status === 'RUNNING');
 
             return (
               <motion.div
                 key={agent.id}
                 className="absolute flex flex-col items-center cursor-pointer group"
-                style={{ top: pos.top, left: pos.left }}
+                initial={{ top: pos.top, left: pos.left }}
+                animate={{ top: pos.top, left: pos.left }}
+                transition={{ type: "spring", stiffness: 60, damping: 15 }}
                 onClick={() => setActiveChat(agent.name)}
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, zIndex: 40 }}
+                style={{ zIndex: isRunning ? 30 : 20 }}
               >
                 {/* Status bubble */}
                 <div className="absolute -top-7 bg-white border border-slate-200 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-lg shadow-slate-200/50 transform -translate-y-2 group-hover:translate-y-0">

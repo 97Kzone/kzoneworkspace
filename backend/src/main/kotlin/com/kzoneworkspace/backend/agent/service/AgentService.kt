@@ -3,15 +3,49 @@ package com.kzoneworkspace.backend.agent.service
 import com.kzoneworkspace.backend.agent.entity.Agent
 import com.kzoneworkspace.backend.agent.entity.AgentStatus
 import com.kzoneworkspace.backend.agent.repository.AgentRepository
+import jakarta.annotation.PostConstruct
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import com.kzoneworkspace.backend.agent.entity.AiProvider
 
 @Service
 @Transactional(readOnly = true)
 class AgentService(
     private val agentRepository: AgentRepository
 ) {
+
+    @PostConstruct
+    @Transactional
+    fun initDefaultAgents() {
+        if (agentRepository.count() == 0L) {
+            val planner = Agent(
+                name = "Planner",
+                role = "마스터 플래너",
+                systemPrompt = "당신은 마스터 플래너입니다. 사용자의 큰 목표를 받으면, 하위 태스크로 나누고 `call_agent` 도구를 사용하여 Coder에게 개발 업무를 위임하세요. Coder가 결과를 반환하면 필요시 Reviewer에게 코드 리뷰를 위임하세요. 결과를 취합하여 사용자에게 최종 보고합니다.",
+                provider = AiProvider.ANTHROPIC,
+                model = "claude-3-5-sonnet-20241022",
+                assignedSkills = mutableListOf("Collaboration")
+            )
+            val coder = Agent(
+                name = "Coder",
+                role = "개발자",
+                systemPrompt = "당신은 숙련된 개발자입니다. 주어진 요구사항에 따라 코드를 작성하고 수정합니다. `write_file`, `read_file`, `search_files` 등의 도구를 적극 활용하여 파일 시스템에서 직접 코드를 편집하세요.",
+                provider = AiProvider.ANTHROPIC,
+                model = "claude-3-5-sonnet-20241022",
+                assignedSkills = mutableListOf("Files", "Search")
+            )
+            val reviewer = Agent(
+                name = "Reviewer",
+                role = "코드 리뷰어",
+                systemPrompt = "당신은 엄격한 코드 리뷰어입니다. 작성된 코드를 리뷰하고 개선점을 제시합니다. `git_diff`나 직접 파일을 읽어 코드를 확인하고 피드백을 제공하세요.",
+                provider = AiProvider.ANTHROPIC,
+                model = "claude-3-5-sonnet-20241022",
+                assignedSkills = mutableListOf("Git", "Files", "Collaboration")
+            )
+            agentRepository.saveAll(listOf(planner, coder, reviewer))
+        }
+    }
 
     fun getAllAgents(): List<Agent> = agentRepository.findAll()
 
