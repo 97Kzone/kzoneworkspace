@@ -2,9 +2,28 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical } from "lucide-react";
+import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
+import mermaid from 'mermaid';
 import { Agent, Task, ChatMessage, Skill, agentService, taskService, chatService, skillService, createWebSocketClient, codeReviewService } from "./apiService";
+
+const MermaidRenderer = ({ chart }: { chart: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      mermaid.render(`mermaid-${Math.random().toString(36).substr(2, 9)}`, chart).then(({ svg }) => {
+        if (containerRef.current) {
+          containerRef.current.innerHTML = svg;
+        }
+      }).catch(err => {
+        console.error("Mermaid Render Error:", err);
+      });
+    }
+  }, [chart]);
+
+  return <div ref={containerRef} className="flex justify-center w-full my-6 p-4 bg-white border border-slate-100 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)]" />;
+};
 
 export default function VirtualOfficeBright() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -24,6 +43,11 @@ export default function VirtualOfficeBright() {
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
   const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING'>('LOGS');
   const [isReviewing, setIsReviewing] = useState(false);
+
+  // Whiteboard State
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
+  const [whiteboardContent, setWhiteboardContent] = useState<string | null>(null);
+  const [isFullscreenWhiteboard, setIsFullscreenWhiteboard] = useState(false);
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -70,10 +94,25 @@ export default function VirtualOfficeBright() {
           }, 3000);
         }
       }
+
+      // Whiteboard Logic
+      if (msg.type === 'WHITEBOARD_UPDATE') {
+        setWhiteboardContent(msg.content);
+        if (!isWhiteboardOpen) {
+          setIsWhiteboardOpen(true);
+        }
+      }
     });
 
     stompClient.current = client;
     client.activate();
+
+    // Initialize mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+    });
 
     return () => {
       client.deactivate();
@@ -347,6 +386,13 @@ export default function VirtualOfficeBright() {
             가상 오피스
           </h1>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsWhiteboardOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-100 transition-all font-bold text-xs"
+            >
+              <Presentation size={16} /> 화이트보드
+              {whiteboardContent && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
+            </button>
             <button
               onClick={() => setIsSkillInventoryOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl border border-indigo-100 transition-all font-bold text-xs"
@@ -1051,6 +1097,84 @@ export default function VirtualOfficeBright() {
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
                   <Sparkles size={12} className="text-indigo-400" /> 새로운 기슬은 .agent/skills 에 clone 하세요
                 </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 5. Whiteboard Modal */}
+      <AnimatePresence>
+        {isWhiteboardOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className={`bg-white rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col transition-all duration-300 ${isFullscreenWhiteboard ? 'w-full h-full' : 'w-[1000px] h-[750px] max-h-full'}`}
+            >
+              <div className="px-8 py-5 border-b border-indigo-50 bg-white flex items-center justify-between shadow-sm z-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-inner">
+                    <Presentation size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">에이전트 화이트보드</h3>
+                    <p className="text-sm text-slate-500 font-medium">요원들의 기획안과 다이어그램이 실시간으로 그려집니다.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setIsFullscreenWhiteboard(!isFullscreenWhiteboard)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
+                    <Maximize2 size={18} />
+                  </button>
+                  <button onClick={() => setIsWhiteboardOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto w-full h-full bg-[#fafbfd] custom-scrollbar p-8">
+                {whiteboardContent ? (
+                  <div className="prose prose-slate max-w-none prose-h1:text-3xl prose-h1:font-black prose-h2:text-2xl prose-h3:text-xl prose-pre:bg-slate-800 prose-pre:text-slate-100 prose-pre:p-4 prose-pre:rounded-xl prose-img:rounded-xl prose-img:shadow-md prose-a:text-indigo-500 prose-a:no-underline hover:prose-a:underline">
+                    <ReactMarkdown
+                      components={{
+                        code: ({ node, className, children, ...props }: any) => {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const isMermaid = match && match[1] === 'mermaid';
+
+                          if (isMermaid) {
+                            return <MermaidRenderer chart={String(children).replace(/\n$/, '')} />;
+                          }
+
+                          return !className ? (
+                            <code className="bg-slate-200 text-pink-500 px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
+                              {children}
+                            </code>
+                          ) : (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          );
+                        }
+                      }}
+                    >
+                      {whiteboardContent}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
+                    <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center">
+                      <Presentation size={48} className="text-slate-300 opacity-50" />
+                    </div>
+                    <p className="text-lg font-bold">화이트보드가 비어있습니다.</p>
+                    <p className="text-sm font-medium text-slate-400">요원에게 마크다운이나 다이어그램 작성을 요청해 보세요.</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

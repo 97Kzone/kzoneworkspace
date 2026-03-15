@@ -178,6 +178,17 @@ class AgentExecutor(
                     ),
                     "required" to listOf("agent_name", "task")
                 )
+            ),
+            mapOf(
+                "name" to "update_whiteboard",
+                "description" to "가상 오피스의 화이트보드에 기획안, 마크다운 노트, 또는 Mermaid 다이어그램을 그려 사용자나 다른 에이전트와 공유합니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "content" to mapOf("type" to "string", "description" to "화이트보드에 표시할 마크다운 또는 Mermaid 내용")
+                    ),
+                    "required" to listOf("content")
+                )
             )
         )
 
@@ -356,6 +367,7 @@ class AgentExecutor(
                                 val diff = codeReviewService.getDiff()
                                 handleCallAgent(input["agent_name"] as? String ?: "Reviewer", "다음 Git 변경 사항을 리뷰하고 개선안을 제안해줘:\n\n$diff", roomId)
                             }
+                            "update_whiteboard" -> handleUpdateWhiteboard(input["content"] as? String ?: "", roomId, agent.name)
                             else -> "알 수 없는 도구: $toolName"
                         }
                     } catch (e: Exception) {
@@ -377,6 +389,11 @@ class AgentExecutor(
             }
         }
         return lastResponse
+    }
+
+    private fun handleUpdateWhiteboard(content: String, roomId: String, agentName: String): String {
+        sendMessage(roomId, agentName, content, MessageType.WHITEBOARD_UPDATE)
+        return "화이트보드가 성공적으로 업데이트되었습니다."
     }
 
     private fun handleCallAgent(agentName: String, task: String, roomId: String): String {

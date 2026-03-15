@@ -40,5 +40,6 @@ enum class MessageType {
     AGENT,      // 에이전트 응답
     COMMAND,    // 업무 지시
     TOOL,       // 도구 사용 및 결과
-    THINKING    // 에이전트 추론 과정
+    THINKING,   // 에이전트 추론 과정
+    WHITEBOARD_UPDATE // 화이트보드 업데이트
 }
