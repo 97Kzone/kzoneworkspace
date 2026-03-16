@@ -27,12 +27,34 @@ class BrowserService {
         }
     }
 
+    data class BrowseResult(val content: String, val base64Screenshot: String?)
+
+    fun navigateAndGetScreenshotWithText(url: String): BrowseResult {
+        return try {
+            val context = browser.newContext()
+            val page = context.newPage()
+            page.navigate(url)
+            page.waitForLoadState()
+            
+            // Get content
+            val content = page.innerText("body")
+            
+            // Get screenshot and encode to Base64
+            val screenshotBytes = page.screenshot()
+            val base64Screenshot = java.util.Base64.getEncoder().encodeToString(screenshotBytes)
+            
+            context.close()
+            BrowseResult(content, "data:image/png;base64,$base64Screenshot")
+        } catch (e: Exception) {
+            BrowseResult("Error navigating to $url: ${e.message}", null)
+        }
+    }
+
     fun navigateAndGetText(url: String): String {
         return try {
             val context = browser.newContext()
             val page = context.newPage()
             page.navigate(url)
-            // 페이지 로딩 대기 (필요 시 더 정교한 대기 로직 추가 가능)
             page.waitForLoadState()
             
             val content = page.innerText("body")

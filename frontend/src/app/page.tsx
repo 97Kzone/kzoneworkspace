@@ -49,6 +49,11 @@ export default function VirtualOfficeBright() {
   const [whiteboardContent, setWhiteboardContent] = useState<string | null>(null);
   const [isFullscreenWhiteboard, setIsFullscreenWhiteboard] = useState(false);
 
+  // Browser Preview State
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
+  const [browserUrl, setBrowserUrl] = useState<string>("");
+  const [browserScreenshot, setBrowserScreenshot] = useState<string | null>(null);
+
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const consoleScrollRef = useRef<HTMLDivElement>(null);
@@ -100,6 +105,20 @@ export default function VirtualOfficeBright() {
         setWhiteboardContent(msg.content);
         if (!isWhiteboardOpen) {
           setIsWhiteboardOpen(true);
+        }
+      }
+
+      // Browser Update Logic
+      if (msg.type === 'BROWSER_UPDATE') {
+        try {
+          const payload = JSON.parse(msg.content);
+          setBrowserUrl(payload.url || "");
+          setBrowserScreenshot(payload.screenshot || null);
+          if (!isBrowserOpen) {
+            setIsBrowserOpen(true);
+          }
+        } catch (e) {
+          console.error("Failed to parse BROWSER_UPDATE payload", e);
         }
       }
     });
@@ -387,11 +406,18 @@ export default function VirtualOfficeBright() {
           </h1>
           <div className="flex items-center gap-4">
             <button
+              onClick={() => setIsBrowserOpen(!isBrowserOpen)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all font-bold text-xs ${isBrowserOpen ? 'bg-sky-500 text-white border-sky-600 shadow-md' : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-100'}`}
+            >
+              <Layout size={16} /> 브라우저 뷰어
+              {browserScreenshot && !isBrowserOpen && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
+            </button>
+            <button
               onClick={() => setIsWhiteboardOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-100 transition-all font-bold text-xs"
             >
               <Presentation size={16} /> 화이트보드
-              {whiteboardContent && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
+              {whiteboardContent && !isWhiteboardOpen && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
             </button>
             <button
               onClick={() => setIsSkillInventoryOpen(true)}
@@ -1177,6 +1203,51 @@ export default function VirtualOfficeBright() {
                 )}
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Browser Preview (Floating Modal) */}
+      <AnimatePresence>
+        {isBrowserOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 50 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            drag
+            dragMomentum={false}
+            className="absolute bottom-10 right-[650px] w-[500px] bg-white/90 backdrop-blur-3xl rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-200/60 flex flex-col overflow-hidden z-[60]"
+          >
+            {/* Fake Browser Header */}
+            <div className="h-12 bg-slate-100/50 border-b border-slate-200/50 flex items-center px-4 shrink-0 cursor-grab active:cursor-grabbing justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1.5 mr-4">
+                  <div className="w-3 h-3 rounded-full bg-rose-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+                </div>
+                {/* URL Bar */}
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border border-slate-200/50 text-[10px] text-slate-500 w-[240px] truncate shadow-inner">
+                  <Layout size={12} className="text-slate-400 shrink-0" />
+                  <span className="truncate">{browserUrl || "대기 중..."}</span>
+                </div>
+              </div>
+              <button onClick={() => setIsBrowserOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            
+            {/* Browser Content (Screenshot) */}
+            <div className="flex-1 min-h-[300px] max-h-[500px] bg-[#f8fafc] overflow-y-auto custom-scrollbar flex flex-col relative w-full">
+              {browserScreenshot ? (
+                <img src={browserScreenshot} alt="Browser screenshot" className="w-full h-auto object-cover" />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4 py-20 w-full">
+                  <Loader2 size={32} className="animate-spin text-sky-400" />
+                  <p className="text-sm font-medium">실시간 화면을 가져오는 중...</p>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

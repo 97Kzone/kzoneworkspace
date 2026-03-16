@@ -41,7 +41,7 @@ export interface ChatMessage {
     senderId: string;
     senderName: string;
     content: string;
-    type: 'CHAT' | 'SYSTEM' | 'AGENT' | 'COMMAND' | 'TOOL' | 'THINKING' | 'WHITEBOARD_UPDATE';
+    type: 'CHAT' | 'SYSTEM' | 'AGENT' | 'COMMAND' | 'TOOL' | 'THINKING' | 'WHITEBOARD_UPDATE' | 'BROWSER_UPDATE';
     timestamp?: string;
 }
 

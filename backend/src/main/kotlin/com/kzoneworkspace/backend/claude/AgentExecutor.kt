@@ -357,8 +357,8 @@ class AgentExecutor(
                              "delete_file" -> handleDeleteFile(input["path"] as? String ?: "")
                             "run_command" -> handleRunCommand(input["command"] as? String ?: "")
                             "call_agent" -> handleCallAgent(input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
-                            "web_search" -> handleWebSearch(input["query"] as? String ?: "")
-                            "browse" -> handleBrowse(input["url"] as? String ?: "")
+                            "web_search" -> handleWebSearch(input["query"] as? String ?: "", roomId, agent.name)
+                            "browse" -> handleBrowse(input["url"] as? String ?: "", roomId, agent.name)
                             "git_status" -> gitService.status()
                             "git_diff" -> gitService.diff()
                             "git_add" -> gitService.add(input["path"] as? String ?: ".")
@@ -502,11 +502,11 @@ class AgentExecutor(
         }
     }
 
-    private fun handleWebSearch(query: String): String {
+    private fun handleWebSearch(query: String, roomId: String = "default", agentName: String = "Browser"): String {
         if (serperApiKey.isEmpty()) {
             val searchUrl = "https://www.google.com/search?q=${URLEncoder.encode(query, "UTF-8")}"
             return "SERPER_API_KEY가 설정되어 있지 않아 브라우저를 통해 직접 검색을 시도합니다...\n\n" +
-                   handleBrowse(searchUrl)
+                   handleBrowse(searchUrl, roomId, agentName)
         }
         
         return try {
@@ -540,9 +540,20 @@ class AgentExecutor(
         }
     }
 
-    private fun handleBrowse(url: String): String {
+    private fun handleBrowse(url: String, roomId: String = "default", agentName: String = "Browser"): String {
         return try {
-            val content = browserService.navigateAndGetText(url)
+            val result = browserService.navigateAndGetScreenshotWithText(url)
+            
+            // UI로 브라우저 상태 실시간 전송 (Base64 이미지 + URL)
+            if (result.base64Screenshot != null) {
+                val payload = objectMapper.writeValueAsString(mapOf(
+                    "url" to url,
+                    "screenshot" to result.base64Screenshot
+                ))
+                sendMessage(roomId, agentName, payload, MessageType.BROWSER_UPDATE)
+            }
+
+            val content = result.content
             if (content.length > 5000) {
                 content.take(5000) + "\n... (truncated for brevity)"
             } else {
