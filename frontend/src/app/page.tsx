@@ -1219,22 +1219,47 @@ export default function VirtualOfficeBright() {
             className="absolute bottom-10 right-[650px] w-[500px] bg-white/90 backdrop-blur-3xl rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-200/60 flex flex-col overflow-hidden z-[60]"
           >
             {/* Fake Browser Header */}
-            <div className="h-12 bg-slate-100/50 border-b border-slate-200/50 flex items-center px-4 shrink-0 cursor-grab active:cursor-grabbing justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1.5 mr-4">
-                  <div className="w-3 h-3 rounded-full bg-rose-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-amber-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+            <div className="h-14 bg-slate-100/80 border-b border-slate-200/50 flex items-center px-4 shrink-0 cursor-grab active:cursor-grabbing justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1.5 mr-2">
+                  <div className="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm"></div>
+                  <div className="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm"></div>
+                  <div className="w-3 h-3 rounded-full bg-[#27c93f] shadow-sm"></div>
                 </div>
+                
+                {/* Live Badge */}
+                <div className="flex items-center gap-1.5 bg-sky-500 px-2 py-0.5 rounded-md border border-sky-600 shadow-sm animate-pulse">
+                  <span className="w-1 h-1 rounded-full bg-white"></span>
+                  <span className="text-[9px] font-black text-white uppercase tracking-tighter">LIVE</span>
+                </div>
+
                 {/* URL Bar */}
-                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border border-slate-200/50 text-[10px] text-slate-500 w-[240px] truncate shadow-inner">
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] text-slate-600 w-[240px] truncate shadow-inner font-medium">
                   <Layout size={12} className="text-slate-400 shrink-0" />
-                  <span className="truncate">{browserUrl || "대기 중..."}</span>
+                  <span className="truncate">{browserUrl || "브라우저 대기 중..."}</span>
                 </div>
               </div>
-              <button onClick={() => setIsBrowserOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    if (stompClient.current?.connected) {
+                       const chatMsg: ChatMessage = {
+                        roomId: activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`,
+                        senderId: "user-1",
+                        senderName: "사용자",
+                        content: "@Browser browser_close",
+                        type: "CHAT"
+                      };
+                      stompClient.current.publish({ destination: "/app/chat.send", body: JSON.stringify(chatMsg) });
+                    }
+                    setIsBrowserOpen(false);
+                  }} 
+                  className="p-2 rounded-lg bg-slate-200/50 hover:bg-rose-50 hover:text-rose-500 text-slate-400 transition-all"
+                  title="세션 종료 및 닫기"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             
             {/* Browser Content (Screenshot) */}

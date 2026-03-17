@@ -205,8 +205,8 @@ class AgentExecutor(
                 )
             ),
             mapOf(
-                "name" to "browse",
-                "description" to "특정 웹 페이지의 내용을 읽어옵니다. (URL 입력)",
+                "name" to "browser_navigate",
+                "description" to "특정 웹 페이지로 이동합니다. 세션이 유지되므로 이전 상태에서 이어서 작업할 수 있습니다.",
                 "input_schema" to mapOf(
                     "type" to "object",
                     "properties" to mapOf(
@@ -214,6 +214,45 @@ class AgentExecutor(
                     ),
                     "required" to listOf("url")
                 )
+            ),
+            mapOf(
+                "name" to "browser_click",
+                "description" to "현재 페이지의 특정 요소를 클릭합니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "selector" to mapOf("type" to "string", "description" to "클릭할 요소의 CSS 셀렉터")
+                    ),
+                    "required" to listOf("selector")
+                )
+            ),
+            mapOf(
+                "name" to "browser_type",
+                "description" to "현재 페이지의 입력창에 텍스트를 입력합니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "selector" to mapOf("type" to "string", "description" to "입력할 요소의 CSS 셀렉터"),
+                        "text" to mapOf("type" to "string", "description" to "입력할 텍스트")
+                    ),
+                    "required" to listOf("selector", "text")
+                )
+            ),
+            mapOf(
+                "name" to "browser_enter",
+                "description" to "특정 요소에서 엔터 키를 누릅니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "selector" to mapOf("type" to "string", "description" to "엔터를 누를 요소의 CSS 셀렉터")
+                    ),
+                    "required" to listOf("selector")
+                )
+            ),
+            mapOf(
+                "name" to "browser_close",
+                "description" to "현재 브라우저 세션을 종료합니다.",
+                "input_schema" to mapOf("type" to "object", "properties" to mapOf<String, Any>())
             )
         )
 
@@ -358,7 +397,15 @@ class AgentExecutor(
                             "run_command" -> handleRunCommand(input["command"] as? String ?: "")
                             "call_agent" -> handleCallAgent(input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
                             "web_search" -> handleWebSearch(input["query"] as? String ?: "", roomId, agent.name)
-                            "browse" -> handleBrowse(input["url"] as? String ?: "", roomId, agent.name)
+                            "browse" -> handleBrowser(input["url"] as? String ?: "", roomId, agent.name)
+                            "browser_navigate" -> handleBrowserAction(roomId, agent.name) { browserService.navigate(roomId, input["url"] as? String ?: "") }
+                            "browser_click" -> handleBrowserAction(roomId, agent.name) { browserService.click(roomId, input["selector"] as? String ?: "") }
+                            "browser_type" -> handleBrowserAction(roomId, agent.name) { browserService.type(roomId, input["selector"] as? String ?: "", input["text"] as? String ?: "") }
+                            "browser_enter" -> handleBrowserAction(roomId, agent.name) { browserService.pressEnter(roomId, input["selector"] as? String ?: "") }
+                            "browser_close" -> {
+                                browserService.closeSession(roomId)
+                                "브라우저 세션이 종료되었습니다."
+                            }
                             "git_status" -> gitService.status()
                             "git_diff" -> gitService.diff()
                             "git_add" -> gitService.add(input["path"] as? String ?: ".")
@@ -506,7 +553,7 @@ class AgentExecutor(
         if (serperApiKey.isEmpty()) {
             val searchUrl = "https://www.google.com/search?q=${URLEncoder.encode(query, "UTF-8")}"
             return "SERPER_API_KEY가 설정되어 있지 않아 브라우저를 통해 직접 검색을 시도합니다...\n\n" +
-                   handleBrowse(searchUrl, roomId, agentName)
+                   handleBrowser(searchUrl, roomId, agentName)
         }
         
         return try {
@@ -540,14 +587,18 @@ class AgentExecutor(
         }
     }
 
-    private fun handleBrowse(url: String, roomId: String = "default", agentName: String = "Browser"): String {
+    private fun handleBrowser(url: String, roomId: String = "default", agentName: String = "Browser"): String {
+        return handleBrowserAction(roomId, agentName) { browserService.navigateAndGetScreenshotWithText(roomId, url) }
+    }
+
+    private fun handleBrowserAction(roomId: String, agentName: String, action: () -> BrowserService.BrowseResult): String {
         return try {
-            val result = browserService.navigateAndGetScreenshotWithText(url)
+            val result = action()
             
             // UI로 브라우저 상태 실시간 전송 (Base64 이미지 + URL)
             if (result.base64Screenshot != null) {
                 val payload = objectMapper.writeValueAsString(mapOf(
-                    "url" to url,
+                    "url" to result.url,
                     "screenshot" to result.base64Screenshot
                 ))
                 sendMessage(roomId, agentName, payload, MessageType.BROWSER_UPDATE)
@@ -560,7 +611,7 @@ class AgentExecutor(
                 content
             }
         } catch (e: Exception) {
-            "브라우저 탐색 중 오류: ${e.message}"
+            "브라우저 작업 중 오류: ${e.message}"
         }
     }
 

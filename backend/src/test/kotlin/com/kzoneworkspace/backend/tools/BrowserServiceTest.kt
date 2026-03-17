@@ -23,9 +23,11 @@ class BrowserServiceTest {
     @Test
     fun testNavigateAndGetText() {
         val url = "https://www.google.com"
-        val content = browserService.navigateAndGetText(url)
-        println("Fetched content from Google: ${content.take(100)}...")
-        assertTrue(content.isNotEmpty(), "Content should not be empty")
-        assertTrue(content.lowercase().contains("google"), "Content should contain 'google'")
+        val sessionId = "test-session"
+        val result = browserService.navigate(sessionId, url)
+        println("Fetched content from Google: ${result.content.take(100)}...")
+        assertTrue(result.content.isNotEmpty(), "Content should not be empty")
+        assertTrue(result.content.lowercase().contains("google"), "Content should contain 'google'")
+        assertTrue(result.url.contains("google.com"), "URL should contain 'google.com'")
     }
 }
