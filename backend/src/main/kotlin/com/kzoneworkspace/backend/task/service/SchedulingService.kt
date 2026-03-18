@@ -5,6 +5,7 @@ import com.kzoneworkspace.backend.claude.AgentExecutor
 import com.kzoneworkspace.backend.task.entity.ScheduledTask
 import com.kzoneworkspace.backend.task.repository.ScheduledTaskRepository
 import jakarta.annotation.PostConstruct
+import org.springframework.context.annotation.Lazy
 import org.springframework.scheduling.TaskScheduler
 import org.springframework.scheduling.support.CronTrigger
 import org.springframework.stereotype.Service
@@ -17,7 +18,7 @@ import java.util.concurrent.ScheduledFuture
 class SchedulingService(
     private val scheduledTaskRepository: ScheduledTaskRepository,
     private val agentRepository: AgentRepository,
-    private val agentExecutor: AgentExecutor,
+    @Lazy private val agentExecutor: AgentExecutor,
     private val taskScheduler: TaskScheduler
 ) {
     private val scheduledTasksMap = ConcurrentHashMap<Long, ScheduledFuture<*>>()
