@@ -20,6 +20,9 @@ import com.kzoneworkspace.backend.agent.service.MemoryService
 import com.kzoneworkspace.backend.agent.service.MemoryExtractionService
 import com.kzoneworkspace.backend.tools.GitService
 import com.kzoneworkspace.backend.tools.CodeReviewService
+import com.kzoneworkspace.backend.agent.service.ActivityLogService
+import com.kzoneworkspace.backend.agent.service.CollaborationService
+import com.kzoneworkspace.backend.task.service.SchedulingService
 import java.net.URLEncoder
 
 @Service
@@ -35,8 +38,10 @@ class AgentExecutor(
     private val memoryService: MemoryService,
     private val memoryExtractionService: MemoryExtractionService,
     private val gitService: GitService,
-    private val collaborationService: com.kzoneworkspace.backend.agent.service.CollaborationService,
+    private val collaborationService: CollaborationService,
     private val codeReviewService: CodeReviewService,
+    private val activityLogService: ActivityLogService,
+    private val schedulingService: SchedulingService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val objectMapper = jacksonObjectMapper()
@@ -291,14 +296,30 @@ class AgentExecutor(
             )
         )
 
+        allToolsMap["Scheduler"] = listOf(
+            mapOf(
+                "name" to "schedule_task",
+                "description" to "주기적으로 실행될 작업을 예약합니다.",
+                "input_schema" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "description" to mapOf("type" to "string", "description" to "작업에 대한 설명"),
+                        "command" to mapOf("type" to "string", "description" to "실행할 명령 (에이전트에게 내릴 지시)"),
+                        "cron_expression" to mapOf("type" to "string", "description" to "Spring Cron 표현식 (예: 매 분마다: '0 0/1 * * * ?', 매시간: '0 0 * * * ?')")
+                    ),
+                    "required" to listOf("description", "command", "cron_expression")
+                )
+            )
+        )
+
         // 에이전트에게 할당된 기술에 맞는 도구만 필터링
         val tools = if (agent.assignedSkills.isEmpty()) {
             // 기본 도구 (모든 에이전트가 공통으로 가짐)
-            allToolsMap["Files"] ?: emptyList()
+            (allToolsMap["Files"] ?: emptyList()) + (allToolsMap["Scheduler"] ?: emptyList())
         } else {
             agent.assignedSkills.flatMap { skillName ->
                 allToolsMap[skillName] ?: emptyList()
-            }
+            } + (allToolsMap["Scheduler"] ?: emptyList()) // 스케줄러는 기본 제공
         }
 
         var loop = true
@@ -388,7 +409,7 @@ class AgentExecutor(
                     sendMessage(roomId, agent.name, "🔍 **도구 사용**: `$toolName` \n> $inputStr", MessageType.TOOL)
 
                     val result = try {
-                        when (toolName) {
+                        val toolResult = when (toolName) {
                             "search_files" -> handleSearchFiles(input["pattern"] as? String ?: "")
                             "read_file" -> handleReadFile(input["path"] as? String ?: "")
                             "write_file" -> handleWriteFile(input["path"] as? String ?: "", input["content"] as? String ?: "")
@@ -414,9 +435,27 @@ class AgentExecutor(
                                 val diff = codeReviewService.getDiff()
                                 handleCallAgent(input["agent_name"] as? String ?: "Reviewer", "다음 Git 변경 사항을 리뷰하고 개선안을 제안해줘:\n\n$diff", roomId)
                             }
-                            "update_whiteboard" -> handleUpdateWhiteboard(input["content"] as? String ?: "", roomId, agent.name)
+                            "update_whiteboard" -> handleUpdateWhiteboard(input["content"] as? String ?: "", roomId, agent.id, agent.name)
+                            "schedule_task" -> {
+                                val desc = input["description"] as? String ?: ""
+                                val cmd = input["command"] as? String ?: ""
+                                val cron = input["cron_expression"] as? String ?: ""
+                                schedulingService.createScheduledTask(desc, agent.id, roomId, cmd, cron)
+                                "작업이 성공적으로 예약되었습니다: $desc (Cron: $cron)"
+                            }
                             else -> "알 수 없는 도구: $toolName"
                         }
+
+                        // 활동 로그 저장
+                        activityLogService.logActivity(
+                            agentId = agent.id,
+                            roomId = roomId,
+                            activityType = "TOOL_CALL",
+                            toolName = toolName,
+                            details = inputStr
+                        )
+
+                        toolResult
                     } catch (e: Exception) {
                         "도구 실행 중 오류: ${e.message}"
                     }
@@ -438,8 +477,14 @@ class AgentExecutor(
         return lastResponse
     }
 
-    private fun handleUpdateWhiteboard(content: String, roomId: String, agentName: String): String {
+    private fun handleUpdateWhiteboard(content: String, roomId: String, agentId: Long, agentName: String): String {
         sendMessage(roomId, agentName, content, MessageType.WHITEBOARD_UPDATE)
+        activityLogService.logActivity(
+            agentId = agentId,
+            roomId = roomId,
+            activityType = "WHITEBOARD_UPDATE",
+            details = content.take(100) + if (content.length > 100) "..." else ""
+        )
         return "화이트보드가 성공적으로 업데이트되었습니다."
     }
 

@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2 } from "lucide-react";
+import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, Calendar, Activity, ChevronRight, Pause, Play, Trash2 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
-import { Agent, Task, ChatMessage, Skill, agentService, taskService, chatService, skillService, createWebSocketClient, codeReviewService } from "./apiService";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService } from "./apiService";
 
 const MermaidRenderer = ({ chart }: { chart: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,8 +42,15 @@ export default function VirtualOfficeBright() {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER'>('LOGS');
   const [isReviewing, setIsReviewing] = useState(false);
+
+  // Stats & Scheduler State
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([]);
+  const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
+  const [newScheduledTask, setNewScheduledTask] = useState({ description: "", agentId: 0, command: "", cronExpression: "0 0/1 * * * ?" });
+
 
   // Whiteboard State
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
@@ -60,16 +68,24 @@ export default function VirtualOfficeBright() {
 
   const fetchInitialData = async () => {
     try {
-      const [agentRes, taskRes, historyRes, skillRes] = await Promise.all([
+      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes] = await Promise.all([
         agentService.getAll(),
         taskService.getByRoom("default"),
         chatService.getHistory("default"),
-        skillService.getAll()
+        skillService.getAll(),
+        activityService.getAll(),
+        schedulingService.getAll()
       ]);
       setAgents(agentRes.data);
       setTasks(taskRes.data);
       setMessages(historyRes.data);
       setSkills(skillRes.data);
+      setActivities(activityRes.data);
+      setScheduledTasks(scheduledRes.data);
+      
+      if (agentRes.data.length > 0) {
+        setNewScheduledTask(prev => ({ ...prev, agentId: agentRes.data[0].id }));
+      }
     } catch (err) {
       console.error("데이터 로드 실패:", err);
     }
@@ -86,7 +102,11 @@ export default function VirtualOfficeBright() {
 
       if (msg.type === 'AGENT') {
         taskService.getByRoom("default").then(res => setTasks(res.data));
+        // 활동 로그도 갱신
+        activityService.getAll().then(res => setActivities(res.data));
       }
+      
+      // ... (기존 로직)
 
       // Connection Line Logic
       if (msg.type === 'AGENT' || msg.type === 'CHAT') {
@@ -242,6 +262,75 @@ export default function VirtualOfficeBright() {
     });
     setEditingAgentId(agent.id);
     setIsDeployModalOpen(true);
+  };
+
+  const handleCreateScheduledTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (!newScheduledTask.agentId || !newScheduledTask.command || !newScheduledTask.cronExpression) return;
+      await schedulingService.create({ ...newScheduledTask, roomId: "default" });
+      const res = await schedulingService.getAll();
+      setScheduledTasks(res.data);
+      setIsSchedulerModalOpen(false);
+      setNewScheduledTask({ description: "", agentId: agents[0]?.id || 0, command: "", cronExpression: "0 0/1 * * * ?" });
+    } catch (err) {
+      console.error("스케줄 생성 실패:", err);
+    }
+  };
+
+  const handleToggleScheduledTask = async (id: number) => {
+    try {
+      await schedulingService.toggle(id);
+      const res = await schedulingService.getAll();
+      setScheduledTasks(res.data);
+    } catch (err) {
+      console.error("스케줄 토글 실패:", err);
+    }
+  };
+
+  const handleDeleteScheduledTask = async (id: number) => {
+    if (!confirm("이 예약 작업을 삭제하시겠습니까?")) return;
+    try {
+      await schedulingService.delete(id);
+      const res = await schedulingService.getAll();
+      setScheduledTasks(res.data);
+    } catch (err) {
+      console.error("스케줄 삭제 실패:", err);
+    }
+  };
+
+  const getActivityChartData = () => {
+    const now = new Date();
+    const last24h = Array.from({ length: 24 }, (_, i) => {
+      const d = new Date(now);
+      d.setHours(d.getHours() - (23 - i));
+      d.setMinutes(0, 0, 0);
+      return {
+        time: `${d.getHours()}시`,
+        count: 0
+      };
+    });
+
+    activities.forEach(log => {
+      const logDate = new Date(log.timestamp);
+      const hourDiff = Math.floor((now.getTime() - logDate.getTime()) / (1000 * 60 * 60));
+      if (hourDiff < 24) {
+        const index = 23 - hourDiff;
+        if (index >= 0 && index < 24) {
+          last24h[index].count++;
+        }
+      }
+    });
+    return last24h;
+  };
+
+  const getToolUsageData = () => {
+    const usage: Record<string, number> = {};
+    activities.filter(a => a.activityType === 'TOOL_CALL' && a.toolName).forEach(log => {
+      const name = log.toolName || 'Unknown';
+      usage[name] = (usage[name] || 0) + 1;
+    });
+    return Object.entries(usage).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
   };
 
   const getAgentColor = (name: string) => {
@@ -649,6 +738,18 @@ export default function VirtualOfficeBright() {
                     >
                       REASONING
                     </button>
+                    <button
+                      onClick={() => setActiveTab('STATS')}
+                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'STATS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      STATS
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('SCHEDULER')}
+                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'SCHEDULER' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      SCHEDULER
+                    </button>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -656,35 +757,122 @@ export default function VirtualOfficeBright() {
                   </div>
                 </div>
               </div>
-              <div className="flex-1 flex overflow-hidden">
-                {/* Log Terminal */}
-                <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
-                  {activeTab === 'LOGS' ? (
-                    messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-50).map((msg, i) => (
-                      <div key={i} className="flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                        <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
-                        <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
-                        <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
-                      </div>
-                    ))
-                  ) : (
-                    messages.filter(m => m.type === 'THINKING' || m.type === 'AGENT').slice(-30).map((msg, i) => (
-                      <div key={i} className={`flex gap-3 p-2 rounded-lg border ${msg.type === 'THINKING' ? 'bg-indigo-500/5 border-indigo-500/10' : 'bg-slate-800/50 border-slate-700/50'} animate-in zoom-in-95 duration-500`}>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.type === 'THINKING' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                          {msg.type === 'THINKING' ? <Sparkles size={10} className="animate-pulse" /> : <Bot size={10} />}
+                <div className="flex-1 flex overflow-hidden">
+                  {/* Log Terminal / Stats / Scheduler content */}
+                  <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
+                    {activeTab === 'LOGS' ? (
+                      messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-50).map((msg, i) => (
+                        <div key={i} className="flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                          <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
+                          <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
+                          <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
+                        </div>
+                      ))
+                    ) : activeTab === 'REASONING' ? (
+                      messages.filter(m => m.type === 'THINKING' || m.type === 'AGENT').slice(-30).map((msg, i) => (
+                        <div key={i} className={`flex gap-3 p-2 rounded-lg border ${msg.type === 'THINKING' ? 'bg-indigo-500/5 border-indigo-500/10' : 'bg-slate-800/50 border-slate-700/50'} animate-in zoom-in-95 duration-500`}>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.type === 'THINKING' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                            {msg.type === 'THINKING' ? <Sparkles size={10} className="animate-pulse" /> : <Bot size={10} />}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className={`font-bold ${getAgentColor(msg.senderName).soft}`}>{msg.senderName}</span>
+                              <span className="text-[8px] text-slate-500">{msg.type}</span>
+                            </div>
+                            <p className={`leading-relaxed ${msg.type === 'THINKING' ? 'text-indigo-200/90 italic' : 'text-slate-200'}`}>{msg.content}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : activeTab === 'STATS' ? (
+                      <div className="h-full flex flex-col gap-6 p-2">
+                        <div className="h-32 w-full">
+                          <span className="text-[9px] text-slate-500 uppercase font-black mb-2 block">최근 24시간 활동량</span>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={getActivityChartData()}>
+                              <defs>
+                                <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                              <XAxis dataKey="time" stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
+                              <YAxis stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
+                              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', fontSize: '10px' }} />
+                              <Area type="monotone" dataKey="count" stroke="#10b981" fillOpacity={1} fill="url(#colorCount)" />
+                            </AreaChart>
+                          </ResponsiveContainer>
                         </div>
                         <div className="flex-1">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className={`font-bold ${getAgentColor(msg.senderName).soft}`}>{msg.senderName}</span>
-                            <span className="text-[8px] text-slate-500">{msg.type}</span>
+                          <span className="text-[9px] text-slate-500 uppercase font-black mb-3 block">도구 사용 비중</span>
+                          <div className="space-y-2">
+                            {getToolUsageData().map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-3">
+                                <span className="w-16 truncate text-slate-400">{item.name}</span>
+                                <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <motion.div 
+                                    initial={{ width: 0 }} 
+                                    animate={{ width: `${(item.value / Math.max(...getToolUsageData().map(d => d.value))) * 100}%` }}
+                                    className="h-full bg-indigo-500"
+                                  />
+                                </div>
+                                <span className="text-emerald-400 font-bold">{item.value}</span>
+                              </div>
+                            ))}
                           </div>
-                          <p className={`leading-relaxed ${msg.type === 'THINKING' ? 'text-indigo-200/90 italic' : 'text-slate-200'}`}>{msg.content}</p>
                         </div>
                       </div>
-                    ))
-                  )}
-                  <div className="h-1" ref={consoleScrollRef}></div>
-                </div>
+                    ) : (
+                      <div className="h-full flex flex-col gap-3">
+                        <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-lg border border-slate-700">
+                          <span className="text-[9px] font-bold text-slate-400">자율 예약 작업 목록</span>
+                          <button 
+                            onClick={() => setIsSchedulerModalOpen(true)}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[9px] font-bold flex items-center gap-1 transition-colors"
+                          >
+                            <Plus size={10} /> 작업 추가
+                          </button>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          {scheduledTasks.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-slate-600 italic">등록된 예약 작업이 없습니다.</div>
+                          ) : (
+                            scheduledTasks.map(task => (
+                              <div key={task.id} className="bg-slate-800/30 border border-slate-700/50 p-2 rounded-lg flex items-center justify-between group">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${task.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
+                                      {task.status}
+                                    </span>
+                                    <span className="font-bold text-slate-200">{task.description}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-slate-500 text-[8px]">
+                                    <Calendar size={8} /> <span>{task.cronExpression}</span>
+                                    <Activity size={8} /> <span>마지막 실행: {task.lastRun ? new Date(task.lastRun).toLocaleTimeString() : '없음'}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button 
+                                    onClick={() => handleToggleScheduledTask(task.id)}
+                                    className={`p-1 rounded bg-slate-700 hover:bg-slate-600 ${task.status === 'ACTIVE' ? 'text-amber-400' : 'text-emerald-400'}`}
+                                  >
+                                    {task.status === 'ACTIVE' ? <Pause size={10} /> : <Play size={10} />}
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteScheduledTask(task.id)}
+                                    className="p-1 rounded bg-slate-700 hover:bg-rose-900/50 text-rose-400"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div className="h-1" ref={consoleScrollRef}></div>
+                  </div>
                 {/* Modified Files Side */}
                 <div className="w-[180px] border-l border-slate-700 bg-slate-800/30 p-3 flex flex-col">
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-700 pb-1">최근 변경 파일</span>
@@ -1276,6 +1464,98 @@ export default function VirtualOfficeBright() {
           </motion.div>
         )}
       </AnimatePresence>
+        {/* Scheduler Modal */}
+        <AnimatePresence>
+          {isSchedulerModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+              onClick={() => setIsSchedulerModalOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl overflow-y-auto max-h-[90vh]"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="p-8">
+                  <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500">
+                        <Calendar size={24} />
+                      </div>
+                      <h2 className="text-xl font-black text-slate-800">예약 작업 등록</h2>
+                    </div>
+                    <button onClick={() => setIsSchedulerModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                      <X size={24} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateScheduledTask} className="space-y-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">작업 설명</label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all placeholder:text-slate-300"
+                        placeholder="예: 매 분마다 시스템 상태 체크"
+                        value={newScheduledTask.description}
+                        onChange={e => setNewScheduledTask({ ...newScheduledTask, description: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">담당 에이전트</label>
+                        <select
+                          className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all"
+                          value={newScheduledTask.agentId}
+                          onChange={e => setNewScheduledTask({ ...newScheduledTask, agentId: Number(e.target.value) })}
+                        >
+                          {agents.map(a => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">크론 표현식</label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all"
+                          placeholder="0 0/1 * * * ?"
+                          value={newScheduledTask.cronExpression}
+                          onChange={e => setNewScheduledTask({ ...newScheduledTask, cronExpression: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">수행할 명령 (Prompt)</label>
+                      <textarea
+                        required
+                        rows={3}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all placeholder:text-slate-300 resize-none"
+                        placeholder="에이전트에게 내릴 구체적인 지시를 입력하세요."
+                        value={newScheduledTask.command}
+                        onChange={e => setNewScheduledTask({ ...newScheduledTask, command: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="pt-4">
+                      <button
+                        type="submit"
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-amber-200 transition-all flex items-center justify-center gap-2 group"
+                      >
+                        <Calendar size={18} className="group-hover:scale-110 transition-transform" />
+                        스케줄 등록하기
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {

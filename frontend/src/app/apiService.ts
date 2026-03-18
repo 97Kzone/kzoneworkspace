@@ -45,6 +45,29 @@ export interface ChatMessage {
     timestamp?: string;
 }
 
+export interface ActivityLog {
+    id: number;
+    agentId: number;
+    roomId: string;
+    activityType: string;
+    toolName: string | null;
+    details: string | null;
+    timestamp: string;
+}
+
+export interface ScheduledTask {
+    id: number;
+    description: string;
+    agentId: number;
+    roomId: string;
+    command: string;
+    cronExpression: string;
+    lastRun: string | null;
+    nextRun: string | null;
+    status: 'ACTIVE' | 'PAUSED';
+    createdAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -63,10 +86,23 @@ export const skillService = {
     getAll: () => api.get<Skill[]>('/skills'),
 };
 
+export const activityService = {
+    getAll: () => api.get<ActivityLog[]>('/activities'),
+    getByRoom: (roomId: string) => api.get<ActivityLog[]>(`/activities/room/${roomId}`),
+};
+
+export const schedulingService = {
+    getAll: () => api.get<ScheduledTask[]>('/scheduled-tasks'),
+    create: (data: any) => api.post<ScheduledTask>('/scheduled-tasks', data),
+    toggle: (id: number) => api.post<ScheduledTask>(`/scheduled-tasks/${id}/toggle`),
+    delete: (id: number) => api.delete(`/scheduled-tasks/${id}`),
+};
+
 export const codeReviewService = {
     perform: (roomId: string, agentName: string) =>
         api.post<string>(`/code-review/perform?roomId=${roomId}&agentName=${agentName}`),
 };
+
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
