@@ -416,7 +416,7 @@ class AgentExecutor(
                             "list_directory" -> handleListDirectory(input["path"] as? String ?: ".")
                              "delete_file" -> handleDeleteFile(input["path"] as? String ?: "")
                             "run_command" -> handleRunCommand(input["command"] as? String ?: "")
-                            "call_agent" -> handleCallAgent(input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
+                            "call_agent" -> handleCallAgent(agent.name, input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
                             "web_search" -> handleWebSearch(input["query"] as? String ?: "", roomId, agent.name)
                             "browse" -> handleBrowser(input["url"] as? String ?: "", roomId, agent.name)
                             "browser_navigate" -> handleBrowserAction(roomId, agent.name) { browserService.navigate(roomId, input["url"] as? String ?: "") }
@@ -433,7 +433,7 @@ class AgentExecutor(
                             "git_commit" -> gitService.commit(input["message"] as? String ?: "")
                             "request_code_review" -> {
                                 val diff = codeReviewService.getDiff()
-                                handleCallAgent(input["agent_name"] as? String ?: "Reviewer", "다음 Git 변경 사항을 리뷰하고 개선안을 제안해줘:\n\n$diff", roomId)
+                                handleCallAgent(agent.name, input["agent_name"] as? String ?: "Reviewer", "다음 Git 변경 사항을 리뷰하고 개선안을 제안해줘:\n\n$diff", roomId)
                             }
                             "update_whiteboard" -> handleUpdateWhiteboard(input["content"] as? String ?: "", roomId, agent.id, agent.name)
                             "schedule_task" -> {
@@ -488,13 +488,19 @@ class AgentExecutor(
         return "화이트보드가 성공적으로 업데이트되었습니다."
     }
 
-    private fun handleCallAgent(agentName: String, task: String, roomId: String): String {
+    private fun handleCallAgent(fromAgentName: String, agentName: String, task: String, roomId: String): String {
         val targetAgent = agentService.getAllAgents().find { it.name == agentName }
             ?: return "에이전트 '$agentName'(을)를 찾을 수 없습니다."
 
-        // 협업 로깅
-        val fromAgentName = agentService.getAllAgents().find { it.status.name != "OFFLINE" }?.name ?: "System" // Approximate current agent
+        // 협업 로깅 및 이벤트 전송
         collaborationService.logInteraction(roomId, fromAgentName, agentName, task, "REQUESTED")
+        
+        val startPayload = objectMapper.writeValueAsString(mapOf(
+            "from" to fromAgentName,
+            "to" to agentName,
+            "status" to "START"
+        ))
+        sendMessage(roomId, fromAgentName, startPayload, MessageType.COLLABORATION)
 
         sendMessage(roomId, agentName, "🤝 **[협업 요청 수신]**\n> **요청 내용**: $task", MessageType.AGENT)
         
@@ -503,8 +509,22 @@ class AgentExecutor(
         
         return try {
             val response = runReasoningLoop(targetAgent, roomId, subMessages)
+            
+            val endPayload = objectMapper.writeValueAsString(mapOf(
+                "from" to fromAgentName,
+                "to" to agentName,
+                "status" to "END"
+            ))
+            sendMessage(roomId, fromAgentName, endPayload, MessageType.COLLABORATION)
+            
             "🙋 **${agentName}의 보고**: $response"
         } catch (e: Exception) {
+            val endPayload = objectMapper.writeValueAsString(mapOf(
+                "from" to fromAgentName,
+                "to" to agentName,
+                "status" to "END"
+            ))
+            sendMessage(roomId, fromAgentName, endPayload, MessageType.COLLABORATION)
             "에이전트 호출 중 오류: ${e.message}"
         }
     }

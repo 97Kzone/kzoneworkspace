@@ -42,5 +42,6 @@ enum class MessageType {
     TOOL,       // 도구 사용 및 결과
     THINKING,   // 에이전트 추론 과정
     WHITEBOARD_UPDATE, // 화이트보드 업데이트
-    BROWSER_UPDATE // 실시간 브라우저 시각화 업데이트
+    BROWSER_UPDATE, // 실시간 브라우저 시각화 업데이트
+    COLLABORATION // 에이전트 간 협업 이벤트
 }

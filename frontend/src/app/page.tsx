@@ -44,6 +44,7 @@ export default function VirtualOfficeBright() {
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
   const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER'>('LOGS');
   const [isReviewing, setIsReviewing] = useState(false);
+  const [activeCollaborations, setActiveCollaborations] = useState<Record<string, string | null>>({});
 
   // Stats & Scheduler State
   const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -139,6 +140,20 @@ export default function VirtualOfficeBright() {
           }
         } catch (e) {
           console.error("Failed to parse BROWSER_UPDATE payload", e);
+        }
+      }
+
+      // Collaboration Logic
+      if (msg.type === 'COLLABORATION') {
+        try {
+          const payload = JSON.parse(msg.content);
+          const { from, to, status } = payload;
+          setActiveCollaborations(prev => ({
+            ...prev,
+            [from]: status === 'START' ? to : null
+          }));
+        } catch (e) {
+          console.error("Failed to parse COLLABORATION payload", e);
         }
       }
     });
@@ -354,7 +369,21 @@ export default function VirtualOfficeBright() {
     return colors[index];
   };
 
-  const getAgentPosition = (agent: Agent, index: number) => {
+  const getAgentPosition = (agent: Agent, index: number): { top: number, left: number } => {
+    // 1. 협업 이동: 호출한 에이전트가 대상 에이전트 옆으로 이동
+    const collidingWith = activeCollaborations[agent.name];
+    if (collidingWith) {
+      const targetAgent = agents.find(a => a.name === collidingWith);
+      if (targetAgent) {
+        const targetIdx = agents.indexOf(targetAgent);
+        const targetPos = getBaseAgentPosition(targetAgent, targetIdx);
+        return { top: targetPos.top + 20, left: targetPos.left - 70 };
+      }
+    }
+    return getBaseAgentPosition(agent, index);
+  };
+
+  const getBaseAgentPosition = (agent: Agent, index: number) => {
     // Default positions (Lounge area)
     const loungeBase = { top: 450, left: 150 };
 
@@ -579,8 +608,14 @@ export default function VirtualOfficeBright() {
                 <stop offset="50%" stopColor="rgba(99, 102, 241, 0.5)" />
                 <stop offset="100%" stopColor="rgba(99, 102, 241, 0)" />
               </linearGradient>
+              <linearGradient id="collabGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(16, 185, 129, 0)" />
+                <stop offset="50%" stopColor="rgba(16, 185, 129, 0.4)" />
+                <stop offset="100%" stopColor="rgba(16, 185, 129, 0)" />
+              </linearGradient>
             </defs>
             <AnimatePresence>
+              {/* 1. 일시적 채팅 연결선 (Mentions) */}
               {activeConnections.map((conn, i) => {
                 const fromAgent = agents.find(a => a.name === conn.from);
                 const toAgent = agents.find(a => a.name === conn.to);
@@ -607,6 +642,44 @@ export default function VirtualOfficeBright() {
                     animate={{ pathLength: 1, opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.8, ease: "easeInOut" }}
+                  />
+                );
+              })}
+
+              {/* 2. 지속적 협업 연결선 (Collaboration) */}
+              {Object.entries(activeCollaborations).map(([from, to]) => {
+                if (!to) return null;
+                const fromAgent = agents.find(a => a.name === from);
+                const toAgent = agents.find(a => a.name === to);
+                if (!fromAgent || !toAgent) return null;
+
+                const fromPos = getAgentPosition(fromAgent, agents.indexOf(fromAgent));
+                const toPos = getAgentPosition(toAgent, agents.indexOf(toAgent));
+
+                const x1 = fromPos.left + 32;
+                const y1 = fromPos.top + 32;
+                const x2 = toPos.left + 32;
+                const y2 = toPos.top + 32;
+
+                return (
+                  <motion.path
+                    key={`collab-${from}-${to}`}
+                    d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2 - 50} ${x2} ${y2}`}
+                    stroke="url(#collabGradient)"
+                    strokeWidth="4"
+                    strokeDasharray="8 4"
+                    fill="none"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ 
+                      pathLength: 1, 
+                      opacity: 1,
+                      strokeDashoffset: [-20, 0] 
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ 
+                      pathLength: { duration: 0.8 },
+                      strokeDashoffset: { repeat: Infinity, duration: 2, ease: "linear" }
+                    }}
                   />
                 );
               })}
