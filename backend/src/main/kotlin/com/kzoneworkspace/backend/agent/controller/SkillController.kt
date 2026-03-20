@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/skills")
-@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8080"])
 class SkillController(
     private val skillService: SkillService
 ) {

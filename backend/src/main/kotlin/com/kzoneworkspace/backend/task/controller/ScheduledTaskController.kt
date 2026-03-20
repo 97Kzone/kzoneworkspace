@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/scheduled-tasks")
-@CrossOrigin(origins = ["*"])
 class ScheduledTaskController(
     private val schedulingService: SchedulingService
 ) {
