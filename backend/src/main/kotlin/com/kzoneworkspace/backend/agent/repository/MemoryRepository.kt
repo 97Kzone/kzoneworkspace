@@ -9,14 +9,27 @@ import org.springframework.stereotype.Repository
 @Repository
 interface MemoryRepository : JpaRepository<Memory, Long> {
 
+    @Query(value = "SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding FROM memories", nativeQuery = true)
+    fun findAllNative(): List<Memory>
+
     @Query(value = """
-        SELECT * FROM memories m 
+        SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding FROM memories m 
         WHERE m.agent_id = :agentId 
         ORDER BY m.embedding::vector <=> cast(:queryEmbedding as vector) 
         LIMIT :limit
     """, nativeQuery = true)
     fun findSimilarMemories(
         @Param("agentId") agentId: Long,
+        @Param("queryEmbedding") queryEmbedding: String,
+        @Param("limit") limit: Int
+    ): List<Memory>
+
+    @Query(value = """
+        SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding FROM memories m 
+        ORDER BY m.embedding::vector <=> cast(:queryEmbedding as vector) 
+        LIMIT :limit
+    """, nativeQuery = true)
+    fun findSimilarAcrossAll(
         @Param("queryEmbedding") queryEmbedding: String,
         @Param("limit") limit: Int
     ): List<Memory>
