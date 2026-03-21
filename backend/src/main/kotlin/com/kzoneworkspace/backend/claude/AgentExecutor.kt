@@ -48,6 +48,7 @@ class AgentExecutor(
     private val httpClient = java.net.http.HttpClient.newHttpClient()
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
+        println("📝 AgentExecutor.execute called for agent: ${agent.name}, roomId: $roomId")
         val task = taskService.createTask(roomId, userMessage, agent)
         taskService.updateStatus(task.id, TaskStatus.RUNNING)
         sendMessage(roomId, agent.name, "사용자 요청을 분석하고 있습니다...", MessageType.THINKING)
@@ -408,6 +409,15 @@ class AgentExecutor(
                     val inputStr = objectMapper.writeValueAsString(input)
                     sendMessage(roomId, agent.name, "🔍 **도구 사용**: `$toolName` \n> $inputStr", MessageType.TOOL)
 
+                    // 실시간 업무 프리뷰 시작 알림
+                    val livePayload = objectMapper.writeValueAsString(mapOf(
+                        "agentName" to agent.name,
+                        "toolName" to toolName,
+                        "target" to (input["path"] ?: input["command"] ?: input["query"] ?: input["url"] ?: ""),
+                        "status" to "START"
+                    ))
+                    sendMessage(roomId, agent.name, livePayload, MessageType.LIVE_WORKING)
+
                     val result = try {
                         val toolResult = when (toolName) {
                             "search_files" -> handleSearchFiles(input["pattern"] as? String ?: "")
@@ -460,6 +470,13 @@ class AgentExecutor(
                         "도구 실행 중 오류: ${e.message}"
                     }
                     
+                    // 실시간 업무 프리뷰 종료 알림
+                    val endPayload = objectMapper.writeValueAsString(mapOf(
+                        "agentName" to agent.name,
+                        "status" to "END"
+                    ))
+                    sendMessage(roomId, agent.name, endPayload, MessageType.LIVE_WORKING)
+
                     messages.add(mapOf(
                         "role" to "user",
                         "content" to listOf(mapOf(

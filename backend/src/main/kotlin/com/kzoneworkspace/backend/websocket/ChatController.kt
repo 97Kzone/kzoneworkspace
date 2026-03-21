@@ -38,6 +38,7 @@ class ChatController(
             if (agent != null) {
                 // 에이전트 이름을 제외한 실제 유저의 메시지 추출
                 val userMessage = contentAfterAt.substring(agent.name.length).trim()
+                println("🚀 Starting agent execution: ${agent.name} for roomId: ${savedMessage.roomId}")
                 Thread {
                     agentExecutor.execute(agent, savedMessage.roomId, userMessage)
                 }.start()

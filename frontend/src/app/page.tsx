@@ -124,6 +124,63 @@ const MermaidRenderer = ({ chart }: { chart: string }) => {
   return <div ref={containerRef} className="flex justify-center w-full my-6 p-4 bg-white border border-slate-100 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)]" />;
 };
 
+const LivePreviewBubble = ({ 
+  preview, 
+  getAgentColor 
+}: { 
+  preview: { toolName: string, target: string, agentName: string },
+  getAgentColor: (name: string) => any 
+}) => {
+  const Icon = preview.toolName.includes('write') ? Code2 : 
+               preview.toolName.includes('command') ? Terminal : 
+               preview.toolName.includes('search') ? Search : 
+               preview.toolName.includes('browse') ? Layout : Bot;
+  
+  const color = getAgentColor(preview.agentName);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8, y: 15 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.8, y: 15 }}
+      className={`absolute -top-32 left-1/2 -translate-x-1/2 w-52 bg-white/40 backdrop-blur-xl border border-white/60 rounded-2xl p-3 shadow-[0_15px_45px_rgba(0,0,0,0.08)] z-[60] overflow-hidden group`}
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${color.light} opacity-30 -z-10`} />
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`p-1.5 rounded-lg ${color.bg} text-white shadow-md`}>
+          <Icon size={12} className={preview.toolName.includes('thinking') ? "animate-spin" : "animate-pulse"} />
+        </div>
+        <div className="flex flex-col">
+          <span className={`text-[9px] font-black uppercase tracking-[0.15em] ${color.soft}`}>
+            {preview.toolName.replace('_', ' ')}
+          </span>
+          <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">실시간 업무 중</span>
+        </div>
+      </div>
+      <div className="text-[9px] font-mono text-slate-600 bg-white/60 rounded-xl p-2.5 border border-white/90 break-all line-clamp-2 shadow-inner">
+        {preview.target}
+      </div>
+      
+      <div className="mt-2.5 flex items-center justify-between">
+        <div className="flex gap-1">
+          {[0, 0.1, 0.2].map((delay, i) => (
+            <motion.div 
+              key={i}
+              animate={{ 
+                height: [4, 12, 4],
+                opacity: [0.3, 1, 0.3]
+              }} 
+              transition={{ repeat: Infinity, duration: 0.8, delay }}
+              className={`w-0.5 ${color.bg} rounded-full`} 
+            />
+          ))}
+        </div>
+        <div className={`w-1.5 h-1.5 rounded-full ${color.bg} animate-ping opacity-60`} />
+      </div>
+    </motion.div>
+  );
+};
+
 export default function VirtualOfficeBright() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -165,6 +222,7 @@ export default function VirtualOfficeBright() {
   const [isKnowledgeExplorerOpen, setIsKnowledgeExplorerOpen] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [isMemoriesLoading, setIsMemoriesLoading] = useState(false);
+  const [activePreviews, setActivePreviews] = useState<Record<string, { toolName: string, target: string, agentName: string } | null>>({});
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -278,6 +336,20 @@ export default function VirtualOfficeBright() {
           }));
         } catch (e) {
           console.error("Failed to parse COLLABORATION payload", e);
+        }
+      }
+
+      // Live Working Preview Logic
+      if (msg.type === 'LIVE_WORKING') {
+        try {
+          const payload = JSON.parse(msg.content);
+          const { agentName, toolName, target, status } = payload;
+          setActivePreviews(prev => ({
+            ...prev,
+            [agentName]: status === 'START' ? { toolName, target, agentName } : null
+          }));
+        } catch (e) {
+          console.error("Failed to parse LIVE_WORKING payload", e);
         }
       }
     });
@@ -829,9 +901,19 @@ export default function VirtualOfficeBright() {
                 animate={{ top: pos.top, left: pos.left }}
                 transition={{ type: "spring", stiffness: 60, damping: 15 }}
                 onClick={() => setActiveChat(agent.name)}
-                whileHover={{ scale: 1.05, zIndex: 40 }}
+                 whileHover={{ scale: 1.05, zIndex: 40 }}
                 style={{ zIndex: isRunning ? 30 : 20 }}
               >
+                {/* Live Working Preview Bubble */}
+                <AnimatePresence>
+                  {activePreviews[agent.name] && (
+                    <LivePreviewBubble 
+                      preview={activePreviews[agent.name]!} 
+                      getAgentColor={getAgentColor} 
+                    />
+                  )}
+                </AnimatePresence>
+
                 {/* Status bubble */}
                 <div className="absolute -top-7 bg-white border border-slate-200 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-lg shadow-slate-200/50 transform -translate-y-2 group-hover:translate-y-0">
                   {agent.role}

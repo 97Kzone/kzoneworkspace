@@ -6,6 +6,7 @@ import jakarta.persistence.ElementCollection
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -38,7 +39,7 @@ class Agent(
     @Enumerated(EnumType.STRING)
     var status: AgentStatus = AgentStatus.IDLE,
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "agent_skills", joinColumns = [JoinColumn(name = "agent_id")])
     @Column(name = "skill_name")
     var assignedSkills: MutableList<String> = mutableListOf(),

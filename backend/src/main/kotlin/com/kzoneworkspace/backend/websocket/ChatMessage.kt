@@ -26,11 +26,13 @@ class ChatMessage(
     var type: MessageType = MessageType.CHAT,
 
     @Column(nullable = false)
-    var timestamp: LocalDateTime = LocalDateTime.now()
+    var timestamp: LocalDateTime? = LocalDateTime.now()
 ) {
     @PrePersist
     fun onPrePersist() {
-        // Redundant but safe for JPA
+        if (timestamp == null) {
+            timestamp = LocalDateTime.now()
+        }
     }
 }
 
@@ -43,5 +45,6 @@ enum class MessageType {
     THINKING,   // 에이전트 추론 과정
     WHITEBOARD_UPDATE, // 화이트보드 업데이트
     BROWSER_UPDATE, // 실시간 브라우저 시각화 업데이트
-    COLLABORATION // 에이전트 간 협업 이벤트
+    COLLABORATION, // 에이전트 간 협업 이벤트
+    LIVE_WORKING // 에이전트 실시간 업무 프리뷰
 }
