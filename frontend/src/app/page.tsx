@@ -498,6 +498,18 @@ export default function VirtualOfficeBright() {
       console.error("스케줄 토글 실패:", err);
     }
   };
+  
+  const handleRunScheduledTask = async (id: number) => {
+    try {
+      await schedulingService.runNow(id);
+      const res = await schedulingService.getAll();
+      setScheduledTasks(res.data);
+      // 알림 (임시로 콘솔에 기록하거나 시스템 메시지로 추가 가능)
+      console.log(`Task ${id} triggered manually.`);
+    } catch (err) {
+      console.error("스케줄 즉시 실행 실패:", err);
+    }
+  };
 
   const handleDeleteScheduledTask = async (id: number) => {
     if (!confirm("이 예약 작업을 삭제하시겠습니까?")) return;
@@ -1131,23 +1143,42 @@ export default function VirtualOfficeBright() {
                                     </span>
                                     <span className="font-bold text-slate-200">{task.description}</span>
                                   </div>
-                                  <div className="flex items-center gap-2 text-slate-500 text-[8px]">
-                                    <Calendar size={8} /> <span>{task.cronExpression}</span>
-                                    <Activity size={8} /> <span>마지막 실행: {task.lastRun ? new Date(task.lastRun).toLocaleTimeString() : '없음'}</span>
+                                  <div className="flex items-center gap-2 text-slate-500 text-[8px] flex-wrap mt-0.5">
+                                    <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                      <Calendar size={8} className="text-amber-400" /> 
+                                      <span className="font-mono">{task.cronExpression}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                      <Play size={8} className="text-emerald-400" /> 
+                                      <span>다음: {task.nextRun ? new Date(task.nextRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '대기 중'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                      <Activity size={8} className="text-indigo-400" /> 
+                                      <span>최근: {task.lastRun ? new Date(task.lastRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '없음'}</span>
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1.5 ml-4">
+                                  <button 
+                                    onClick={() => handleRunScheduledTask(task.id)}
+                                    title="지금 바로 실행"
+                                    className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all active:scale-95"
+                                  >
+                                    <Play size={12} fill="currentColor" />
+                                  </button>
                                   <button 
                                     onClick={() => handleToggleScheduledTask(task.id)}
-                                    className={`p-1 rounded bg-slate-700 hover:bg-slate-600 ${task.status === 'ACTIVE' ? 'text-amber-400' : 'text-emerald-400'}`}
+                                    title={task.status === 'ACTIVE' ? '일시 정지' : '다시 시작'}
+                                    className={`p-2 rounded-lg border transition-all active:scale-95 ${task.status === 'ACTIVE' ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'}`}
                                   >
-                                    {task.status === 'ACTIVE' ? <Pause size={10} /> : <Play size={10} />}
+                                    {task.status === 'ACTIVE' ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteScheduledTask(task.id)}
-                                    className="p-1 rounded bg-slate-700 hover:bg-rose-900/50 text-rose-400"
+                                    title="삭제"
+                                    className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all active:scale-95"
                                   >
-                                    <Trash2 size={10} />
+                                    <Trash2 size={12} />
                                   </button>
                                 </div>
                               </div>
@@ -1808,10 +1839,26 @@ export default function VirtualOfficeBright() {
                           required
                           className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all"
                           placeholder="0 0/1 * * * ?"
-                          value={newScheduledTask.cronExpression}
-                          onChange={e => setNewScheduledTask({ ...newScheduledTask, cronExpression: e.target.value })}
-                        />
+                         />
                       </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: "매 분 마다", cron: "0 * * * * ?" },
+                          { label: "5분 마다", cron: "0 0/5 * * * ?" },
+                          { label: "1시간 마다", cron: "0 0 * * * ?" },
+                          { label: "매일 자정", cron: "0 0 0 * * ?" }
+                        ].map(helper => (
+                          <button
+                            key={helper.label}
+                            type="button"
+                            onClick={() => setNewScheduledTask({ ...newScheduledTask, cronExpression: helper.cron })}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${newScheduledTask.cronExpression === helper.cron ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-200' : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'}`}
+                          >
+                            {helper.label}
+                          </button>
+                        ))}
                     </div>
 
                     <div>

@@ -26,8 +26,12 @@ class ScheduledTaskController(
     @PostMapping("/{id}/toggle")
     fun toggleTask(@PathVariable id: Long): ScheduledTask = schedulingService.toggleTaskStatus(id)
 
+    @PostMapping("/{id}/run-now")
+    fun runNow(@PathVariable id: Long): ScheduledTask = schedulingService.runNow(id)
+
     @DeleteMapping("/{id}")
     fun deleteTask(@PathVariable id: Long) = schedulingService.deleteTask(id)
+
 
     data class CreateScheduledTaskRequest(
         val description: String,

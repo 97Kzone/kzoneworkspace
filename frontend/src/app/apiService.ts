@@ -104,8 +104,10 @@ export const schedulingService = {
     getAll: () => api.get<ScheduledTask[]>('/scheduled-tasks'),
     create: (data: any) => api.post<ScheduledTask>('/scheduled-tasks', data),
     toggle: (id: number) => api.post<ScheduledTask>(`/scheduled-tasks/${id}/toggle`),
+    runNow: (id: number) => api.post<ScheduledTask>(`/scheduled-tasks/${id}/run-now`),
     delete: (id: number) => api.delete(`/scheduled-tasks/${id}`),
 };
+
 
 export const codeReviewService = {
     perform: (roomId: string, agentName: string) =>
