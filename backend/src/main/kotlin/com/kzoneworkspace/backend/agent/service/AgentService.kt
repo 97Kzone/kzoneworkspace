@@ -64,6 +64,14 @@ class AgentService(
         agent.provider = updated.provider
         agent.model = updated.model
         agent.assignedSkills = updated.assignedSkills
+        agent.points = updated.points
+        agent.lastEmotion = updated.lastEmotion
+        agent.updatedAt = LocalDateTime.now()
+        return agentRepository.save(agent)
+    }
+
+    @Transactional
+    fun save(agent: Agent): Agent {
         agent.updatedAt = LocalDateTime.now()
         return agentRepository.save(agent)
     }

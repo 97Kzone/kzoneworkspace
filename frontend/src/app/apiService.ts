@@ -17,6 +17,18 @@ export interface Agent {
     provider: string;
     model: string;
     assignedSkills: string[];
+    points: number;
+    lastEmotion: string | null;
+}
+
+export interface OfficeItem {
+    id: number;
+    name: string;
+    type: string;
+    x: number;
+    y: number;
+    agentId: number | null;
+    createdAt: string;
 }
 
 export interface Skill {
@@ -106,6 +118,13 @@ export const schedulingService = {
     toggle: (id: number) => api.post<ScheduledTask>(`/scheduled-tasks/${id}/toggle`),
     runNow: (id: number) => api.post<ScheduledTask>(`/scheduled-tasks/${id}/run-now`),
     delete: (id: number) => api.delete(`/scheduled-tasks/${id}`),
+};
+
+export const officeService = {
+    getAll: () => api.get<OfficeItem[]>('/office/items'),
+    buyItem: (data: { agentId: number, name: string, type: string, x: number, y: number, price: number }) => 
+        api.post<OfficeItem>('/office/items/buy', data),
+    deleteItem: (id: number) => api.delete(`/office/items/${id}`),
 };
 
 

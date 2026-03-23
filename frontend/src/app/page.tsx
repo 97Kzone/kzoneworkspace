@@ -2,11 +2,41 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search } from "lucide-react";
+import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, OfficeItem, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService } from "./apiService";
+
+const EmotionBubble = ({ 
+  emotion, 
+  agentName,
+  getAgentColor 
+}: { 
+  emotion: string, 
+  agentName: string,
+  getAgentColor: (name: string) => any 
+}) => {
+  const emojis: Record<string, string> = {
+    "HAPPY": "🎉",
+    "SAD": "😫",
+    "THINKING": "🤔",
+    "ANGRY": "💢",
+    "SUCCESS": "✅",
+    "ERROR": "❌"
+  };
+
+  return (
+    <motion.div
+      initial={{ scale: 0, y: 0, opacity: 0 }}
+      animate={{ scale: [0, 1.3, 1], y: -50, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
+      className="absolute left-1/2 -translate-x-1/2 z-[100] text-3xl filter drop-shadow-lg"
+    >
+      {emojis[emotion] || emotion}
+    </motion.div>
+  );
+};
 
 const KnowledgeExplorer = ({ 
   isOpen, 
@@ -223,6 +253,10 @@ export default function VirtualOfficeBright() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [isMemoriesLoading, setIsMemoriesLoading] = useState(false);
   const [activePreviews, setActivePreviews] = useState<Record<string, { toolName: string, target: string, agentName: string } | null>>({});
+  
+  // Office Decorator State
+  const [officeItems, setOfficeItems] = useState<OfficeItem[]>([]);
+  const [isShopOpen, setIsShopOpen] = useState(false);
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -244,6 +278,10 @@ export default function VirtualOfficeBright() {
       setSkills(skillRes.data);
       setActivities(activityRes.data);
       setScheduledTasks(scheduledRes.data);
+      
+      // 오피스 아이템 로드
+      const officeRes = await officeService.getAll();
+      setOfficeItems(officeRes.data);
       
       if (agentRes.data.length > 0) {
         setNewScheduledTask(prev => ({ ...prev, agentId: agentRes.data[0].id }));
@@ -271,6 +309,34 @@ export default function VirtualOfficeBright() {
       console.error("지식 검색 실패:", err);
     } finally {
       setIsMemoriesLoading(false);
+    }
+  };
+
+  const handleBuyItem = async (itemType: string, price: number) => {
+    if (agents.length === 0) return;
+    
+    // 가장 포인트가 많은 에이전트로 구매 시도 (또는 선택 로직 추가 가능)
+    const buyer = [...agents].sort((a,b) => b.points - a.points)[0];
+    
+    if (buyer.points < price) {
+      alert(`${buyer.name} 요원의 포인트가 부족합니다! (필요: ${price}, 보유: ${buyer.points})`);
+      return;
+    }
+
+    try {
+      const res = await officeService.buyItem({
+        agentId: buyer.id,
+        name: itemType.replace('_', ' '),
+        type: itemType,
+        x: Math.floor(Math.random() * 600) + 100, // 랜덤 위치
+        y: Math.floor(Math.random() * 400) + 100,
+        price: price
+      });
+      setOfficeItems(prev => [...prev, res.data]);
+      setAgents(prev => prev.map(a => a.id === buyer.id ? { ...a, points: a.points - price } : a));
+      setIsShopOpen(false);
+    } catch (e) {
+      console.error("Failed to buy item", e);
     }
   };
 
@@ -350,6 +416,31 @@ export default function VirtualOfficeBright() {
           }));
         } catch (e) {
           console.error("Failed to parse LIVE_WORKING payload", e);
+        }
+      }
+
+      // Agent Status Update Logic (Points/Emotions)
+      if (msg.type === 'SYSTEM') {
+        try {
+          const payload = JSON.parse(msg.content);
+          if (payload.agentId && (payload.points !== undefined || payload.lastEmotion !== undefined)) {
+            setAgents(prev => prev.map(a => 
+              a.id === payload.agentId 
+                ? { ...a, points: payload.points ?? a.points, lastEmotion: payload.lastEmotion ?? a.lastEmotion } 
+                : a
+            ));
+            
+            // 감정 표현 후 일정 시간 뒤 초기화 (선택 사항)
+            if (payload.lastEmotion) {
+              setTimeout(() => {
+                setAgents(prev => prev.map(a => 
+                  a.id === payload.agentId ? { ...a, lastEmotion: null } : a
+                ));
+              }, 5000);
+            }
+          }
+        } catch (e) {
+          // 일반 시스템 메시지는 무시하거나 처리
         }
       }
     });
@@ -758,6 +849,12 @@ export default function VirtualOfficeBright() {
               <Sparkles size={16} /> 지식 탐색기
             </button>
             <button
+              onClick={() => setIsShopOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-100 transition-all font-bold text-xs"
+            >
+              <ShoppingBag size={16} /> 오피스 상점
+            </button>
+            <button
               onClick={handleStartCodeReview}
               disabled={isReviewing}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-xs disabled:opacity-50"
@@ -835,7 +932,7 @@ export default function VirtualOfficeBright() {
                 const toAgent = agents.find(a => a.name === conn.to);
 
                 // If 'from' is user/lounge, use fixed position
-                const fromPos = fromAgent ? getAgentPosition(fromAgent, agents.indexOf(fromAgent)) : { top: 480, left: 240 }; // Lounge approx pos
+                const fromPos = fromAgent ? getAgentPosition(fromAgent, agents.indexOf(fromAgent)) : { top: 480, left: 240 }; 
                 const toPos = toAgent ? getAgentPosition(toAgent, agents.indexOf(toAgent)) : null;
 
                 if (!toPos) return null;
@@ -900,6 +997,27 @@ export default function VirtualOfficeBright() {
             </AnimatePresence>
           </svg>
 
+          {/* Office Decorations */}
+          {officeItems.map((item) => {
+            const Icon = item.type === "COFFEE_MACHINE" ? Coffee : 
+                        item.type === "PLANT" ? Leaf : 
+                        item.type === "SERVER_RACK" ? Database : 
+                        item.type === "GAMING_CHAIR" ? User : Layout;
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute z-0 pointer-events-none opacity-40 hover:opacity-80 transition-opacity"
+                style={{ top: item.y, left: item.x }}
+              >
+                <div className="bg-white/20 backdrop-blur-sm border border-white/40 p-3 rounded-2xl shadow-sm">
+                  <Icon size={32} className="text-slate-400" />
+                </div>
+              </motion.div>
+            );
+          })}
+
           {/* Agents */}
           {agents.map((agent, i) => {
             const pos = getAgentPosition(agent, i);
@@ -924,11 +1042,18 @@ export default function VirtualOfficeBright() {
                       getAgentColor={getAgentColor} 
                     />
                   )}
+                  {agent.lastEmotion && (
+                    <EmotionBubble 
+                      emotion={agent.lastEmotion} 
+                      agentName={agent.name} 
+                      getAgentColor={getAgentColor} 
+                    />
+                  )}
                 </AnimatePresence>
 
                 {/* Status bubble */}
                 <div className="absolute -top-7 bg-white border border-slate-200 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-lg shadow-slate-200/50 transform -translate-y-2 group-hover:translate-y-0">
-                  {agent.role}
+                  {agent.role} (⭐ {agent.points || 0})
                 </div>
 
                 {/* Activity indicator / Status Bubble */}
@@ -966,9 +1091,9 @@ export default function VirtualOfficeBright() {
                 {/* Animated Avatar */}
                 <div className="relative z-10 w-16 h-16 flex items-center justify-center">
                   {/* Character Glow */}
-                  {isRunning && (
+                  {(isRunning || agent.lastEmotion === 'HAPPY') && (
                     <motion.div
-                      className={`absolute inset-0 rounded-full blur-2xl ${getAgentColor(agent.name).bg} opacity-30`}
+                      className={`absolute inset-0 rounded-full blur-2xl ${agent.lastEmotion === 'HAPPY' ? 'bg-amber-400' : getAgentColor(agent.name).bg} opacity-30`}
                       animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.4, 0.2] }}
                       transition={{ repeat: Infinity, duration: 2 }}
                     />
@@ -979,25 +1104,33 @@ export default function VirtualOfficeBright() {
 
                   {/* Avatar Character */}
                   <motion.div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center border-4 shadow-2xl transition-colors duration-500 ${isRunning ? `${getAgentColor(agent.name).bg} border-white` : 'bg-white border-slate-100'}`}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center border-4 shadow-2xl transition-colors duration-500 ${isRunning ? `${getAgentColor(agent.name).bg} border-white` : agent.lastEmotion === 'HAPPY' ? 'bg-amber-400 border-white' : 'bg-white border-slate-100'}`}
                     animate={isRunning ? {
                       y: [0, -8, 0],
+                    } : agent.lastEmotion === 'HAPPY' ? {
+                      y: [0, -25, 0],
+                      rotate: [0, 15, -15, 15, -15, 0]
+                    } : agent.lastEmotion === 'SAD' ? {
+                      x: [0, -5, 5, -5, 5, 0],
+                      scale: 0.9
                     } : {
                       y: [0, -2, 0]
                     }}
                     transition={{
-                      repeat: Infinity,
-                      duration: isRunning ? 0.6 : 3,
+                      repeat: isRunning ? Infinity : 0,
+                      duration: isRunning ? 0.6 : agent.lastEmotion === 'HAPPY' ? 1 : 0.4,
                       ease: "easeInOut"
                     }}
                   >
-                    <Bot size={28} className={isRunning ? 'text-white' : 'text-slate-300'} />
+                    {agent.lastEmotion === 'HAPPY' ? <span className="text-xl">😎</span> : 
+                     agent.lastEmotion === 'SAD' ? <span className="text-xl">😫</span> :
+                     <Bot size={28} className={isRunning ? 'text-white' : 'text-slate-300'} />}
                   </motion.div>
                 </div>
 
                 {/* Nameplate */}
                 <div className={`mt-2 bg-white px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] border ${isRunning ? 'border-indigo-200' : 'border-slate-100'}`}>
-                  <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-300'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-300'}`}></span>
                   <span className="text-xs font-bold tracking-wide text-slate-700">{agent.name}</span>
                 </div>
               </motion.div>
@@ -1228,7 +1361,7 @@ export default function VirtualOfficeBright() {
                   };
 
                   document.addEventListener("mousemove", onMouseMove);
-                  document.addEventListener("mouseup", onMouseUp);
+                    document.addEventListener("mouseup", onMouseUp);
                 }}
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="rotate-90">
@@ -1766,7 +1899,6 @@ export default function VirtualOfficeBright() {
               </div>
             </div>
             
-            {/* Browser Content (Screenshot) */}
             <div className="flex-1 min-h-[300px] max-h-[500px] bg-[#f8fafc] overflow-y-auto custom-scrollbar flex flex-col relative w-full">
               {browserScreenshot ? (
                 <img src={browserScreenshot} alt="Browser screenshot" className="w-full h-auto object-cover" />
@@ -1839,7 +1971,9 @@ export default function VirtualOfficeBright() {
                           required
                           className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all"
                           placeholder="0 0/1 * * * ?"
-                         />
+                          value={newScheduledTask.cronExpression}
+                          onChange={e => setNewScheduledTask({ ...newScheduledTask, cronExpression: e.target.value })}
+                        />
                       </div>
                     </div>
 
@@ -1888,6 +2022,86 @@ export default function VirtualOfficeBright() {
             </motion.div>
           )}
         </AnimatePresence>
+
+      {/* 6. Office Shop Modal */}
+      <AnimatePresence>
+        {isShopOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="w-[600px] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-extrabold text-slate-800">오피스 상점</h3>
+                    <p className="text-xs text-slate-400 font-medium">에이전트 포인트로 오피스를 꾸며보세요!</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsShopOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 grid grid-cols-2 gap-6 bg-slate-50/30 overflow-y-auto max-h-[500px] custom-scrollbar">
+                {[
+                  { type: "COFFEE_MACHINE", name: "고급 커피 머신", price: 50, icon: Coffee, desc: "요원들의 집중력을 높여줍니다." },
+                  { type: "PLANT", name: "공기정화 식물", price: 30, icon: Leaf, desc: "쾌적한 사무 환경을 조성합니다." },
+                  { type: "SERVER_RACK", name: "슈퍼 서버 랙", price: 150, icon: Database, desc: "연산 능력이 상승할 것만 같아요." },
+                  { type: "GAMING_CHAIR", name: "인체공학 체어", price: 80, icon: User, desc: "장시간 업무에도 끄떡없습니다." },
+                ].map(item => {
+                  const buyer = [...agents].sort((a,b) => b.points - a.points)[0];
+                  const canAfford = buyer && buyer.points >= item.price;
+                  
+                  return (
+                    <div key={item.type} className="bg-white border-2 border-slate-100 rounded-2xl p-5 hover:border-amber-200 transition-all group flex flex-col">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <item.icon size={24} className="text-slate-400 group-hover:text-amber-500 transition-colors" />
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Price</span>
+                          <span className="text-lg font-black text-amber-500">⭐ {item.price}</span>
+                        </div>
+                      </div>
+                      <h4 className="font-bold text-slate-800 mb-1">{item.name}</h4>
+                      <p className="text-[11px] text-slate-400 mb-6 font-medium leading-tight">{item.desc}</p>
+                      
+                      <button
+                        disabled={!canAfford}
+                        onClick={() => handleBuyItem(item.type, item.price)}
+                        className={`mt-auto py-2.5 rounded-xl text-xs font-black transition-all ${canAfford ? 'bg-slate-900 text-white hover:bg-amber-500 shadow-lg shadow-slate-200 hover:shadow-amber-200' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}
+                      >
+                        {canAfford ? '구매하기' : '포인트 부족'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-white flex justify-center items-center gap-3">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">최고 보유 포인트:</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-black text-blue-600">
+                    {[...agents].sort((a,b) => b.points - a.points)[0]?.name[0]}
+                  </div>
+                  <span className="text-sm font-black text-slate-700">⭐ {[...agents].sort((a,b) => b.points - a.points)[0]?.points || 0}</span>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {

@@ -47,7 +47,13 @@ class Agent(
     @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
 
-    var updatedAt: LocalDateTime = LocalDateTime.now()
+    var updatedAt: LocalDateTime = LocalDateTime.now(),
+
+    @Column(nullable = false)
+    var points: Int = 0,
+
+    @Column
+    var lastEmotion: String? = null
 ) {
     fun addSkill(skill: String) {
         if (!assignedSkills.contains(skill)) {
