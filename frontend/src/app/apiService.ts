@@ -89,6 +89,16 @@ export interface Memory {
     createdAt: string;
 }
 
+export interface CodebaseChunk {
+    id: number;
+    content: string;
+    filePath: string;
+    startLine: number;
+    endLine: number;
+    language: string | null;
+    createdAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -137,6 +147,12 @@ export const memoryService = {
     getAll: (limit: number = 50) => api.get<Memory[]>(`/memories?limit=${limit}`),
     search: (query: string, agentId?: number, limit: number = 10) => 
         api.get<Memory[]>(`/memories/search?query=${query}${agentId ? `&agentId=${agentId}` : ''}&limit=${limit}`),
+};
+
+export const codebaseService = {
+    index: () => api.post<{status: string, message: string}>('/codebase/index'),
+    search: (query: string, limit: number = 10) => 
+        api.get<CodebaseChunk[]>(`/codebase/search?query=${query}&limit=${limit}`),
 };
 
 
