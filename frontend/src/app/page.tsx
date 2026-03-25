@@ -337,7 +337,7 @@ export default function VirtualOfficeBright() {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN'>('LOGS');
   const [isReviewing, setIsReviewing] = useState(false);
   const [activeCollaborations, setActiveCollaborations] = useState<Record<string, string | null>>({});
 
@@ -1328,6 +1328,12 @@ export default function VirtualOfficeBright() {
                     >
                       SCHEDULER
                     </button>
+                    <button
+                      onClick={() => setActiveTab('KANBAN')}
+                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'KANBAN' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      KANBAN
+                    </button>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -1400,7 +1406,7 @@ export default function VirtualOfficeBright() {
                           </div>
                         </div>
                       </div>
-                    ) : (
+                    ) : activeTab === 'SCHEDULER' ? (
                       <div className="h-full flex flex-col gap-3">
                         <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-lg border border-slate-700">
                           <span className="text-[9px] font-bold text-slate-400">자율 예약 작업 목록</span>
@@ -1466,6 +1472,62 @@ export default function VirtualOfficeBright() {
                             ))
                           )}
                         </div>
+                      </div>
+                    ) : (
+                      <div className="h-full overflow-x-auto custom-scrollbar flex gap-4 p-2 pb-4">
+                        {[
+                          { id: 'PENDING', label: 'Backlog', color: 'slate' },
+                          { id: 'RUNNING', label: 'In Progress', color: 'indigo' },
+                          { id: 'COMPLETED', label: 'Done', color: 'emerald' },
+                          { id: 'FAILED', label: 'Failed', color: 'rose' }
+                        ].map(col => (
+                          <div key={col.id} className="min-w-[200px] flex-1 flex flex-col bg-slate-900/40 rounded-xl border border-slate-800/60 overflow-hidden">
+                            <div className={`h-8 px-3 flex items-center justify-between border-b border-slate-800/60 bg-${col.color}-500/10`}>
+                               <span className={`text-[9px] font-black uppercase tracking-widest text-${col.color}-400`}>{col.label}</span>
+                               <span className="bg-slate-800 text-slate-500 text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-slate-700">
+                                 {tasks.filter(t => t.status === col.id).length}
+                               </span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar min-h-[100px]">
+                              {tasks.filter(t => t.status === col.id).length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-[8px] text-slate-600 italic uppercase tracking-tighter">Empty</div>
+                              ) : (
+                                tasks.filter(t => t.status === col.id).map(task => (
+                                  <motion.div
+                                    key={task.id}
+                                    layoutId={`task-${task.id}`}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="bg-slate-800/80 border border-slate-700/50 rounded-lg p-2.5 shadow-sm hover:border-slate-500 transition-colors group cursor-default"
+                                  >
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      {task.agent ? (
+                                        <div className={`w-4 h-4 rounded-md ${getAgentColor(task.agent.name).bg} flex items-center justify-center text-white`}>
+                                          <Bot size={10} />
+                                        </div>
+                                      ) : (
+                                        <div className="w-4 h-4 rounded-md bg-slate-700 flex items-center justify-center text-white">
+                                          <User size={10} />
+                                        </div>
+                                      )}
+                                      <span className="text-[9px] font-bold text-slate-400 truncate max-w-[100px]">
+                                        {task.agent?.name || 'Unassigned'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-200 line-clamp-2 leading-relaxed font-sans mb-2 font-medium">
+                                      {task.command}
+                                    </p>
+                                    {task.result && (
+                                      <div className="text-[8px] text-slate-500 border-t border-slate-700/50 pt-1.5 italic line-clamp-1">
+                                        {task.result}
+                                      </div>
+                                    )}
+                                  </motion.div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                     <div className="h-1" ref={consoleScrollRef}></div>
