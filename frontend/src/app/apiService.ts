@@ -155,6 +155,10 @@ export const codebaseService = {
         api.get<CodebaseChunk[]>(`/codebase/search?query=${query}&limit=${limit}`),
 };
 
+export const briefingService = {
+    get: () => api.get<{content: string}>('/briefing'),
+};
+
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({

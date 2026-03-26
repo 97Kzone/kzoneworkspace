@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository
 interface ActivityLogRepository : JpaRepository<ActivityLog, Long> {
     fun findByRoomIdOrderByTimestampDesc(roomId: String): List<ActivityLog>
     fun findByAgentIdOrderByTimestampDesc(agentId: Long): List<ActivityLog>
+    fun findByTimestampAfter(timestamp: java.time.LocalDateTime): List<ActivityLog>
 }

@@ -33,4 +33,6 @@ interface MemoryRepository : JpaRepository<Memory, Long> {
         @Param("queryEmbedding") queryEmbedding: String,
         @Param("limit") limit: Int
     ): List<Memory>
+
+    fun findByCreatedAtAfter(createdAt: java.time.LocalDateTime): List<Memory>
 }
