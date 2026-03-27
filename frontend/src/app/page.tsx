@@ -461,6 +461,7 @@ export default function VirtualOfficeBright() {
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
   const [briefingContent, setBriefingContent] = useState("");
   const [isBriefingLoading, setIsBriefingLoading] = useState(false);
+  const [isIntelligenceBoosted, setIsIntelligenceBoosted] = useState<Record<string, boolean>>({});
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -663,8 +664,16 @@ export default function VirtualOfficeBright() {
         }
       }
 
-      // Agent Status Update Logic (Points/Emotions)
+      // Agent Status Update Logic (Points/Emotions/Intelligence)
       if (msg.type === 'SYSTEM') {
+        if (msg.content === 'intelligence_boosted') {
+          setIsIntelligenceBoosted(prev => ({ ...prev, [msg.senderName]: true }));
+          setTimeout(() => {
+            setIsIntelligenceBoosted(prev => ({ ...prev, [msg.senderName]: false }));
+          }, 8000);
+          return;
+        }
+
         try {
           const payload = JSON.parse(msg.content);
           if (payload.agentId && (payload.points !== undefined || payload.lastEmotion !== undefined)) {

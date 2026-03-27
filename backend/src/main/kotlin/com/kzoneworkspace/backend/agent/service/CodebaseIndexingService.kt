@@ -106,4 +106,8 @@ class CodebaseIndexingService(
         val embedding = geminiClient.embedText(query)
         return codebaseChunkRepository.findSimilarChunks(embedding.toString(), limit)
     }
+
+    fun isIndexEmpty(): Boolean {
+        return codebaseChunkRepository.count() == 0L
+    }
 }

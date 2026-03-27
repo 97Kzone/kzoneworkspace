@@ -12,42 +12,37 @@ class ProjectContextService {
 
         context.append("# 🚀 Project Context (Intelligence Boosted)\n\n")
 
-        // 1. Recursive Directory Structure (Depth 3)
+        // 1. Recursive Directory Structure (Depth 4 for better map)
         context.append("## 📂 Repository Structure\n")
         context.append("```text\n")
-        generateDirectoryTree(root, "", 0, 3, context)
+        generateDirectoryTree(root, "", 0, 4, context)
         context.append("```\n\n")
 
-        // 2. Automatically Identify Important Files
+        // 2. Intelligent Technical Summary (Condensed Signatures)
+        context.append("## 🏗️ Technical Architecture Map\n")
+        val techMap = generateTechnicalMap(root)
+        context.append(techMap)
+        context.append("\n")
+
+        // 3. Automatically Identify Important Files (Full snippet)
         val importantFilePaths = listOf(
             "README.md",
-            "compose.yaml",
-            "docker-compose.yml",
             "backend/build.gradle.kts",
-            "backend/src/main/resources/application.properties",
-            "backend/.env",
-            "frontend/package.json",
-            "frontend/next.config.js",
-            "frontend/src/app/page.tsx"
+            "frontend/package.json"
         )
 
-        context.append("## 📄 Key Project Files\n")
+        context.append("## 📄 Key Configuration Snippets\n")
         for (relPath in importantFilePaths) {
             val file = File(root, relPath)
             if (file.exists() && file.isFile) {
                 context.append("### FILE: $relPath\n")
                 context.append("```\n")
-                val content = file.readText().take(1500)
+                val content = file.readText().take(1000)
                 context.append(content)
-                if (file.length() > 1500) context.append("\n... (truncated for brevity)")
+                if (file.length() > 1000) context.append("\n... (truncated)")
                 context.append("\n```\n\n")
             }
         }
-
-        // 3. Intelligent Component Discovery
-        context.append("## 🧩 Identified Components\n")
-        discoverComponents(root, context)
-        context.append("\n")
 
         // 4. Tech Stack Summary
         context.append("## 🛠️ Tech Stack Summary\n")
@@ -56,6 +51,51 @@ class ProjectContextService {
         if (File(root, "compose.yaml").exists() || File(root, "docker-compose.yml").exists()) context.append("- **Infrastructure**: Docker Compose\n")
 
         return context.toString()
+    }
+
+    private fun generateTechnicalMap(root: File): String {
+        val map = StringBuilder()
+        val targetDirs = listOf("backend/src/main/kotlin", "frontend/src/app")
+        
+        for (dirPath in targetDirs) {
+            val dir = File(root, dirPath)
+            if (!dir.exists()) continue
+            
+            map.append("### Source: $dirPath\n")
+            dir.walkTopDown().maxDepth(5).filter { it.isFile && (it.extension == "kt" || it.extension == "ts" || it.extension == "tsx") }.forEach { file ->
+                val signatures = extractSignatures(file)
+                if (signatures.isNotBlank()) {
+                    map.append("- **${file.name}**: $signatures\n")
+                }
+            }
+        }
+        return map.toString()
+    }
+
+    private fun extractSignatures(file: File): String {
+        return try {
+            val lines = file.readLines()
+            val signatures = mutableListOf<String>()
+            
+            // Very simple extraction logic for performance
+            for (line in lines) {
+                val trimmed = line.trim()
+                if (trimmed.startsWith("class ") || trimmed.startsWith("interface ") || trimmed.startsWith("enum class ")) {
+                    signatures.add(trimmed.substringBefore("{").trim())
+                } else if (trimmed.startsWith("fun ") || (trimmed.startsWith("export const") && trimmed.contains("=>"))) {
+                     val sig = if (trimmed.startsWith("fun ")) {
+                         trimmed.substringBefore("{").trim()
+                     } else {
+                         trimmed.substringBefore("=").trim()
+                     }
+                     if (signatures.size < 5) signatures.add(sig) // Limit signatures per file
+                }
+            }
+            
+            if (signatures.isEmpty()) "" else signatures.joinToString(", ")
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     private fun findProjectRoot(): File {
@@ -70,29 +110,6 @@ class ProjectContextService {
             current = current.parentFile
         }
         return File(".")
-    }
-
-    private fun discoverComponents(root: File, context: StringBuilder) {
-        val backendSrc = File(root, "backend/src/main/kotlin")
-        if (!backendSrc.exists()) return
-
-        val entities = mutableListOf<String>()
-        val controllers = mutableListOf<String>()
-
-        backendSrc.walkTopDown().forEach { file ->
-            if (file.isFile && file.extension == "kt") {
-                val content = file.readText()
-                if (content.contains("@Entity")) entities.add(file.nameWithoutExtension)
-                if (content.contains("@RestController") || content.contains("@Controller")) controllers.add(file.nameWithoutExtension)
-            }
-        }
-
-        if (entities.isNotEmpty()) {
-            context.append("- **Entities**: ${entities.joinToString(", ")}\n")
-        }
-        if (controllers.isNotEmpty()) {
-            context.append("- **Controllers**: ${controllers.joinToString(", ")}\n")
-        }
     }
 
     private fun generateDirectoryTree(file: File, indent: String, depth: Int, maxDepth: Int, context: StringBuilder) {

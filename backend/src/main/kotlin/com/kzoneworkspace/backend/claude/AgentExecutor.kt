@@ -23,6 +23,8 @@ import com.kzoneworkspace.backend.tools.CodeReviewService
 import com.kzoneworkspace.backend.agent.service.ActivityLogService
 import com.kzoneworkspace.backend.agent.service.CollaborationService
 import com.kzoneworkspace.backend.task.service.SchedulingService
+import com.kzoneworkspace.backend.agent.service.CodebaseIndexingService
+import com.kzoneworkspace.backend.agent.entity.CodebaseChunk
 import java.net.URLEncoder
 
 @Service
@@ -42,6 +44,7 @@ class AgentExecutor(
     private val codeReviewService: CodeReviewService,
     private val activityLogService: ActivityLogService,
     private val schedulingService: SchedulingService,
+    private val codebaseIndexingService: CodebaseIndexingService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val objectMapper = jacksonObjectMapper()
@@ -65,6 +68,22 @@ class AgentExecutor(
                     "role" to "user",
                     "content" to "[System: Relevant Long-term Memories]\n$memoryContext\n\n[System Context: Please use the above memories if relevant to the user goal.]"
                 ))
+            }
+
+            // 코드베이스 RAG 조회 (지능 최적화)
+            sendMessage(roomId, agent.name, "코드베이스에서 관련 로직을 스캔 중입니다...", MessageType.THINKING)
+            val relatedCodeChunks = codebaseIndexingService.search(userMessage, 7)
+            if (relatedCodeChunks.isNotEmpty()) {
+                val codeContext = relatedCodeChunks.joinToString("\n---\n") { chunk ->
+                    "### File: ${chunk.filePath} (Lines: ${chunk.startLine}-${chunk.endLine})\n```${chunk.language}\n${chunk.content}\n```"
+                }
+                messages.add(mapOf(
+                    "role" to "user",
+                    "content" to "[System Context: Relevant Project Snippets]\n$codeContext"
+                ))
+                
+                // 지능 강화 알림 UI 전송
+                sendMessage(roomId, agent.name, "intelligence_boosted", MessageType.SYSTEM)
             }
 
             // 프로젝트 컨텍스트 주입 (지능 고도화)
