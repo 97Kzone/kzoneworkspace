@@ -1610,38 +1610,50 @@ export default function VirtualOfficeBright() {
                               {tasks.filter(t => t.status === col.id).length === 0 ? (
                                 <div className="h-full flex items-center justify-center text-[8px] text-slate-600 italic uppercase tracking-tighter">Empty</div>
                               ) : (
-                                tasks.filter(t => t.status === col.id).map(task => (
-                                  <motion.div
-                                    key={task.id}
-                                    layoutId={`task-${task.id}`}
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="bg-slate-800/80 border border-slate-700/50 rounded-lg p-2.5 shadow-sm hover:border-slate-500 transition-colors group cursor-default"
-                                  >
-                                    <div className="flex items-center gap-1.5 mb-1.5">
-                                      {task.agent ? (
-                                        <div className={`w-4 h-4 rounded-md ${getAgentColor(task.agent.name).bg} flex items-center justify-center text-white`}>
-                                          <Bot size={10} />
+                                  tasks.filter(t => t.status === col.id).map(task => (
+                                    <motion.div
+                                      key={task.id}
+                                      layoutId={`task-${task.id}`}
+                                      initial={{ opacity: 0, scale: 0.95 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      className={`bg-slate-800/80 border ${task.parentId ? 'border-indigo-500/30 ml-4 border-l-2' : 'border-slate-700/50'} rounded-lg p-2.5 shadow-sm hover:border-slate-500 transition-colors group cursor-default`}
+                                    >
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          {task.agent ? (
+                                            <div className={`w-4 h-4 rounded-md ${getAgentColor(task.agent.name).bg} flex items-center justify-center text-white shadow-sm`}>
+                                              <Bot size={10} />
+                                            </div>
+                                          ) : (
+                                            <div className="w-4 h-4 rounded-md bg-slate-700 flex items-center justify-center text-white">
+                                              <User size={10} />
+                                            </div>
+                                          )}
+                                          <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">
+                                            {task.agent?.name || 'Unassigned'}
+                                          </span>
                                         </div>
-                                      ) : (
-                                        <div className="w-4 h-4 rounded-md bg-slate-700 flex items-center justify-center text-white">
-                                          <User size={10} />
+                                        {task.parentId && (
+                                          <span className="text-[7px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Sub-task</span>
+                                        )}
+                                      </div>
+                                      <p className={`text-[10px] text-slate-200 line-clamp-2 leading-relaxed font-sans mb-2 ${task.parentId ? 'font-medium' : 'font-black text-[11px] text-white'}`}>
+                                        {task.command}
+                                      </p>
+                                      {task.result && (
+                                        <div className="text-[8px] text-slate-500 border-t border-slate-700/50 pt-1.5 italic line-clamp-2 leading-tight">
+                                          {task.result}
                                         </div>
                                       )}
-                                      <span className="text-[9px] font-bold text-slate-400 truncate max-w-[100px]">
-                                        {task.agent?.name || 'Unassigned'}
-                                      </span>
-                                    </div>
-                                    <p className="text-[10px] text-slate-200 line-clamp-2 leading-relaxed font-sans mb-2 font-medium">
-                                      {task.command}
-                                    </p>
-                                    {task.result && (
-                                      <div className="text-[8px] text-slate-500 border-t border-slate-700/50 pt-1.5 italic line-clamp-1">
-                                        {task.result}
-                                      </div>
-                                    )}
-                                  </motion.div>
-                                ))
+                                      {col.id === 'RUNNING' && (
+                                        <div className="mt-2 flex gap-1">
+                                          {[0, 0.2, 0.4].map(d => (
+                                            <motion.div key={d} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: d }} className="w-1 h-1 rounded-full bg-emerald-400" />
+                                          ))}
+                                        </div>
+                                      )}
+                                    </motion.div>
+                                  ))
                               )}
                             </div>
                           </div>

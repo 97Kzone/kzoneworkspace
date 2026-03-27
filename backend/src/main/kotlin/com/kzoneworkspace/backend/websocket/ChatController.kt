@@ -12,6 +12,8 @@ class ChatController(
     private val messagingTemplate: SimpMessagingTemplate,
     private val agentService: AgentService,
     private val agentExecutor: AgentExecutor,
+    private val taskService: com.kzoneworkspace.backend.task.service.TaskService,
+    private val workstreamService: com.kzoneworkspace.backend.task.service.WorkstreamService,
     private val chatMessageRepository: ChatMessageRepository
 ) {
 
@@ -39,9 +41,15 @@ class ChatController(
                 // 에이전트 이름을 제외한 실제 유저의 메시지 추출
                 val userMessage = contentAfterAt.substring(agent.name.length).trim()
                 println("🚀 Starting agent execution: ${agent.name} for roomId: ${savedMessage.roomId}")
-                Thread {
-                    agentExecutor.execute(agent, savedMessage.roomId, userMessage)
-                }.start()
+                
+                if (agent.name == "Planner") {
+                    // Planner의 경우 자율 워크스트림 병렬 실행 시도
+                    workstreamService.startWorkstream(com.kzoneworkspace.backend.task.dto.WorkstreamRequest(savedMessage.roomId, userMessage, agent.id))
+                } else {
+                    Thread {
+                        agentExecutor.execute(agent, savedMessage.roomId, userMessage)
+                    }.start()
+                }
             } else {
                 val agentNameFallback = contentAfterAt.substringBefore(" ")
                 val errorMessage = ChatMessage(

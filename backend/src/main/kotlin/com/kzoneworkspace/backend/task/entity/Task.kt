@@ -34,6 +34,12 @@ class Task(
     @JoinColumn(name = "agent_id")
     var agent: Agent? = null,              // 담당 에이전트
 
+    @Column(nullable = true)
+    var parentId: Long? = null,             // 상위 태스크 ID (병렬 실행 시 부모/자식 관계)
+
+    @Column(nullable = false)
+    var isDecomposed: Boolean = false,      // 하위 태스크로 분해되었는지 여부
+
     @Enumerated(EnumType.STRING)
     var status: TaskStatus = TaskStatus.PENDING,
 

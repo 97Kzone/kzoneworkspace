@@ -10,4 +10,6 @@ interface TaskRepository : JpaRepository<Task, Long> {
     fun findByRoomId(roomId: String): List<Task>
     fun findByStatus(status: TaskStatus): List<Task>
     fun findByRoomIdOrderByCreatedAtDesc(roomId: String): List<Task>
+    fun findByParentId(parentId: Long): List<Task>
+    fun findByRoomIdAndParentIdIsNullOrderByCreatedAtDesc(roomId: String): List<Task>
 }

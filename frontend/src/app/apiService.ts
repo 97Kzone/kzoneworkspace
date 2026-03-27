@@ -45,6 +45,7 @@ export interface Task {
     result: string | null;
     status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
     agent: Agent | null;
+    parentId: number | null;
 }
 
 export interface ChatMessage {
@@ -157,6 +158,10 @@ export const codebaseService = {
 
 export const briefingService = {
     get: () => api.get<{content: string}>('/briefing'),
+};
+
+export const workstreamService = {
+    start: (data: { roomId: string, goal: string }) => api.post<string>('/workstreams/start', data),
 };
 
 

@@ -37,6 +37,7 @@ dependencies {
     implementation("com.anthropic:anthropic-java:2.12.0")
     implementation("com.google.genai:google-genai:1.0.0")
     implementation("com.microsoft.playwright:playwright:1.41.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
 	//compileOnly("org.projectlombok:lombok")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
