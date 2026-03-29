@@ -156,6 +156,22 @@ export const codebaseService = {
         api.get<CodebaseChunk[]>(`/codebase/search?query=${query}&limit=${limit}`),
 };
 
+export interface TechPulse {
+    id: number;
+    title: string;
+    category: string;
+    description: string;
+    impactScore: number;
+    projectImpact: string;
+    sourceUrl: string | null;
+    createdAt: string;
+}
+
+export const techPulseService = {
+    getAll: () => api.get<TechPulse[]>('/tech-pulses'),
+    refresh: () => api.post<TechPulse[]>('/tech-pulses/refresh'),
+};
+
 export const briefingService = {
     get: () => api.get<{content: string}>('/briefing'),
 };

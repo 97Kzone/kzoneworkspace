@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag } from "lucide-react";
+import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag, Zap, Target } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, OfficeItem, CodebaseChunk, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, OfficeItem, CodebaseChunk, TechPulse, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService } from "./apiService";
 
 const EmotionBubble = ({ 
   emotion, 
@@ -377,10 +377,10 @@ const LivePreviewBubble = ({
           <span className={`text-[9px] font-black uppercase tracking-[0.15em] ${color.soft}`}>
             {preview.toolName.replace('_', ' ')}
           </span>
-          <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">실시간 업무 중</span>
+          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">실시간 업무 중</span>
         </div>
       </div>
-      <div className="text-[9px] font-mono text-slate-600 bg-white/60 rounded-xl p-2.5 border border-white/90 break-all line-clamp-2 shadow-inner">
+      <div className="text-[10px] font-mono text-slate-600 bg-white/60 rounded-xl p-2.5 border border-white/90 break-all line-clamp-2 shadow-inner">
         {preview.target}
       </div>
       
@@ -404,6 +404,99 @@ const LivePreviewBubble = ({
   );
 };
 
+const TechPulseCard = ({ pulse }: { pulse: TechPulse }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const categoryColors: Record<string, { bg: string, text: string, border: string, icon: any }> = {
+    "KOTLIN": { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20", icon: Code2 },
+    "SPRING": { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20", icon: Leaf },
+    "REACT": { bg: "bg-cyan-500/10", text: "text-cyan-400", border: "border-cyan-500/20", icon: Layout },
+    "NEXTJS": { bg: "bg-slate-700/30", text: "text-slate-300", border: "border-slate-600/30", icon: Activity },
+    "AI": { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/20", icon: Sparkles },
+    "SECURITY": { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20", icon: Database },
+    "GENERAL": { bg: "bg-slate-700/20", text: "text-slate-400", border: "border-slate-700/50", icon: Bot }
+  };
+
+  const status = categoryColors[pulse.category.toUpperCase()] || categoryColors["GENERAL"];
+  const Icon = status.icon;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`bg-slate-800/40 border ${status.border} rounded-2xl overflow-hidden shadow-lg transition-all group hover:bg-slate-800/60`}
+    >
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl ${status.bg} ${status.text} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform`}>
+              <Icon size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-black uppercase tracking-widest ${status.text}`}>{pulse.category}</span>
+                <span className="text-slate-700 font-black">/</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Impact Score:</span>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className={`w-3 h-1 rounded-full ${i < (pulse.impactScore / 2) ? status.bg.replace('/10', '').replace('/30', '').replace('700', '400') : 'bg-slate-800'}`} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <h4 className="text-[13px] font-black text-white leading-tight mt-1 tracking-tight">{pulse.title}</h4>
+            </div>
+          </div>
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1.5 hover:bg-white/5 rounded-lg text-slate-500 transition-colors"
+          >
+            <ChevronRight size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
+        
+        <p className="text-[11px] text-slate-400 leading-relaxed font-medium line-clamp-2">{pulse.description}</p>
+        
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-4 mt-3 border-t border-slate-700/50 space-y-3">
+                <div className="bg-indigo-500/5 rounded-xl p-3 border border-indigo-500/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles size={12} className="text-indigo-400 animate-pulse" />
+                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Project Impact Analysis</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 leading-relaxed font-medium prose prose-invert prose-sm max-w-none">
+                    <ReactMarkdown>{pulse.projectImpact}</ReactMarkdown>
+                  </div>
+                </div>
+                
+                {pulse.sourceUrl && (
+                  <a 
+                    href={pulse.sourceUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-[9px] font-black text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20"
+                  >
+                   <Search size={10} />
+                   View Detailed Source
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function VirtualOfficeBright() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -420,7 +513,7 @@ export default function VirtualOfficeBright() {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE'>('LOGS');
   const [isReviewing, setIsReviewing] = useState(false);
   const [activeCollaborations, setActiveCollaborations] = useState<Record<string, string | null>>({});
 
@@ -463,19 +556,24 @@ export default function VirtualOfficeBright() {
   const [isBriefingLoading, setIsBriefingLoading] = useState(false);
   const [isIntelligenceBoosted, setIsIntelligenceBoosted] = useState<Record<string, boolean>>({});
 
+  // Tech Pulse State
+  const [techPulses, setTechPulses] = useState<TechPulse[]>([]);
+  const [isTechPulseLoading, setIsTechPulseLoading] = useState(false);
+
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const consoleScrollRef = useRef<HTMLDivElement>(null);
 
   const fetchInitialData = async () => {
     try {
-      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes] = await Promise.all([
+      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes] = await Promise.all([
         agentService.getAll(),
         taskService.getByRoom("default"),
         chatService.getHistory("default"),
         skillService.getAll(),
         activityService.getAll(),
-        schedulingService.getAll()
+        schedulingService.getAll(),
+        techPulseService.getAll()
       ]);
       setAgents(agentRes.data);
       setTasks(taskRes.data);
@@ -483,6 +581,7 @@ export default function VirtualOfficeBright() {
       setSkills(skillRes.data);
       setActivities(activityRes.data);
       setScheduledTasks(scheduledRes.data);
+      setTechPulses(pulseRes.data);
       
       // 오피스 아이템 로드
       const officeRes = await officeService.getAll();
@@ -540,6 +639,19 @@ export default function VirtualOfficeBright() {
       alert("인덱싱 요청에 실패했습니다.");
     } finally {
       setIsIndexing(false);
+    }
+  };
+
+  const handleRefreshTechPulses = async () => {
+    setIsTechPulseLoading(true);
+    try {
+      const res = await techPulseService.refresh();
+      setTechPulses(res.data);
+    } catch (err) {
+      console.error("테크 펄스 갱신 실패:", err);
+      alert("테크 트렌드 분석에 실패했습니다.");
+    } finally {
+      setIsTechPulseLoading(false);
     }
   };
 
@@ -1074,52 +1186,52 @@ export default function VirtualOfficeBright() {
             </div>
             가상 오피스
           </h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setIsBrowserOpen(!isBrowserOpen)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all font-bold text-xs ${isBrowserOpen ? 'bg-sky-500 text-white border-sky-600 shadow-md' : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-100'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all font-bold text-[10px] ${isBrowserOpen ? 'bg-sky-500 text-white border-sky-600 shadow-md' : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-100'}`}
             >
-              <Layout size={16} /> 브라우저 뷰어
+              <Layout size={14} /> 브라우저 뷰어
               {browserScreenshot && !isBrowserOpen && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
             </button>
             <button
               onClick={() => setIsWhiteboardOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-100 transition-all font-bold text-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-100 transition-all font-bold text-[10px]"
             >
-              <Presentation size={16} /> 화이트보드
+              <Presentation size={14} /> 화이트보드
               {whiteboardContent && !isWhiteboardOpen && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
             </button>
             <button
               onClick={() => setIsSkillInventoryOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl border border-indigo-100 transition-all font-bold text-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl border border-indigo-100 transition-all font-bold text-[10px]"
             >
-              <Database size={16} /> 기술 인벤토리
+              <Database size={14} /> 기술 인벤토리
             </button>
             <button
               onClick={() => setIsKnowledgeExplorerOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl border border-purple-100 transition-all font-bold text-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl border border-purple-100 transition-all font-bold text-[10px]"
             >
-              <Sparkles size={16} /> 지식 탐색기
+              <Sparkles size={14} /> 지식 탐색기
             </button>
             <button
               onClick={() => setIsShopOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-100 transition-all font-bold text-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-100 transition-all font-bold text-[10px]"
             >
-              <ShoppingBag size={16} /> 오피스 상점
+              <ShoppingBag size={14} /> 오피스 상점
             </button>
             <button
               onClick={() => setIsCodebaseExplorerOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-[10px]"
             >
-              <Search size={16} /> 코드 익스플로러
+              <Search size={14} /> 코드 익스플로러
             </button>
             <button
               onClick={handleStartCodeReview}
               disabled={isReviewing}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-xs disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-[10px] disabled:opacity-50"
             >
-              <Code2 size={16} className={isReviewing ? "animate-pulse" : ""} />
-              {isReviewing ? "리뷰 분석 중..." : "코드 리뷰 시작"}
+              <Code2 size={14} className={isReviewing ? "animate-pulse" : ""} />
+              {isReviewing ? "분석 중..." : "코드 리뷰 시작"}
             </button>
           </div>
         </div>
@@ -1139,23 +1251,23 @@ export default function VirtualOfficeBright() {
 
           {/* Environment Props - Work Zones (Glassmorphism) */}
           {/* 1. Idea/Research Zone (Top Left) */}
-          <div className="absolute top-[80px] left-[40px] w-48 h-56 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl flex flex-col items-center p-4 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[-2deg] hover:rotate-0 transition-transform duration-500 group">
-            <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform shadow-inner">
-              <Sparkles size={24} />
+          <div className="absolute top-[80px] left-[40px] w-52 h-60 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl flex flex-col items-center p-5 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[-2deg] hover:rotate-0 transition-transform duration-500 group">
+            <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform shadow-inner">
+              <Sparkles size={28} />
             </div>
-            <span className="text-[10px] text-slate-400 font-extrabold tracking-[0.2em] uppercase">리서치 센터</span>
+            <span className="text-[11px] text-slate-400 font-extrabold tracking-[0.2em] uppercase">리서치 센터</span>
             <div className="w-full h-1 bg-gradient-to-r from-transparent via-sky-200 to-transparent rounded-full opacity-50"></div>
-            <div className="text-[9px] text-slate-400 text-center font-medium mt-2">인터넷 검색 및 분석</div>
+            <div className="text-[10px] text-slate-500 text-center font-bold mt-1 px-2">인터넷 검색 및 데이터 분석</div>
           </div>
 
           {/* 2. Coding Desk Zone (Top Right) */}
           <div className="absolute top-[100px] right-[400px] w-64 h-72 bg-slate-800/5 backdrop-blur-md border border-slate-800/10 rounded-3xl flex flex-col items-center p-6 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[1deg] hover:rotate-0 transition-transform duration-500 group">
-            <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform shadow-lg">
-              <Code2 size={28} />
+            <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform shadow-lg">
+              <Code2 size={32} />
             </div>
-            <span className="text-[11px] text-slate-600 font-extrabold tracking-[0.2em] uppercase">개발 스튜디오</span>
+            <span className="text-[12px] text-slate-600 font-extrabold tracking-[0.2em] uppercase">개발 스튜디오</span>
             <div className="w-full h-1 bg-gradient-to-r from-transparent via-emerald-300 to-transparent rounded-full opacity-50"></div>
-            <div className="text-[9px] text-slate-500 text-center font-medium mt-2">파일 편집 및 깃허브 리뷰</div>
+            <div className="text-[10px] text-slate-600 text-center font-bold mt-1 px-4">소스코드 편집 및 깃허브 PR 리뷰</div>
           </div>
 
           <div className="absolute bottom-[100px] left-[100px] w-72 h-44 bg-indigo-50/40 backdrop-blur-lg border border-indigo-100/60 rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/60 transition-all duration-500 shadow-[0_20px_40px_rgba(0,0,0,0.03)] group"
@@ -1445,6 +1557,12 @@ export default function VirtualOfficeBright() {
                     >
                       KANBAN
                     </button>
+                    <button
+                      onClick={() => setActiveTab('TECH_PULSE')}
+                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'TECH_PULSE' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      TECH PULSE
+                    </button>
                   </div>
                   <button 
                     onClick={handleOpenBriefing}
@@ -1459,139 +1577,138 @@ export default function VirtualOfficeBright() {
                   </div>
                 </div>
               </div>
-                <div className="flex-1 flex overflow-hidden">
-                  {/* Log Terminal / Stats / Scheduler content */}
-                  <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
-                    {activeTab === 'LOGS' ? (
-                      messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-50).map((msg, i) => (
-                        <div key={i} className="flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                          <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
-                          <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
-                          <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
-                        </div>
-                      ))
-                    ) : activeTab === 'REASONING' ? (
-                      messages.filter(m => m.type === 'THINKING' || m.type === 'AGENT').slice(-30).map((msg, i) => (
-                        <div key={i} className={`flex gap-3 p-2 rounded-lg border ${msg.type === 'THINKING' ? 'bg-indigo-500/5 border-indigo-500/10' : 'bg-slate-800/50 border-slate-700/50'} animate-in zoom-in-95 duration-500`}>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.type === 'THINKING' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                            {msg.type === 'THINKING' ? <Sparkles size={10} className="animate-pulse" /> : <Bot size={10} />}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className={`font-bold ${getAgentColor(msg.senderName).soft}`}>{msg.senderName}</span>
-                              <span className="text-[8px] text-slate-500">{msg.type}</span>
-                            </div>
-                            <p className={`leading-relaxed ${msg.type === 'THINKING' ? 'text-indigo-200/90 italic' : 'text-slate-200'}`}>{msg.content}</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : activeTab === 'STATS' ? (
-                      <div className="h-full flex flex-col gap-6 p-2">
-                        <div className="h-32 w-full">
-                          <span className="text-[9px] text-slate-500 uppercase font-black mb-2 block">최근 24시간 활동량</span>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={getActivityChartData()}>
-                              <defs>
-                                <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                              <XAxis dataKey="time" stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
-                              <YAxis stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
-                              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', fontSize: '10px' }} />
-                              <Area type="monotone" dataKey="count" stroke="#10b981" fillOpacity={1} fill="url(#colorCount)" />
-                            </AreaChart>
-                          </ResponsiveContainer>
+              <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
+                  {activeTab === 'LOGS' ? (
+                    messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-50).map((msg, i) => (
+                      <div key={i} className="flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                        <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
+                        <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
+                        <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
+                      </div>
+                    ))
+                  ) : activeTab === 'REASONING' ? (
+                    messages.filter(m => m.type === 'THINKING' || m.type === 'AGENT').slice(-30).map((msg, i) => (
+                      <div key={i} className={`flex gap-3 p-2 rounded-lg border ${msg.type === 'THINKING' ? 'bg-indigo-500/5 border-indigo-500/10' : 'bg-slate-800/50 border-slate-700/50'} animate-in zoom-in-95 duration-500`}>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.type === 'THINKING' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                          {msg.type === 'THINKING' ? <Sparkles size={10} className="animate-pulse" /> : <Bot size={10} />}
                         </div>
                         <div className="flex-1">
-                          <span className="text-[9px] text-slate-500 uppercase font-black mb-3 block">도구 사용 비중</span>
-                          <div className="space-y-2">
-                            {getToolUsageData().map((item, idx) => (
-                              <div key={idx} className="flex items-center gap-3">
-                                <span className="w-16 truncate text-slate-400">{item.name}</span>
-                                <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                  <motion.div 
-                                    initial={{ width: 0 }} 
-                                    animate={{ width: `${(item.value / Math.max(...getToolUsageData().map(d => d.value))) * 100}%` }}
-                                    className="h-full bg-indigo-500"
-                                  />
-                                </div>
-                                <span className="text-emerald-400 font-bold">{item.value}</span>
-                              </div>
-                            ))}
+                          <div className="flex justify-between items-center mb-1">
+                            <span className={`font-bold ${getAgentColor(msg.senderName).soft}`}>{msg.senderName}</span>
+                            <span className="text-[8px] text-slate-500">{msg.type}</span>
                           </div>
+                          <p className={`leading-relaxed ${msg.type === 'THINKING' ? 'text-indigo-200/90 italic' : 'text-slate-200'}`}>{msg.content}</p>
                         </div>
                       </div>
-                    ) : activeTab === 'SCHEDULER' ? (
-                      <div className="h-full flex flex-col gap-3">
-                        <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-lg border border-slate-700">
-                          <span className="text-[9px] font-bold text-slate-400">자율 예약 작업 목록</span>
-                          <button 
-                            onClick={() => setIsSchedulerModalOpen(true)}
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[9px] font-bold flex items-center gap-1 transition-colors"
-                          >
-                            <Plus size={10} /> 작업 추가
-                          </button>
+                    ))
+                  ) : activeTab === 'STATS' ? (
+                    <div className="h-full flex flex-col gap-6 p-2">
+                      <div className="h-32 w-full">
+                        <span className="text-[9px] text-slate-500 uppercase font-black mb-2 block">최근 24시간 활동량</span>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={getActivityChartData()}>
+                            <defs>
+                              <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                            <XAxis dataKey="time" stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', fontSize: '10px' }} />
+                            <Area type="monotone" dataKey="count" stroke="#10b981" fillOpacity={1} fill="url(#colorCount)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-[9px] text-slate-500 uppercase font-black mb-3 block">도구 사용 비중</span>
+                        <div className="space-y-2">
+                          {getToolUsageData().map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-3">
+                              <span className="w-16 truncate text-slate-400">{item.name}</span>
+                              <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }} 
+                                  animate={{ width: `${(item.value / Math.max(...getToolUsageData().map(d => d.value))) * 100}%` }}
+                                  className="h-full bg-indigo-500"
+                                />
+                              </div>
+                              <span className="text-emerald-400 font-bold">{item.value}</span>
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex-1 space-y-2">
-                          {scheduledTasks.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-slate-600 italic">등록된 예약 작업이 없습니다.</div>
-                          ) : (
-                            scheduledTasks.map(task => (
-                              <div key={task.id} className="bg-slate-800/30 border border-slate-700/50 p-2 rounded-lg flex items-center justify-between group">
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${task.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                                      {task.status}
-                                    </span>
-                                    <span className="font-bold text-slate-200">{task.description}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-slate-500 text-[8px] flex-wrap mt-0.5">
-                                    <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                      <Calendar size={8} className="text-amber-400" /> 
-                                      <span className="font-mono">{task.cronExpression}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                      <Play size={8} className="text-emerald-400" /> 
-                                      <span>다음: {task.nextRun ? new Date(task.nextRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '대기 중'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                      <Activity size={8} className="text-indigo-400" /> 
-                                      <span>최근: {task.lastRun ? new Date(task.lastRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '없음'}</span>
-                                    </div>
-                                  </div>
+                      </div>
+                    </div>
+                  ) : activeTab === 'SCHEDULER' ? (
+                    <div className="h-full flex flex-col gap-3">
+                      <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-lg border border-slate-700">
+                        <span className="text-[9px] font-bold text-slate-400">자율 예약 작업 목록</span>
+                        <button 
+                          onClick={() => setIsSchedulerModalOpen(true)}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[9px] font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <Plus size={10} /> 작업 추가
+                        </button>
+                      </div>
+                      <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+                        {scheduledTasks.length === 0 ? (
+                          <div className="h-full flex items-center justify-center text-slate-600 italic">등록된 예약 작업이 없습니다.</div>
+                        ) : (
+                          scheduledTasks.map(task => (
+                            <div key={task.id} className="bg-slate-800/30 border border-slate-700/50 p-2 rounded-lg flex items-center justify-between group">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${task.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
+                                    {task.status}
+                                  </span>
+                                  <span className="font-bold text-slate-200">{task.description}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 ml-4">
-                                  <button 
-                                    onClick={() => handleRunScheduledTask(task.id)}
-                                    title="지금 바로 실행"
-                                    className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all active:scale-95"
-                                  >
-                                    <Play size={12} fill="currentColor" />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleToggleScheduledTask(task.id)}
-                                    title={task.status === 'ACTIVE' ? '일시 정지' : '다시 시작'}
-                                    className={`p-2 rounded-lg border transition-all active:scale-95 ${task.status === 'ACTIVE' ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'}`}
-                                  >
-                                    {task.status === 'ACTIVE' ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteScheduledTask(task.id)}
-                                    title="삭제"
-                                    className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all active:scale-95"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
+                                <div className="flex items-center gap-2 text-slate-500 text-[8px] flex-wrap mt-0.5">
+                                  <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                    <Calendar size={8} className="text-amber-400" /> 
+                                    <span className="font-mono">{task.cronExpression}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                    <Play size={8} className="text-emerald-400" /> 
+                                    <span>다음: {task.nextRun ? new Date(task.nextRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '대기 중'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                    <Activity size={8} className="text-indigo-400" /> 
+                                    <span>최근: {task.lastRun ? new Date(task.lastRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '없음'}</span>
+                                  </div>
                                 </div>
                               </div>
-                            ))
-                          )}
-                        </div>
+                              <div className="flex items-center gap-1.5 ml-4">
+                                <button 
+                                  onClick={() => handleRunScheduledTask(task.id)}
+                                  title="지금 바로 실행"
+                                  className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all active:scale-95"
+                                >
+                                  <Play size={12} fill="currentColor" />
+                                </button>
+                                <button 
+                                  onClick={() => handleToggleScheduledTask(task.id)}
+                                  title={task.status === 'ACTIVE' ? '일시 정지' : '다시 시작'}
+                                  className={`p-2 rounded-lg border transition-all active:scale-95 ${task.status === 'ACTIVE' ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'}`}
+                                >
+                                  {task.status === 'ACTIVE' ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteScheduledTask(task.id)}
+                                  title="삭제"
+                                  className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all active:scale-95"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                    ) : (
+                    </div>
+                    ) : activeTab === 'KANBAN' ? (
                       <div className="h-full overflow-x-auto custom-scrollbar flex gap-4 p-2 pb-4">
                         {[
                           { id: 'PENDING', label: 'Backlog', color: 'slate' },
@@ -1634,7 +1751,7 @@ export default function VirtualOfficeBright() {
                                           </span>
                                         </div>
                                         {task.parentId && (
-                                          <span className="text-[7px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Sub-task</span>
+                                          <span className="text-[7px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest">Sub-task</span>
                                         )}
                                       </div>
                                       <p className={`text-[10px] text-slate-200 line-clamp-2 leading-relaxed font-sans mb-2 ${task.parentId ? 'font-medium' : 'font-black text-[11px] text-white'}`}>
@@ -1659,57 +1776,100 @@ export default function VirtualOfficeBright() {
                           </div>
                         ))}
                       </div>
+                    ) : activeTab === 'TECH_PULSE' ? (
+                      <div className="h-full flex flex-col p-4">
+                        <div className="flex items-center justify-between mb-4 shrink-0">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-500/10">
+                              <Sparkles size={20} className="animate-pulse" />
+                            </div>
+                            <div>
+                               <h4 className="text-[12px] font-black text-white tracking-widest uppercase">AI Tech Pulse</h4>
+                               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">실시간 기술 트렌드 및 코드베이스 영향도 분석</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleRefreshTechPulses}
+                            disabled={isTechPulseLoading}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black tracking-widest border border-indigo-400/30 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 active:scale-95"
+                          >
+                            {isTechPulseLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                            TREND SCAN
+                          </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2 pb-6">
+                          {techPulses.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
+                              <div className="p-4 rounded-full bg-slate-800/50">
+                                <Activity size={40} className="text-slate-500" />
+                              </div>
+                              <p className="text-[11px] font-black uppercase tracking-widest text-center leading-relaxed">아직 분석된 트렌드가 없습니다.<br/><span className="text-indigo-400">TREND SCAN</span> 버튼을 눌러 프로젝트 트렌드를 분석해보세요.</p>
+                            </div>
+                          ) : (
+                            techPulses.map((pulse) => (
+                              <TechPulseCard key={pulse.id} pulse={pulse} />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-slate-600 italic">No Content</div>
                     )}
                     <div className="h-1" ref={consoleScrollRef}></div>
                   </div>
-                {/* Modified Files Side */}
-                <div className="w-[180px] border-l border-slate-700 bg-slate-800/30 p-3 flex flex-col">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-700 pb-1">최근 변경 파일</span>
-                  <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 text-slate-300">
-                    {getRecentFiles().length > 0 ? getRecentFiles().map((file, i) => (
-                      <div key={i} className="flex items-center gap-2 text-[9px] text-slate-300 group cursor-default">
-                        <Code2 size={10} className="text-indigo-400" />
-                        <span className="truncate" title={file}>{file.split('/').pop()}</span>
-                      </div>
-                    )) : (
-                      <div className="text-[9px] text-slate-600 italic mt-2">변경 이력 없음</div>
-                    )}
+                  
+                  {/* Modified Files Side */}
+                  <div className="w-[180px] border-l border-slate-700 bg-slate-800/30 p-3 flex flex-col">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-700 pb-1 flex items-center gap-1.5">
+                      <Zap size={10} className="text-amber-400" />
+                      최근 변경 파일
+                    </span>
+                    <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 text-slate-300">
+                      {getRecentFiles().length > 0 ? getRecentFiles().map((file, i) => (
+                        <div key={i} className="flex items-center gap-2 text-[9px] text-slate-300 group cursor-default hover:text-indigo-400 transition-colors">
+                          <Code2 size={10} className="text-indigo-400 group-hover:scale-110 transition-transform" />
+                          <span className="truncate font-mono" title={file}>{file.split('/').pop()}</span>
+                        </div>
+                      )) : (
+                        <div className="text-[9px] text-slate-600 italic mt-2">변경 이력 없음</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Resize Handle */}
-              <div
-                className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center text-slate-600 hover:text-slate-400"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  const startX = e.clientX;
-                  const startY = e.clientY;
-                  const startWidth = activityPanelSize.width;
-                  const startHeight = activityPanelSize.height;
+                {/* Resize Handle */}
+                <div
+                  className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-center justify-center text-slate-600 hover:text-indigo-400 transition-colors group"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const startWidth = activityPanelSize.width;
+                    const startHeight = activityPanelSize.height;
 
-                  const onMouseMove = (moveEvent: MouseEvent) => {
-                    setActivityPanelSize({
-                      width: Math.max(400, startWidth + (moveEvent.clientX - startX)),
-                      height: Math.max(150, startHeight + (moveEvent.clientY - startY))
-                    });
-                  };
+                    const onMouseMove = (moveEvent: MouseEvent) => {
+                      setActivityPanelSize({
+                        width: Math.max(400, startWidth + (moveEvent.clientX - startX)),
+                        height: Math.max(150, startHeight + (moveEvent.clientY - startY))
+                      });
+                    };
 
-                  const onMouseUp = () => {
-                    document.removeEventListener("mousemove", onMouseMove);
-                    document.removeEventListener("mouseup", onMouseUp);
-                  };
+                    const onMouseUp = () => {
+                      document.removeEventListener("mousemove", onMouseMove);
+                      document.removeEventListener("mouseup", onMouseUp);
+                    };
 
-                  document.addEventListener("mousemove", onMouseMove);
+                    document.addEventListener("mousemove", onMouseMove);
                     document.addEventListener("mouseup", onMouseUp);
-                }}
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="rotate-90">
-                  <path d="M1 9L9 1M4 9L9 4M7 9L9 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 10 10" fill="none" className="rotate-90 group-hover:scale-110 transition-transform">
+                    <path d="M1 9L9 1M4 9L9 4M7 9L9 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
 
           {/* Floating Chat Window (Messenger Style) */}
           <AnimatePresence>
