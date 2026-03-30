@@ -167,6 +167,16 @@ export interface TechPulse {
     createdAt: string;
 }
 
+export interface ProjectHealth {
+    score: number;
+    status: string;
+    synergyLevel: string;
+    risks: string[];
+    recommendations: string[];
+    analysisReasoning: string;
+    generatedAt: string;
+}
+
 export const techPulseService = {
     getAll: () => api.get<TechPulse[]>('/tech-pulses'),
     refresh: () => api.post<TechPulse[]>('/tech-pulses/refresh'),
@@ -178,6 +188,10 @@ export const briefingService = {
 
 export const workstreamService = {
     start: (data: { roomId: string, goal: string }) => api.post<string>('/workstreams/start', data),
+};
+
+export const projectHealthService = {
+    get: () => api.get<ProjectHealth>('/project-health'),
 };
 
 
