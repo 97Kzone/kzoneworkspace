@@ -9,10 +9,20 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import com.kzoneworkspace.backend.agent.entity.AiProvider
 
+import com.kzoneworkspace.backend.agent.repository.ActivityLogRepository
+import com.kzoneworkspace.backend.task.repository.TaskRepository
+import com.kzoneworkspace.backend.agent.dto.TeamPerformanceDto
+import com.kzoneworkspace.backend.agent.dto.DailyStat
+import com.kzoneworkspace.backend.agent.dto.AgentPerformanceStat
+import com.kzoneworkspace.backend.task.entity.TaskStatus
+import java.time.LocalDate
+
 @Service
 @Transactional(readOnly = true)
 class AgentService(
-    private val agentRepository: AgentRepository
+    private val agentRepository: AgentRepository,
+    private val activityLogRepository: ActivityLogRepository,
+    private val taskRepository: TaskRepository
 ) {
 
     @PostConstruct
@@ -86,4 +96,64 @@ class AgentService(
 
     @Transactional
     fun deleteAgent(id: Long) = agentRepository.deleteById(id)
+
+    fun getTeamPerformanceMetrics(): TeamPerformanceDto {
+        val now = LocalDateTime.now()
+        val sevenDaysAgo = now.minusDays(7).toLocalDate().atStartOfDay()
+        
+        val logs = activityLogRepository.findByTimestampAfter(sevenDaysAgo)
+        val tasks = taskRepository.findByCreatedAtAfter(sevenDaysAgo)
+        
+        // 일별 통계 집계 (최근 7일)
+        val dailyStatsMap = mutableMapOf<LocalDate, MutableMap<String, Int>>()
+        
+        for (i in 0..6) {
+            val date = LocalDate.now().minusDays(i.toLong())
+            dailyStatsMap[date] = mutableMapOf("tasks" to 0, "activities" to 0)
+        }
+        
+        tasks.forEach { 
+            val date = it.createdAt.toLocalDate()
+            if (dailyStatsMap.containsKey(date)) {
+                dailyStatsMap[date]!!["tasks"] = dailyStatsMap[date]!!["tasks"]!! + 1
+            }
+        }
+        
+        logs.forEach {
+            val date = it.timestamp.toLocalDate()
+            if (dailyStatsMap.containsKey(date)) {
+                dailyStatsMap[date]!!["activities"] = dailyStatsMap[date]!!["activities"]!! + 1
+            }
+        }
+        
+        val dailyStats = dailyStatsMap.entries.map { (date, counts) ->
+            DailyStat(date, counts["tasks"]!!, counts["activities"]!!)
+        }.sortedBy { it.date }
+        
+        // 에이전트별 성과 집계
+        val agents = getAllAgents()
+        val totalTasks = tasks.size
+        val completedTasksCount = tasks.count { it.status == TaskStatus.COMPLETED }
+        
+        val agentPerformance = agents.map { agent ->
+            val agentTasks = tasks.filter { it.agent?.id == agent.id }
+            val completed = agentTasks.count { it.status == TaskStatus.COMPLETED }
+            val efficiency = if (agentTasks.isNotEmpty()) completed.toDouble() / agentTasks.size else 0.0
+            
+            AgentPerformanceStat(
+                agentName = agent.name,
+                completedTasks = completed,
+                efficiency = efficiency
+            )
+        }
+        
+        val avgSuccessRate = if (totalTasks > 0) completedTasksCount.toDouble() / totalTasks else 0.0
+        
+        return TeamPerformanceDto(
+            dailyStats = dailyStats,
+            agentPerformance = agentPerformance,
+            totalTasksCompleted = completedTasksCount,
+            averageSuccessRate = avgSuccessRate * 100
+        )
+    }
 }

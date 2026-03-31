@@ -4,6 +4,7 @@ import com.kzoneworkspace.backend.task.entity.Task
 import com.kzoneworkspace.backend.task.entity.TaskStatus
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
+import java.time.LocalDateTime
 
 @Repository
 interface TaskRepository : JpaRepository<Task, Long> {
@@ -12,4 +13,5 @@ interface TaskRepository : JpaRepository<Task, Long> {
     fun findByRoomIdOrderByCreatedAtDesc(roomId: String): List<Task>
     fun findByParentId(parentId: Long): List<Task>
     fun findByRoomIdAndParentIdIsNullOrderByCreatedAtDesc(roomId: String): List<Task>
+    fun findByCreatedAtAfter(timestamp: LocalDateTime): List<Task>
 }

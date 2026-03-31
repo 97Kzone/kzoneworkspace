@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController;
+import com.kzoneworkspace.backend.agent.dto.TeamPerformanceDto;
 
 @RestController
 @RequestMapping("/api/agents")
@@ -47,4 +48,8 @@ public class AgentController(
         agentService.deleteAgent(id)
         return ResponseEntity.noContent().build()
     }
+
+    @GetMapping("/performance")
+    fun getTeamPerformance(): ResponseEntity<TeamPerformanceDto> =
+        ResponseEntity.ok(agentService.getTeamPerformanceMetrics())
 }

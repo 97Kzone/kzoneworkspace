@@ -21,6 +21,25 @@ export interface Agent {
     lastEmotion: string | null;
 }
 
+export interface TeamPerformance {
+    dailyStats: DailyStat[];
+    agentPerformance: AgentPerformanceStat[];
+    totalTasksCompleted: number;
+    averageSuccessRate: number;
+}
+
+export interface DailyStat {
+    date: string;
+    taskCount: number;
+    activityCount: number;
+}
+
+export interface AgentPerformanceStat {
+    agentName: string;
+    completedTasks: number;
+    efficiency: number;
+}
+
 export interface OfficeItem {
     id: number;
     name: string;
@@ -104,6 +123,7 @@ export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
     updateAgent: (id: number, agentData: any) => api.put<Agent>(`/agents/${id}`, agentData),
+    getPerformance: () => api.get<TeamPerformance>('/agents/performance'),
 };
 
 export const taskService = {
