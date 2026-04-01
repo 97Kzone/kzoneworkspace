@@ -20,12 +20,12 @@ class TaskService (
         taskRepository.findById(id).orElseThrow { RuntimeException("Task not found: $id") }
 
     @Transactional
-    fun createTask(roomId: String, command: String, agent: Agent?, parentId: Long? = null): Task =
-        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId))
+    fun createTask(roomId: String, command: String, agent: Agent?, parentId: Long? = null, dependsOnIds: String? = null): Task =
+        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds))
 
     @Transactional
-    fun createSubTask(parentId: Long, roomId: String, command: String, agent: Agent?): Task =
-        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId))
+    fun createSubTask(parentId: Long, roomId: String, command: String, agent: Agent?, dependsOnIds: String? = null): Task =
+        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds))
 
     fun getSubTasks(parentId: Long): List<Task> = taskRepository.findByParentId(parentId)
 

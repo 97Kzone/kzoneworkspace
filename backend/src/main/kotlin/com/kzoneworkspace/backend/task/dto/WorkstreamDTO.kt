@@ -7,9 +7,11 @@ data class WorkstreamRequest(
 )
 
 data class SubTaskDefinition(
+    val id: String,
     val agentName: String,
     val command: String,
-    val description: String
+    val description: String,
+    val dependsOn: List<String> = emptyList()
 )
 
 data class DecompositionResponse(

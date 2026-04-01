@@ -43,6 +43,9 @@ class Task(
     @Enumerated(EnumType.STRING)
     var status: TaskStatus = TaskStatus.PENDING,
 
+    @Column(name = "depends_on_ids", columnDefinition = "TEXT")
+    var dependsOnIds: String? = null,        // 선행 태스크 ID 목록 (JSON or CSV)
+
     val createdAt: LocalDateTime = LocalDateTime.now(),
     var updatedAt: LocalDateTime = LocalDateTime.now()
 )
