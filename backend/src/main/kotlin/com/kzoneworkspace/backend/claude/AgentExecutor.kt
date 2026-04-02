@@ -118,22 +118,71 @@ class AgentExecutor(
             val fullDialogue = "User: $userMessage\nAgent: $lastResponse"
             memoryExtractionService.extractAndSaveMemory(agent.id, roomId, fullDialogue)
 
-        } catch (e: Exception) {
-            val errorMsg = "업무 수행 중 오류가 발생했습니다: ${e.message}"
-            sendMessage(roomId, agent.name, errorMsg, MessageType.AGENT)
-            e.printStackTrace()
-            taskService.updateStatus(task.id, TaskStatus.FAILED, errorMsg)
+    }
+    
+    /**
+     * 자가 치유 시스템 전용 실행 메서드.
+     * 내부에서 예외를 잡지 않고(re-throw) 호출자에게 전달하여 복구 로직이 실행될 수 있게 함.
+     */
+    fun executeWithException(agent: Agent, roomId: String, userMessage: String, taskId: Long? = null) {
+        println("📝 AgentExecutor.executeWithException called for agent: ${agent.name}, roomId: $roomId, taskId: $taskId")
+        val task = if (taskId != null) taskService.getTaskById(taskId) else taskService.createTask(roomId, userMessage, agent)
+        
+        // 만약 이미 존재하는 태스크라면 상태와 메시지만 업데이트
+        if (taskId == null) taskService.updateStatus(task.id, TaskStatus.RUNNING)
+        
+        sendMessage(roomId, agent.name, "사용자 요청 분석 및 지능적 작업을 시작합니다...", MessageType.THINKING)
 
-            // 실패 시 감정 업데이트
-            agent.lastEmotion = "SAD"
+        try {
+            val messages = mutableListOf<Map<String, Any>>()
+            
+            // 장기 기억 조회
+            val relatedMemories = memoryService.searchSimilarMemories(agent.id, userMessage)
+            if (relatedMemories.isNotEmpty()) {
+                val memoryContext = relatedMemories.joinToString("\n---\n")
+                messages.add(mapOf(
+                    "role" to "user",
+                    "content" to "[System: Relevant Long-term Memories]\n$memoryContext"
+                ))
+            }
+
+            // 코드베이스 RAG
+            val relatedCodeChunks = codebaseIndexingService.search(userMessage, 7)
+            if (relatedCodeChunks.isNotEmpty()) {
+                val codeContext = relatedCodeChunks.joinToString("\n---\n") { chunk ->
+                    "### File: ${chunk.filePath}\n```${chunk.language}\n${chunk.content}\n```"
+                }
+                messages.add(mapOf("role" to "user", "content" to "[System Context: Relevant Project Snippets]\n$codeContext"))
+                sendMessage(roomId, agent.name, "intelligence_boosted", MessageType.SYSTEM)
+            }
+
+            // 프로젝트 구조 컨텍스트
+            val projectContext = projectContextService.getProjectContext()
+            messages.add(mapOf("role" to "user", "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage"))
+
+            val lastResponse = runReasoningLoop(agent, roomId, messages)
+
+            taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
+            sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
+
+            // 성공 시 보상
+            agent.points += 10
+            agent.lastEmotion = "HAPPY"
             agentService.save(agent)
             
+            // 실시간 상태 전송
             val statusPayload = objectMapper.writeValueAsString(mapOf(
-                "agentId" to agent.id,
-                "points" to agent.points,
-                "lastEmotion" to agent.lastEmotion
+                "agentId" to agent.id, "points" to agent.points, "lastEmotion" to agent.lastEmotion
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM)
+
+            // 기억 저장
+            val fullDialogue = "User: $userMessage\nAgent: $lastResponse"
+            memoryExtractionService.extractAndSaveMemory(agent.id, roomId, fullDialogue)
+
+        } catch (e: Exception) {
+            // 자가 치유를 위해 예외를 밖으로 던짐
+            throw e
         }
     }
 
@@ -510,7 +559,9 @@ class AgentExecutor(
 
                         toolResult
                     } catch (e: Exception) {
-                        "도구 실행 중 오류: ${e.message}"
+                        // 진단을 위한 추가 컨텍스트 포함
+                        val context = " [Environment Context: Current Dir=${File(".").absolutePath}, Files=${File(".").list()?.joinToString(", ")}]"
+                        throw RuntimeException("도구 '$toolName' 실행 실패: ${e.message} $context", e)
                     }
                     
                     // 실시간 업무 프리뷰 종료 알림

@@ -62,9 +62,10 @@ export interface Task {
     roomId: string;
     command: string;
     result: string | null;
-    status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+    status: 'PENDING' | 'RUNNING' | 'HEALING' | 'COMPLETED' | 'FAILED';
     agent: Agent | null;
     parentId: number | null;
+    dependsOnIds: string | null;
 }
 
 export interface ChatMessage {

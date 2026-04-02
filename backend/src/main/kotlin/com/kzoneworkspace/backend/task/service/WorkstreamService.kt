@@ -18,7 +18,8 @@ class WorkstreamService(
     private val taskService: TaskService,
     private val agentService: AgentService,
     private val agentExecutor: AgentExecutor,
-    private val claudeClient: ClaudeClient
+    private val claudeClient: ClaudeClient,
+    private val selfHealingService: SelfHealingService
 ) {
     private val objectMapper = jacksonObjectMapper()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -78,14 +79,41 @@ class WorkstreamService(
                             }
                         }
                         
-                        // Execute current task
-                        try {
-                            taskService.updateStatus(dbId, TaskStatus.RUNNING, "의존성 충족됨: 실행 시작")
-                            val agent = taskService.getTaskById(dbId).agent!!
-                            agentExecutor.execute(agent, request.roomId, subTaskDef.command)
-                            taskService.updateStatus(dbId, TaskStatus.COMPLETED, "지능형 병렬 작업 완료")
-                        } catch (e: Exception) {
-                            taskService.updateStatus(dbId, TaskStatus.FAILED, "실행 중 오류: ${e.message}")
+                        // Execute current task with Self-Healing
+                        var currentCommand = subTaskDef.command
+                        var retryCount = 0
+                        val maxRetries = 2
+
+                        while (retryCount <= maxRetries) {
+                            try {
+                                val statusMsg = if (retryCount == 0) "의존성 충족됨: 실행 시작" else "자가 치유 재시도 ($retryCount/$maxRetries)"
+                                taskService.updateStatus(dbId, if (retryCount > 0) TaskStatus.HEALING else TaskStatus.RUNNING, statusMsg)
+                                
+                                val agent = taskService.getTaskById(dbId).agent!!
+                                // AgentExecutor.execute가 내부에서 FAILED로직을 타지 않도록 예외를 던지게 설계 변경 필요
+                                agentExecutor.executeWithException(agent, request.roomId, currentCommand, dbId)
+                                
+                                taskService.updateStatus(dbId, TaskStatus.COMPLETED, if (retryCount > 0) "자가 치유 성공: 작업 완료" else "지능형 병렬 작업 완료")
+                                break //성공 시 루프 탈출
+                            } catch (e: Exception) {
+                                retryCount++
+                                if (retryCount > maxRetries) {
+                                    taskService.updateStatus(dbId, TaskStatus.FAILED, "최대 재시도 횟수 초과: ${e.message}")
+                                    break
+                                }
+                                
+                                // 자가 치유 분석 수행
+                                taskService.updateStatus(dbId, TaskStatus.HEALING, "오류 감지: AI 분석 및 복구 중... (${e.message})")
+                                val strategy = selfHealingService.analyzeAndProposeFix(taskService.getTaskById(dbId), e.message ?: "알 수 없는 오류")
+                                
+                                if (strategy.type == StrategyType.RETRY_WITH_FIX) {
+                                    currentCommand = strategy.suggestedCommand
+                                    // 루프를 계속 돌아 재시도 수행
+                                } else {
+                                    taskService.updateStatus(dbId, TaskStatus.FAILED, "자가 치유 불가: ${strategy.reasoning}")
+                                    break
+                                }
+                            }
                         }
                     }
                 }

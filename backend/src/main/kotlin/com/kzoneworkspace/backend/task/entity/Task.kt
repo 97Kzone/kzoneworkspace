@@ -53,6 +53,7 @@ class Task(
 enum class TaskStatus {
     PENDING,    // 대기중
     RUNNING,    // 진행중
+    HEALING,    // 자가 치유 중
     COMPLETED,  // 완료
     FAILED      // 실패
 }
