@@ -113,11 +113,27 @@ class AgentExecutor(
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM) // 또는 새로운 전용 타입 사용 가능
 
-            // 장기 기억 추출 및 저장 (단순 저장이 아닌 지능적 추출)
-            sendMessage(roomId, agent.name, "대화 내용에서 중요한 정보를 추출하여 기억하고 있습니다...", MessageType.THINKING)
+            // 기억 저장
             val fullDialogue = "User: $userMessage\nAgent: $lastResponse"
             memoryExtractionService.extractAndSaveMemory(agent.id, roomId, fullDialogue)
 
+        } catch (e: Exception) {
+            val errorMsg = "업무 수행 중 오류가 발생했습니다: ${e.message}"
+            sendMessage(roomId, agent.name, errorMsg, MessageType.AGENT)
+            e.printStackTrace()
+            taskService.updateStatus(task.id, TaskStatus.FAILED, errorMsg)
+
+            // 실패 시 감정 업데이트
+            agent.lastEmotion = "SAD"
+            agentService.save(agent)
+            
+            val statusPayload = objectMapper.writeValueAsString(mapOf(
+                "agentId" to agent.id,
+                "points" to agent.points,
+                "lastEmotion" to agent.lastEmotion
+            ))
+            sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM)
+        }
     }
     
     /**
