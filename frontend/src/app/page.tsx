@@ -6,7 +6,7 @@ import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Data
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, AgentLesson, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService, lessonService, shadowService } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, AgentLesson, CognitiveTrace, MaintenanceIssue, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService, lessonService, shadowService, cognitiveService, janitorService } from "./apiService";
 
 const getAgentColor = (name: string) => {
   const colors = [
@@ -1136,7 +1136,10 @@ export default function VirtualOfficeBright() {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR'>('LOGS');
+  const [janitorIssues, setJanitorIssues] = useState<MaintenanceIssue[]>([]);
+  const [isJanitorScanning, setIsJanitorScanning] = useState(false);
+  const [isJanitorLoading, setIsJanitorLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState<'PROCESS' | 'INTELLIGENCE' | 'METRICS'>('PROCESS');
   const [openNavMenu, setOpenNavMenu] = useState<'INSIGHT' | 'ANALYSIS' | 'TOOLS' | null>(null);
   const [codeReviews, setCodeReviews] = useState<CodeReviewResult[]>([]);
@@ -1474,9 +1477,64 @@ export default function VirtualOfficeBright() {
     }
   };
 
+  const fetchJanitorIssues = async () => {
+    setIsJanitorLoading(true);
+    try {
+      const res = await janitorService.getIssues();
+      setJanitorIssues(res.data);
+    } catch (err) {
+      console.error("Janitor issues load failed:", err);
+    } finally {
+      setIsJanitorLoading(false);
+    }
+  };
+
+  const handleTriggerJanitorScan = async () => {
+    setIsJanitorScanning(true);
+    try {
+      const res = await janitorService.triggerScan();
+      if (res.data.success) {
+        alert(`${res.data.foundCount}개의 유지보수 이슈가 발견되었습니다.`);
+        fetchJanitorIssues();
+      }
+    } catch (err) {
+      console.error("Janitor scan failed:", err);
+      alert("스캔 중 오류가 발생했습니다.");
+    } finally {
+      setIsJanitorScanning(false);
+    }
+  };
+
+  const handleApplyJanitorFix = async (id: number) => {
+    try {
+      const res = await janitorService.applyFix(id);
+      if (res.data.success) {
+        alert(res.data.message);
+        fetchJanitorIssues();
+      } else {
+        alert(res.data.message);
+      }
+    } catch (err) {
+      console.error("Fix apply failed:", err);
+      alert("수정 적용 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleIgnoreJanitorIssue = async (id: number) => {
+    try {
+      await janitorService.ignoreIssue(id);
+      fetchJanitorIssues();
+    } catch (err) {
+      console.error("Ignore failed:", err);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'REASONING') {
       fetchCognitiveTraces();
+    }
+    if (activeTab === 'JANITOR') {
+      fetchJanitorIssues();
     }
   }, [activeTab, activeChat]);
 
@@ -2397,7 +2455,7 @@ export default function VirtualOfficeBright() {
                     )}
                     {activeCategory === 'INTELLIGENCE' && (
                       <>
-                        {['REASONING', 'TECH_PULSE', 'CODE_REVIEW', 'WISDOM'].map(tab => (
+                        {['REASONING', 'TECH_PULSE', 'CODE_REVIEW', 'JANITOR', 'WISDOM'].map(tab => (
                           <button
                             key={tab}
                             onClick={() => {
@@ -2681,6 +2739,95 @@ export default function VirtualOfficeBright() {
                           ) : (
                             techPulses.map((pulse) => (
                               <TechPulseCard key={pulse.id} pulse={pulse} />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ) : activeTab === 'JANITOR' ? (
+                      <div className="h-full flex flex-col p-4 text-left">
+                        <div className="flex items-center justify-between mb-4 shrink-0">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 flex items-center justify-center shadow-lg shadow-violet-500/10">
+                              <Database size={20} className="animate-pulse" />
+                            </div>
+                            <div>
+                               <h4 className="text-[12px] font-black text-white tracking-widest uppercase">Autonomous Janitor</h4>
+                               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">코드베이스 기술 부채 및 유지보수 관리</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleTriggerJanitorScan}
+                            disabled={isJanitorScanning}
+                            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black tracking-widest border border-violet-400/30 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50 active:scale-95"
+                          >
+                            {isJanitorScanning ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                            CLEANUP SCAN
+                          </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 pb-6">
+                          {janitorIssues.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50 py-20">
+                              <div className="p-4 rounded-full bg-slate-800/50">
+                                <Database size={40} className="text-slate-500" />
+                              </div>
+                              <p className="text-[11px] font-black uppercase tracking-widest text-center leading-relaxed">발견된 기술 부채가 없습니다.<br/><span className="text-violet-400">CLEANUP SCAN</span> 버튼을 눌러 코드베이스를 점검하세요.</p>
+                            </div>
+                          ) : (
+                            janitorIssues.map((issue) => (
+                              <div key={issue.id} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:bg-slate-800/60 transition-all group overflow-hidden relative">
+                                <div className={`absolute top-0 right-0 px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
+                                  issue.severity === 'CRITICAL' ? 'bg-rose-500 text-white' : 
+                                  issue.severity === 'MAJOR' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-400'
+                                }`}>
+                                  {issue.severity}
+                                </div>
+                                <div className="flex gap-4">
+                                  <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center ${
+                                    issue.category === 'SECURITY' ? 'bg-rose-500/20 text-rose-400' :
+                                    issue.category === 'LOGIC_SMELL' ? 'bg-amber-500/20 text-amber-400' :
+                                    'bg-indigo-500/20 text-indigo-400'
+                                  }`}>
+                                    <ShieldAlert size={20} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 text-left">
+                                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{issue.category}</span>
+                                      <span className="text-slate-600">•</span>
+                                      <span className="text-[9px] font-mono text-indigo-400 truncate">{issue.filePath}</span>
+                                    </div>
+                                    <p className="text-[11px] font-black text-slate-200 mb-2 leading-relaxed text-left">{issue.description}</p>
+                                    
+                                    {issue.originalCode && issue.suggestedCode && (
+                                      <div className="mt-3 bg-slate-900/50 rounded-xl overflow-hidden border border-slate-800/50">
+                                        <div className="grid grid-cols-2 text-[8px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-800">
+                                          <div className="p-2 border-r border-slate-800">Original</div>
+                                          <div className="p-2 text-emerald-400">Suggested</div>
+                                        </div>
+                                        <div className="grid grid-cols-2 font-mono text-[9px]">
+                                          <div className="p-3 bg-rose-500/5 text-rose-300 border-r border-slate-800 overflow-x-auto no-scrollbar whitespace-pre-wrap">{issue.originalCode}</div>
+                                          <div className="p-3 bg-emerald-500/5 text-emerald-300 overflow-x-auto no-scrollbar whitespace-pre-wrap">{issue.suggestedCode}</div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div className="flex gap-2 mt-4">
+                                      <button 
+                                        onClick={() => handleApplyJanitorFix(issue.id)}
+                                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-900/20"
+                                      >
+                                        Apply Fix
+                                      </button>
+                                      <button 
+                                        onClick={() => handleIgnoreJanitorIssue(issue.id)}
+                                        className="px-4 py-2 border border-slate-700 hover:bg-slate-700 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                      >
+                                        Ignore
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             ))
                           )}
                         </div>

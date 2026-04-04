@@ -154,6 +154,18 @@ export interface CognitiveTrace {
     timestamp: string;
 }
 
+export interface MaintenanceIssue {
+    id: number;
+    filePath: string;
+    category: 'UNUSED_CODE' | 'LINT_ERROR' | 'LOGIC_SMELL' | 'SECURITY' | 'PERFORMANCE';
+    description: string;
+    originalCode: string | null;
+    suggestedCode: string | null;
+    severity: 'CRITICAL' | 'MAJOR' | 'MINOR';
+    status: 'PENDING' | 'APPLIED' | 'IGNORED';
+    createdAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -280,6 +292,13 @@ export const cognitiveService = {
     getTracesByAgent: (agentId: number) => api.get<CognitiveTrace[]>(`/cognitive/agent/${agentId}`),
 };
 
+
+export const janitorService = {
+    getIssues: () => api.get<MaintenanceIssue[]>('/janitor/issues'),
+    triggerScan: () => api.post<{success: boolean, foundCount: number}>('/janitor/scan'),
+    applyFix: (id: number) => api.post<{success: boolean, message: string}>(`/janitor/fix/${id}`),
+    ignoreIssue: (id: number) => api.post<{success: boolean}>(`/janitor/ignore/${id}`),
+};
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
