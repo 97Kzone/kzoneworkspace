@@ -110,6 +110,18 @@ export interface Memory {
     createdAt: string;
 }
 
+export interface CodeReviewResult {
+    id: number;
+    filePath: string;
+    title: string;
+    issue: string;
+    originalCode: string | null;
+    suggestedCode: string | null;
+    severity: 'HIGH' | 'MEDIUM' | 'LOW';
+    status: 'PENDING' | 'APPLIED' | 'DISCARDED';
+    createdAt: string;
+}
+
 export interface CodebaseChunk {
     id: number;
     content: string;
@@ -161,8 +173,10 @@ export const officeService = {
 
 
 export const codeReviewService = {
-    perform: (roomId: string, agentName: string) =>
-        api.post<string>(`/code-review/perform?roomId=${roomId}&agentName=${agentName}`),
+    getAll: () => api.get<CodeReviewResult[]>('/code-review/results'),
+    perform: (filePath: string) =>
+        api.post<CodeReviewResult[]>(`/code-review/perform?filePath=${filePath}`),
+    applyFix: (id: number) => api.post<{success: boolean, message: string}>(`/code-review/${id}/apply`),
 };
 
 export const memoryService = {

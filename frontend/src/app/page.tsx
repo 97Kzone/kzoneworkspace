@@ -6,7 +6,7 @@ import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Data
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, TeamPerformance, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, TeamPerformance, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService } from "./apiService";
 
 const EmotionBubble = ({ 
   emotion, 
@@ -894,7 +894,8 @@ export default function VirtualOfficeBright() {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW'>('LOGS');
+  const [codeReviews, setCodeReviews] = useState<CodeReviewResult[]>([]);
   const [showHealingToast, setShowHealingToast] = useState<string | null>(null);
   const [performanceData, setPerformanceData] = useState<TeamPerformance | null>(null);
   const [isPerformanceLoading, setIsPerformanceLoading] = useState(false);
@@ -1107,6 +1108,36 @@ export default function VirtualOfficeBright() {
     }
   };
 
+  const fetchCodeReviews = async () => {
+    try {
+      const res = await codeReviewService.getAll();
+      setCodeReviews(res.data);
+    } catch (e) {
+      console.error("코드 리뷰 로드 실패:", e);
+    }
+  };
+
+  const handleApplyFix = async (id: number) => {
+    try {
+      const res = await codeReviewService.applyFix(id);
+      if (res.data.success) {
+        alert(res.data.message);
+        fetchCodeReviews();
+      } else {
+        alert(res.data.message);
+      }
+    } catch (e) {
+      console.error("수정 적용 실패:", e);
+      alert("수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'CODE_REVIEW') {
+      fetchCodeReviews();
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     fetchInitialData();
 
@@ -1294,13 +1325,14 @@ export default function VirtualOfficeBright() {
   };
 
   const handleStartCodeReview = async () => {
-    const reviewer = agents.find(a => a.name === "Reviewer") || agents[0];
-    if (!reviewer) return;
+    const filePath = window.prompt("리뷰를 수행할 파일 경로를 입력하세요 (예: backend/src/main/kotlin/com/kzoneworkspace/backend/tools/CodeReviewService.kt)", "backend/src/main/kotlin/com/kzoneworkspace/backend/tools/CodeReviewService.kt");
+    if (!filePath) return;
 
     setIsReviewing(true);
-    const roomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
     try {
-      await codeReviewService.perform(roomId, reviewer.name);
+      await codeReviewService.perform(filePath);
+      setActiveTab('CODE_REVIEW');
+      fetchCodeReviews();
     } catch (err) {
       console.error("리뷰 요청 실패:", err);
       alert("코드 리뷰 요청에 실패했습니다.");
@@ -1997,6 +2029,12 @@ export default function VirtualOfficeBright() {
                       className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'MISSION' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
                     >
                       MISSION
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('CODE_REVIEW')}
+                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'CODE_REVIEW' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      QA REVIEW
                     </button>
                   </div>
                   <button 

@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import com.google.common.reflect.TypeToken
+import com.google.gson.reflect.TypeToken
 import com.google.gson.Gson
 
 @Service

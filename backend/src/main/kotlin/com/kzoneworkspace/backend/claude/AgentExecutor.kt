@@ -550,7 +550,7 @@ class AgentExecutor(
                             "git_add" -> gitService.add(input["path"] as? String ?: ".")
                             "git_commit" -> gitService.commit(input["message"] as? String ?: "")
                             "request_code_review" -> {
-                                val diff = codeReviewService.getDiff()
+                                val diff = gitService.diff()
                                 handleCallAgent(agent.name, input["agent_name"] as? String ?: "Reviewer", "다음 Git 변경 사항을 리뷰하고 개선안을 제안해줘:\n\n$diff", roomId)
                             }
                             "update_whiteboard" -> handleUpdateWhiteboard(input["content"] as? String ?: "", roomId, agent.id, agent.name)
