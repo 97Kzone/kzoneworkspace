@@ -202,12 +202,20 @@ export interface TechPulse {
     createdAt: string;
 }
 
+export interface ActionableStrategy {
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  estimatedEffort: string;
+}
+
 export interface ProjectHealth {
     score: number;
     status: string;
     synergyLevel: string;
     risks: string[];
-    recommendations: string[];
+    recommendations: ActionableStrategy[];
     analysisReasoning: string;
     generatedAt: string;
 }

@@ -2,11 +2,31 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag, Zap, Target, Heart, ShieldAlert, TrendingUp } from "lucide-react";
+import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, BarChart2, Brain, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag, Zap, Target, Heart, ShieldAlert, TrendingUp } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, TeamPerformance, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService } from "./apiService";
+
+const getAgentColor = (name: string) => {
+  const colors = [
+    { bg: "bg-indigo-500", text: "text-indigo-500", light: "bg-indigo-50", border: "border-indigo-100", soft: "text-indigo-600" },
+    { bg: "bg-rose-500", text: "text-rose-500", light: "bg-rose-50", border: "border-rose-100", soft: "text-rose-600" },
+    { bg: "bg-emerald-500", text: "text-emerald-500", light: "bg-emerald-50", border: "border-emerald-100", soft: "text-emerald-600" },
+    { bg: "bg-amber-500", text: "text-amber-500", light: "bg-amber-50", border: "border-amber-100", soft: "text-amber-600" },
+    { bg: "bg-violet-500", text: "text-violet-500", light: "bg-violet-50", border: "border-violet-100", soft: "text-violet-600" },
+    { bg: "bg-sky-500", text: "text-sky-500", light: "bg-sky-50", border: "border-sky-100", soft: "text-sky-600" },
+  ];
+
+  if (name === "시스템") return { bg: "bg-slate-500", text: "text-slate-500", light: "bg-slate-50", border: "border-slate-100", soft: "text-slate-600" };
+
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+};
 
 const EmotionBubble = ({ 
   emotion, 
@@ -250,12 +270,14 @@ const ProjectHealthModal = ({
   isOpen, 
   onClose, 
   report, 
-  isLoading 
+  isLoading,
+  onAdopt
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   report: ProjectHealth | null; 
   isLoading: boolean;
+  onAdopt: (strategy: ActionableStrategy) => void;
 }) => {
   return (
     <AnimatePresence>
@@ -380,19 +402,49 @@ const ProjectHealthModal = ({
                     <div className="bg-indigo-50/50 border border-indigo-100 rounded-[2rem] p-8">
                        <div className="flex items-center gap-3 mb-6 font-black text-indigo-700 uppercase tracking-tight">
                          <Zap size={20} />
-                         전략적 개선 권고
+                         AI 자율 전략 로드맵
                        </div>
-                       <ul className="space-y-4">
-                         {report.recommendations.map((rec, i) => (
-                           <motion.li 
-                            initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                            key={i} className="flex items-start gap-3 text-sm text-indigo-900/80 font-bold"
+                       <div className="space-y-4">
+                         {report.recommendations.map((strategy, i) => (
+                           <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }} 
+                            animate={{ opacity: 1, scale: 1 }} 
+                            transition={{ delay: i * 0.1 }}
+                            key={i} 
+                            className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group"
                            >
-                             <div className="w-5 h-5 rounded-lg bg-indigo-100 text-indigo-500 flex items-center justify-center text-[10px] shrink-0">{i+1}</div>
-                             {rec}
-                           </motion.li>
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
+                                    strategy.priority === 'HIGH' ? 'bg-rose-500 text-white' : 
+                                    strategy.priority === 'MEDIUM' ? 'bg-amber-500 text-white' : 'bg-slate-400 text-white'
+                                  }`}>
+                                    {strategy.priority}
+                                  </span>
+                                  <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border border-indigo-100">
+                                    {strategy.category}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-400">
+                                  <Activity size={10} /> {strategy.estimatedEffort} Effort
+                                </div>
+                              </div>
+                              <h5 className="font-bold text-slate-800 text-sm mb-2 group-hover:text-indigo-600 transition-colors uppercase leading-tight">{strategy.title}</h5>
+                              <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4">{strategy.description}</p>
+                              <div className="flex items-center justify-end pt-1">
+                                <button
+                                  onClick={() => {
+                                    onAdopt(strategy);
+                                    onClose();
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-indigo-500/20 transition-transform active:scale-95"
+                                >
+                                  ADOPT STRATEGY <ChevronRight size={10} />
+                                </button>
+                              </div>
+                           </motion.div>
                          ))}
-                       </ul>
+                       </div>
                     </div>
                   </div>
                   
@@ -895,6 +947,8 @@ export default function VirtualOfficeBright() {
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
   const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW'>('LOGS');
+  const [activeCategory, setActiveCategory] = useState<'PROCESS' | 'INTELLIGENCE' | 'METRICS'>('PROCESS');
+  const [openNavMenu, setOpenNavMenu] = useState<'INSIGHT' | 'ANALYSIS' | 'TOOLS' | null>(null);
   const [codeReviews, setCodeReviews] = useState<CodeReviewResult[]>([]);
   const [showHealingToast, setShowHealingToast] = useState<string | null>(null);
   const [performanceData, setPerformanceData] = useState<TeamPerformance | null>(null);
@@ -1078,6 +1132,28 @@ export default function VirtualOfficeBright() {
     } finally {
       setIsHealthLoading(false);
     }
+  };
+
+  const handleAdoptStrategy = (strategy: ActionableStrategy) => {
+    if (agents.length === 0 || !stompClient.current?.connected) return;
+    
+    // 가장 적합한 에이전트 선택 (여기선 간단히 첫 번째 에이전트)
+    const agent = agents[0];
+
+    const chatMsg: ChatMessage = {
+      roomId: "default",
+      senderId: "user-1",
+      senderName: "사용자",
+      content: `@${agent.name} [전략 채택] ${strategy.title}: ${strategy.description}`,
+      type: "CHAT"
+    };
+
+    stompClient.current.publish({
+      destination: "/app/chat.send",
+      body: JSON.stringify(chatMsg)
+    });
+
+    alert(`${strategy.title} 전략이 채택되었습니다! ${agent.name} 에이전트가 즉시 분석 및 실행에 착수합니다.`);
   };
 
   const handleBuyItem = async (itemType: string, price: number) => {
@@ -1461,26 +1537,6 @@ export default function VirtualOfficeBright() {
     return Object.entries(usage).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
   };
 
-  const getAgentColor = (name: string) => {
-    const colors = [
-      { bg: "bg-indigo-500", text: "text-indigo-500", light: "bg-indigo-50", border: "border-indigo-100", soft: "text-indigo-600" },
-      { bg: "bg-rose-500", text: "text-rose-500", light: "bg-rose-50", border: "border-rose-100", soft: "text-rose-600" },
-      { bg: "bg-emerald-500", text: "text-emerald-500", light: "bg-emerald-50", border: "border-emerald-100", soft: "text-emerald-600" },
-      { bg: "bg-amber-500", text: "text-amber-500", light: "bg-amber-50", border: "border-amber-100", soft: "text-amber-600" },
-      { bg: "bg-violet-500", text: "text-violet-500", light: "bg-violet-50", border: "border-violet-100", soft: "text-violet-600" },
-      { bg: "bg-sky-500", text: "text-sky-500", light: "bg-sky-50", border: "border-sky-100", soft: "text-sky-600" },
-    ];
-
-    if (name === "시스템") return { bg: "bg-slate-500", text: "text-slate-500", light: "bg-slate-50", border: "border-slate-100", soft: "text-slate-600" };
-
-    // Hash based on name
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
-  };
 
   const getAgentPosition = (agent: Agent, index: number): { top: number, left: number } => {
     // 1. 협업 이동: 호출한 에이전트가 대상 에이전트 옆으로 이동
@@ -1636,57 +1692,95 @@ export default function VirtualOfficeBright() {
             가상 오피스
           </h1>
           <div className="flex items-center gap-2">
+            {/* 1. Group: Insight */}
+            <div className="relative">
+              <button 
+                onClick={() => setOpenNavMenu(openNavMenu === 'INSIGHT' ? null : 'INSIGHT')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border transition-all font-black text-[10px] uppercase tracking-widest ${openNavMenu === 'INSIGHT' ? 'bg-indigo-600 text-white border-indigo-700 shadow-lg' : 'bg-white/80 hover:bg-slate-50 text-slate-600 border-slate-200'}`}
+              >
+                <Sparkles size={14} className={openNavMenu === 'INSIGHT' ? 'animate-pulse' : ''} /> Insight <ChevronRight size={12} className={`transition-transform ${openNavMenu === 'INSIGHT' ? 'rotate-90' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {openNavMenu === 'INSIGHT' && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-12 left-0 w-56 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl p-2 z-[60] overflow-hidden">
+                    <button onClick={() => { handleOpenBriefing(); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors"><Zap size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Daily Briefing</div><div className="text-[8px] text-slate-400 font-bold uppercase">AI 요약 보고서</div></div>
+                    </button>
+                    <button onClick={() => { handleRefreshTechPulses(); setActiveTab('TECH_PULSE'); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-cyan-50 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center text-cyan-500 group-hover:bg-cyan-500 group-hover:text-white transition-colors"><TrendingUp size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Tech Pulse</div><div className="text-[8px] text-slate-400 font-bold uppercase">실시간 기술 트렌드</div></div>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* 2. Group: Analysis */}
+            <div className="relative">
+              <button 
+                onClick={() => setOpenNavMenu(openNavMenu === 'ANALYSIS' ? null : 'ANALYSIS')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border transition-all font-black text-[10px] uppercase tracking-widest ${openNavMenu === 'ANALYSIS' ? 'bg-rose-600 text-white border-rose-700 shadow-lg' : 'bg-white/80 hover:bg-slate-50 text-slate-600 border-slate-200'}`}
+              >
+                <BarChart3 size={14} className={openNavMenu === 'ANALYSIS' ? 'animate-pulse' : ''} /> Analysis <ChevronRight size={12} className={`transition-transform ${openNavMenu === 'ANALYSIS' ? 'rotate-90' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {openNavMenu === 'ANALYSIS' && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-12 left-0 w-56 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl p-2 z-[60] overflow-hidden">
+                    <button onClick={() => { handleOpenHealthDashboard(); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-rose-50 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors"><Heart size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Project Health</div><div className="text-[8px] text-slate-400 font-bold uppercase">종합 리스크 진단</div></div>
+                    </button>
+                    <button onClick={() => { setActiveTab('STATS'); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-emerald-50 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Activity size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Productivity</div><div className="text-[8px] text-slate-400 font-bold uppercase">에이전트 성과 분석</div></div>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* 3. Group: Tools */}
+            <div className="relative">
+              <button 
+                onClick={() => setOpenNavMenu(openNavMenu === 'TOOLS' ? null : 'TOOLS')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border transition-all font-black text-[10px] uppercase tracking-widest ${openNavMenu === 'TOOLS' ? 'bg-amber-600 text-white border-amber-700 shadow-lg' : 'bg-white/80 hover:bg-slate-50 text-slate-600 border-slate-200'}`}
+              >
+                <Command size={14} className={openNavMenu === 'TOOLS' ? 'animate-pulse' : ''} /> Tools <ChevronRight size={12} className={`transition-transform ${openNavMenu === 'TOOLS' ? 'rotate-90' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {openNavMenu === 'TOOLS' && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-12 right-0 w-64 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl p-2 z-[60] overflow-hidden">
+                    <button onClick={() => { setIsCodebaseExplorerOpen(true); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-100 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-slate-800 group-hover:text-white transition-colors"><Search size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Code Explorer</div><div className="text-[8px] text-slate-400 font-bold uppercase">시맨틱 코드 탐색</div></div>
+                    </button>
+                    <button onClick={() => { handleStartCodeReview(); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-emerald-50 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Code2 size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">QA Review</div><div className="text-[8px] text-slate-400 font-bold uppercase">자율 품질 검증</div></div>
+                    </button>
+                    <button onClick={() => { setIsWhiteboardOpen(true); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-amber-50 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Presentation size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Whiteboard</div><div className="text-[8px] text-slate-400 font-bold uppercase">공동 작업 캔버스</div></div>
+                    </button>
+                    <div className="border-t border-slate-100 my-1 mx-2"></div>
+                    <button onClick={() => { setIsShopOpen(true); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-rose-50 rounded-xl transition-colors text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors"><ShoppingBag size={14} /></div>
+                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Office Shop</div><div className="text-[8px] text-slate-400 font-bold uppercase">포인트 상점</div></div>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="w-px h-6 bg-slate-200 mx-2"></div>
+
             <button
               onClick={() => setIsBrowserOpen(!isBrowserOpen)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all font-bold text-[10px] ${isBrowserOpen ? 'bg-sky-500 text-white border-sky-600 shadow-md' : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-100'}`}
             >
               <Layout size={14} /> 브라우저 뷰어
               {browserScreenshot && !isBrowserOpen && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
-            </button>
-            <button
-              onClick={() => setIsWhiteboardOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-100 transition-all font-bold text-[10px]"
-            >
-              <Presentation size={14} /> 화이트보드
-              {whiteboardContent && !isWhiteboardOpen && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
-            </button>
-            <button
-              onClick={() => setIsSkillInventoryOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl border border-indigo-100 transition-all font-bold text-[10px]"
-            >
-              <Database size={14} /> 기술 인벤토리
-            </button>
-            <button
-              onClick={() => setIsKnowledgeExplorerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl border border-purple-100 transition-all font-bold text-[10px]"
-            >
-              <Sparkles size={14} /> 지식 탐색기
-            </button>
-            <button
-               onClick={handleOpenHealthDashboard}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-100 transition-all font-bold text-[10px]"
-            >
-              <Heart size={14} className="fill-rose-200" /> 프로젝트 헬스
-            </button>
-            <button
-              onClick={() => setIsShopOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-100 transition-all font-bold text-[10px]"
-            >
-              <ShoppingBag size={14} /> 오피스 상점
-            </button>
-            <button
-              onClick={() => setIsCodebaseExplorerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-[10px]"
-            >
-              <Search size={14} /> 코드 익스플로러
-            </button>
-            <button
-              onClick={handleStartCodeReview}
-              disabled={isReviewing}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-100 transition-all font-bold text-[10px] disabled:opacity-50"
-            >
-              <Code2 size={14} className={isReviewing ? "animate-pulse" : ""} />
-              {isReviewing ? "분석 중..." : "코드 리뷰 시작"}
             </button>
           </div>
         </div>
@@ -1974,81 +2068,97 @@ export default function VirtualOfficeBright() {
               style={{ width: activityPanelSize.width, height: activityPanelSize.height }}
               className="bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col cursor-move active:scale-[0.99] transition-transform relative"
             >
-              <div className="h-9 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between px-4 shrink-0 cursor-grab active:cursor-grabbing">
-                <div className="flex items-center gap-2">
-                  <GripVertical size={14} className="text-slate-500" />
-                  <Terminal size={14} className="text-emerald-400" />
-                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">실시간 활동 대시보드</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-                    <button
-                      onClick={() => setActiveTab('LOGS')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'LOGS' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      LOGS
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('REASONING')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'REASONING' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      REASONING
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('STATS')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'STATS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      STATS
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('SCHEDULER')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'SCHEDULER' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      SCHEDULER
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('KANBAN')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'KANBAN' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      KANBAN
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('TECH_PULSE')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'TECH_PULSE' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      TECH PULSE
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('ANALYTICS')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'ANALYTICS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      ANALYTICS
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('MISSION')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'MISSION' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      MISSION
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('CODE_REVIEW')}
-                      className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all ${activeTab === 'CODE_REVIEW' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      QA REVIEW
-                    </button>
+              <div className="h-14 border-b border-slate-700 bg-slate-800/80 flex items-center justify-between px-4 shrink-0 cursor-grab active:cursor-grabbing relative overflow-hidden backdrop-blur-md">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div>
+                <div className="flex items-center gap-3 relative z-10 shrink-0 mr-4">
+                  <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shadow-inner">
+                    <Terminal size={14} className="text-emerald-400 animate-pulse" />
                   </div>
-                  <button 
-                    onClick={handleOpenBriefing}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-indigo-500/20 hover:scale-105 transition-transform"
-                  >
-                    <Sparkles size={12} className="animate-pulse" />
-                    DAILY BRIEFING
-                  </button>
-                  <div className="flex items-center gap-1.5 ml-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-[9px] font-bold text-emerald-400/80 uppercase">시스템 가동 중</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest whitespace-nowrap">실시간 활동 대시보드</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-[8px] font-bold text-emerald-400/80 uppercase">AI Orchestration Live</span>
+                    </div>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-4 relative z-10 overflow-x-auto no-scrollbar py-2">
+                  {/* Category Toggle */}
+                  <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/50 shadow-inner shrink-0">
+                    {[
+                      { id: 'PROCESS', label: '실행', icon: Zap, color: 'indigo' },
+                      { id: 'INTELLIGENCE', label: '지능', icon: Brain, color: 'violet' },
+                      { id: 'METRICS', label: '성과', icon: BarChart2, color: 'emerald' }
+                    ].map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          setActiveCategory(cat.id as any);
+                          // 카테고리 이동 시 기본 탭 설정
+                          if (cat.id === 'PROCESS') setActiveTab('LOGS');
+                          else if (cat.id === 'INTELLIGENCE') setActiveTab('REASONING');
+                          else if (cat.id === 'METRICS') setActiveTab('STATS');
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-tighter ${activeCategory === cat.id ? `bg-${cat.color}-500 text-white shadow-lg shadow-${cat.color}-500/20 scale-105` : 'text-slate-500 hover:text-slate-300'}`}
+                      >
+                        <cat.icon size={12} />
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Dynamic Sub Tabs */}
+                  <div className="flex gap-1 items-center border-l border-slate-700/50 pl-4 shrink-0">
+                    {activeCategory === 'PROCESS' && (
+                      <>
+                        {['LOGS', 'KANBAN', 'MISSION', 'SCHEDULER'].map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab as any)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {activeCategory === 'INTELLIGENCE' && (
+                      <>
+                        {['REASONING', 'TECH_PULSE', 'CODE_REVIEW'].map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab as any)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
+                          >
+                            {tab === 'CODE_REVIEW' ? 'QA REVIEW' : tab}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {activeCategory === 'METRICS' && (
+                      <>
+                        {['STATS', 'ANALYTICS'].map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab as any)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleOpenBriefing}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-indigo-500/20 hover:scale-105 transition-transform ml-4 shrink-0"
+                >
+                  <Sparkles size={12} className="animate-pulse" />
+                  DAILY BRIEFING
+                </button>
               </div>
               <div className="flex-1 flex overflow-hidden">
                 <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
@@ -3144,6 +3254,7 @@ export default function VirtualOfficeBright() {
         onClose={() => setIsHealthModalOpen(false)}
         report={healthReport}
         isLoading={isHealthLoading}
+        onAdopt={handleAdoptStrategy}
       />
 
     </div>

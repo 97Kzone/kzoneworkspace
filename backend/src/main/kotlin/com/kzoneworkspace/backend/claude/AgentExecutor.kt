@@ -202,10 +202,37 @@ class AgentExecutor(
         }
     }
 
+    /**
+     * 평가 하네스(Evaluation Harness) 전용 실행 메서드.
+     * 사이드 이펙트(포인트, 기억 저장 등) 없이 순수하게 응답만 반환합니다.
+     */
+    fun executeBenchmark(agent: Agent, modelOverride: String?, userMessage: String): String {
+        val originalModel = agent.model
+        if (modelOverride != null) {
+            agent.model = modelOverride
+        }
+
+        try {
+            val messages = mutableListOf<Map<String, Any>>()
+            
+            // 프로젝트 컨텍스트 주입
+            val projectContext = projectContextService.getProjectContext()
+            messages.add(mapOf("role" to "user", "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage"))
+
+            // 평가용 룸 ID 사용 (UI에서 필터링 가능하도록)
+            val evalRoomId = "evaluation-system"
+            
+            return runReasoningLoop(agent, evalRoomId, messages, silent = true)
+        } finally {
+            agent.model = originalModel
+        }
+    }
+
     private fun runReasoningLoop(
         agent: Agent,
         roomId: String,
-        messages: MutableList<Map<String, Any>>
+        messages: MutableList<Map<String, Any>>,
+        silent: Boolean = false
     ): String {
         // 도구(Tools) 정의
         val allToolsMap = mutableMapOf<String, List<Map<String, Any>>>()
@@ -515,16 +542,18 @@ class AgentExecutor(
                     val input = block["input"] as Map<String, Any>
                     
                     val inputStr = objectMapper.writeValueAsString(input)
-                    sendMessage(roomId, agent.name, "🔍 **도구 사용**: `$toolName` \n> $inputStr", MessageType.TOOL)
+                    if (!silent) {
+                        sendMessage(roomId, agent.name, "🔍 **도구 사용**: `$toolName` \n> $inputStr", MessageType.TOOL)
 
-                    // 실시간 업무 프리뷰 시작 알림
-                    val livePayload = objectMapper.writeValueAsString(mapOf(
-                        "agentName" to agent.name,
-                        "toolName" to toolName,
-                        "target" to (input["path"] ?: input["command"] ?: input["query"] ?: input["url"] ?: ""),
-                        "status" to "START"
-                    ))
-                    sendMessage(roomId, agent.name, livePayload, MessageType.LIVE_WORKING)
+                        // 실시간 업무 프리뷰 시작 알림
+                        val livePayload = objectMapper.writeValueAsString(mapOf(
+                            "agentName" to agent.name,
+                            "toolName" to toolName,
+                            "target" to (input["path"] ?: input["command"] ?: input["query"] ?: input["url"] ?: ""),
+                            "status" to "START"
+                        ))
+                        sendMessage(roomId, agent.name, livePayload, MessageType.LIVE_WORKING)
+                    }
 
                     val result = try {
                         val toolResult = when (toolName) {
@@ -581,11 +610,13 @@ class AgentExecutor(
                     }
                     
                     // 실시간 업무 프리뷰 종료 알림
-                    val endPayload = objectMapper.writeValueAsString(mapOf(
-                        "agentName" to agent.name,
-                        "status" to "END"
-                    ))
-                    sendMessage(roomId, agent.name, endPayload, MessageType.LIVE_WORKING)
+                    if (!silent) {
+                        val endPayload = objectMapper.writeValueAsString(mapOf(
+                            "agentName" to agent.name,
+                            "status" to "END"
+                        ))
+                        sendMessage(roomId, agent.name, endPayload, MessageType.LIVE_WORKING)
+                    }
 
                     messages.add(mapOf(
                         "role" to "user",
@@ -597,7 +628,9 @@ class AgentExecutor(
                         ))
                     ))
                     
-                    sendMessage(roomId, agent.name, "✨ **도구 실행 완료**: `$toolName`", MessageType.TOOL)
+                    if (!silent) {
+                        sendMessage(roomId, agent.name, "✨ **도구 실행 완료**: `$toolName`", MessageType.TOOL)
+                    }
                 }
             }
         }
@@ -808,6 +841,8 @@ class AgentExecutor(
     }
 
     private fun sendMessage(roomId: String, senderName: String, content: String, type: MessageType) {
+        if (roomId == "evaluation-system") return // 평가 모드에서는 메시지 전송 스킵
+
         val message = ChatMessage(
             roomId = roomId,
             senderId = "agent",

@@ -11,12 +11,20 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
+data class ActionableStrategy(
+    val title: String,
+    val description: String,
+    val category: String, // TECH_DEBT, INNOVATION, PERFORMANCE, SECURITY, COLLABORATION
+    val priority: String, // HIGH, MEDIUM, LOW
+    val estimatedEffort: String // SMALL, MEDIUM, LARGE
+)
+
 data class ProjectHealthReport(
     val score: Int,
     val status: String,
     val synergyLevel: String,
     val risks: List<String>,
-    val recommendations: List<String>,
+    val recommendations: List<ActionableStrategy>,
     val analysisReasoning: String,
     val generatedAt: LocalDateTime = LocalDateTime.now()
 )
@@ -66,7 +74,12 @@ class ProjectHealthService(
             - status: 'EXCELLENT', 'GOOD', 'STABLE', 'WARNING', 'CRITICAL' 중 하나
             - synergyLevel: 'HIGH', 'MEDIUM', 'LOW' (에이전트 간의 협업 및 감정 상태 기준)
             - risks: 현재 프로젝트에서 발견된 잠재적 위험 요소 리스트 (문자열 리스트)
-            - recommendations: 구체적이고 실행 가능한 다음 단계 제 제안 (문자열 리스트)
+            - recommendations: 구체적이고 실행 가능한 전략 카드 리스트. 각 객체는 다음 필드를 포함함:
+                * title: 전략의 제목
+                * description: 상세 설명 (어떤 행동을 해야 하는지)
+                * category: 'TECH_DEBT', 'INNOVATION', 'PERFORMANCE', 'SECURITY', 'COLLABORATION' 중 하나
+                * priority: 'HIGH', 'MEDIUM', 'LOW' 중 하나
+                * estimatedEffort: 'SMALL', 'MEDIUM', 'LARGE' 중 하나
             - analysisReasoning: 왜 이런 점수를 주었는지에 대한 간략한 설명 (Markdown 형식)
         """.trimIndent()
 
@@ -114,12 +127,38 @@ class ProjectHealthService(
                 status = data["status"] as? String ?: "STABLE",
                 synergyLevel = data["synergyLevel"] as? String ?: "MEDIUM",
                 risks = (data["risks"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                recommendations = (data["recommendations"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                recommendations = (data["recommendations"] as? List<*>)?.mapNotNull { item ->
+                    val m = item as? Map<*, *>
+                    if (m != null) {
+                        ActionableStrategy(
+                            title = m["title"] as? String ?: "",
+                            description = m["description"] as? String ?: "",
+                            category = m["category"] as? String ?: "INNOVATION",
+                            priority = m["priority"] as? String ?: "MEDIUM",
+                            estimatedEffort = m["estimatedEffort"] as? String ?: "MEDIUM"
+                        )
+                    } else null
+                } ?: emptyList(),
                 analysisReasoning = data["analysisReasoning"] as? String ?: "데이터 분석 결과가 정상적으로 생성되었습니다."
             )
         } catch (e: Exception) {
             log.error("Failed to generate health report", e)
-            ProjectHealthReport(50, "ERROR", "LOW", listOf("분석 오류 발생"), listOf("시스템 로그를 확인하세요"), "분석 중 예외가 발생했습니다: ${e.message}")
+            ProjectHealthReport(
+                score = 50,
+                status = "ERROR",
+                synergyLevel = "LOW",
+                risks = listOf("분석 오류 발생"),
+                recommendations = listOf(
+                    ActionableStrategy(
+                        title = "시스템 로그 확인",
+                        description = "분석 중 예외가 발생했습니다: ${e.message}",
+                        category = "TECH_DEBT",
+                        priority = "HIGH",
+                        estimatedEffort = "SMALL"
+                    )
+                ),
+                analysisReasoning = "데이터 분석 과정에서 기술적 오류가 발생했습니다."
+            )
         }
     }
 }
