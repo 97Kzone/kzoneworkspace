@@ -24,7 +24,10 @@ import com.kzoneworkspace.backend.agent.service.ActivityLogService
 import com.kzoneworkspace.backend.agent.service.CollaborationService
 import com.kzoneworkspace.backend.task.service.SchedulingService
 import com.kzoneworkspace.backend.agent.service.CodebaseIndexingService
+import com.kzoneworkspace.backend.agent.service.ShadowWorkspaceService
+import com.kzoneworkspace.backend.agent.service.LessonService
 import com.kzoneworkspace.backend.agent.entity.CodebaseChunk
+import org.springframework.transaction.annotation.Transactional
 import java.net.URLEncoder
 
 @Service
@@ -45,8 +48,11 @@ class AgentExecutor(
     private val activityLogService: ActivityLogService,
     private val schedulingService: SchedulingService,
     private val codebaseIndexingService: CodebaseIndexingService,
+    private val shadowWorkspaceService: ShadowWorkspaceService,
+    private val lessonService: LessonService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
+    private val shadowSessions = mutableMapOf<String, Long>() // roomId or sessionId mapping
     private val objectMapper = jacksonObjectMapper()
     private val httpClient = java.net.http.HttpClient.newHttpClient()
 
@@ -86,12 +92,14 @@ class AgentExecutor(
                 sendMessage(roomId, agent.name, "intelligence_boosted", MessageType.SYSTEM)
             }
 
-            // 프로젝트 컨텍스트 주입 (지능 고도화)
+            // 프로젝트 컨텍스트 + 기술적 교훈 주입 (ATR)
             sendMessage(roomId, agent.name, "프로젝트 구조와 설정을 분석하고 있습니다...", MessageType.THINKING)
             val projectContext = projectContextService.getProjectContext()
+            val lessonsPrompt = lessonService.getRelevantLessonsPrompt(userMessage)
+            
             messages.add(mapOf(
                 "role" to "user", 
-                "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage"
+                "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage\n\n$lessonsPrompt"
             ))
 
             sendMessage(roomId, agent.name, "최적의 해결 방법을 계획하고 있습니다...", MessageType.THINKING)
@@ -116,12 +124,18 @@ class AgentExecutor(
             // 기억 저장
             val fullDialogue = "User: $userMessage\nAgent: $lastResponse"
             memoryExtractionService.extractAndSaveMemory(agent.id, roomId, fullDialogue)
+            
+            // 기술적 교훈 추출 트리거 (성공 시에도 간략한 교훈 추출)
+            lessonService.extractAndSaveLesson(task)
 
         } catch (e: Exception) {
             val errorMsg = "업무 수행 중 오류가 발생했습니다: ${e.message}"
             sendMessage(roomId, agent.name, errorMsg, MessageType.AGENT)
             e.printStackTrace()
             taskService.updateStatus(task.id, TaskStatus.FAILED, errorMsg)
+            
+            // 실패 시 기술적 교훈 추출 트리거
+            lessonService.extractAndSaveLesson(task)
 
             // 실패 시 감정 업데이트
             agent.lastEmotion = "SAD"
@@ -226,6 +240,39 @@ class AgentExecutor(
         } finally {
             agent.model = originalModel
         }
+    }
+
+    fun getBasePath(roomId: String): String {
+        val sessionId = shadowSessions[roomId] ?: return "."
+        return shadowWorkspaceService.getShadowPath(sessionId)
+    }
+
+    @Transactional
+    fun startShadowMode(roomId: String, taskId: Long, relatedFiles: List<String> = listOf("package.json")) {
+        val session = shadowWorkspaceService.createShadowSession(taskId, roomId)
+        shadowSessions[roomId] = session.id
+        
+        // Sync minimal files
+        shadowWorkspaceService.syncToShadow(session.id, relatedFiles)
+        
+        sendMessage(roomId, "System", "☢️ **[안내] 섀도우 모드 활성화**: 이제부터 에이전트의 모든 변경 사항은 안전한 샌드박스에 저장됩니다.", MessageType.SYSTEM)
+    }
+
+    @Transactional
+    fun commitShadowMode(roomId: String): String {
+        val sessionId = shadowSessions[roomId] ?: return "활성화된 섀도우 세션이 없습니다."
+        shadowWorkspaceService.mergeShadow(sessionId)
+        shadowSessions.remove(roomId)
+        sendMessage(roomId, "System", "✅ **[완료] 섀도우 병합**: 샌드박스의 변경 사항이 실제 프로젝트에 반영되었습니다.", MessageType.SYSTEM)
+        return "성공적으로 병합되었습니다."
+    }
+
+    @Transactional
+    fun discardShadowMode(roomId: String) {
+        val sessionId = shadowSessions[roomId] ?: return
+        shadowWorkspaceService.discardShadow(sessionId)
+        shadowSessions.remove(roomId)
+        sendMessage(roomId, "System", "🗑️ **[취소] 섀도우 폐기**: 샌드박스의 모든 변경 사항이 삭제되었습니다.", MessageType.SYSTEM)
     }
 
     private fun runReasoningLoop(
@@ -557,12 +604,12 @@ class AgentExecutor(
 
                     val result = try {
                         val toolResult = when (toolName) {
-                            "search_files" -> handleSearchFiles(input["pattern"] as? String ?: "")
-                            "read_file" -> handleReadFile(input["path"] as? String ?: "")
-                            "write_file" -> handleWriteFile(input["path"] as? String ?: "", input["content"] as? String ?: "")
-                            "list_directory" -> handleListDirectory(input["path"] as? String ?: ".")
-                             "delete_file" -> handleDeleteFile(input["path"] as? String ?: "")
-                            "run_command" -> handleRunCommand(input["command"] as? String ?: "")
+                            "search_files" -> handleSearchFiles(input["pattern"] as? String ?: "", roomId)
+                            "read_file" -> handleReadFile(input["path"] as? String ?: "", roomId)
+                            "write_file" -> handleWriteFile(input["path"] as? String ?: "", input["content"] as? String ?: "", roomId)
+                            "list_directory" -> handleListDirectory(input["path"] as? String ?: ".", roomId)
+                             "delete_file" -> handleDeleteFile(input["path"] as? String ?: "", roomId)
+                            "run_command" -> handleRunCommand(input["command"] as? String ?: "", roomId)
                             "call_agent" -> handleCallAgent(agent.name, input["agent_name"] as? String ?: "", input["task"] as? String ?: "", roomId)
                             "web_search" -> handleWebSearch(input["query"] as? String ?: "", roomId, agent.name)
                             "browse" -> handleBrowser(input["url"] as? String ?: "", roomId, agent.name)
@@ -689,8 +736,8 @@ class AgentExecutor(
         }
     }
 
-    private fun handleSearchFiles(pattern: String): String {
-        val root = File(".")
+    private fun handleSearchFiles(pattern: String, roomId: String): String {
+        val root = File(getBasePath(roomId))
         val results = mutableListOf<String>()
         val regex = try {
             pattern.replace(".", "\\.").replace("*", ".*").toRegex(RegexOption.IGNORE_CASE)
@@ -700,15 +747,15 @@ class AgentExecutor(
         
         root.walkTopDown().maxDepth(6).forEach { file ->
             if (file.isFile && regex.containsMatchIn(file.name)) {
-                results.add(file.path)
+                results.add(file.relativeTo(root).path)
             }
         }
         return if (results.isEmpty()) "'$pattern'에 매칭되는 파일 없음." else "검색 결과:\n" + results.joinToString("\n")
     }
 
-    private fun handleReadFile(path: String): String {
+    private fun handleReadFile(path: String, roomId: String): String {
         return try {
-            val file = File(path)
+            val file = if (path.startsWith("/")) File(path) else File(getBasePath(roomId), path)
             if (!file.exists()) "파일이 존재하지 않습니다: $path"
             else if (file.length() > 500_000) "파일이 너무 커서 읽을 수 없습니다. (500KB 제한)"
             else file.readText().take(10000)
@@ -717,20 +764,20 @@ class AgentExecutor(
         }
     }
 
-    private fun handleWriteFile(path: String, content: String): String {
+    private fun handleWriteFile(path: String, content: String, roomId: String): String {
         return try {
-            val file = File(path)
+            val file = if (path.startsWith("/")) File(path) else File(getBasePath(roomId), path)
             file.parentFile?.mkdirs()
             file.writeText(content)
-            "파일 저장 완료: ${file.absolutePath}"
+            "파일 저장 완료: ${file.path}"
         } catch (e: Exception) {
             "파일 쓰기 오류: ${e.message}"
         }
     }
 
-    private fun handleListDirectory(path: String): String {
+    private fun handleListDirectory(path: String, roomId: String): String {
         return try {
-            val dir = File(path)
+            val dir = if (path.startsWith("/")) File(path) else File(getBasePath(roomId), path)
             if (!dir.exists() || !dir.isDirectory) return "디렉토리가 존재하지 않습니다: $path"
             val files = dir.listFiles()?.joinToString("\n") { 
                 (if (it.isDirectory) "[DIR] " else "[FILE] ") + it.name 
@@ -741,9 +788,9 @@ class AgentExecutor(
         }
     }
 
-    private fun handleDeleteFile(path: String): String {
+    private fun handleDeleteFile(path: String, roomId: String): String {
         return try {
-            val file = File(path)
+            val file = if (path.startsWith("/")) File(path) else File(getBasePath(roomId), path)
             if (!file.exists()) return "파일이 존재하지 않습니다: $path"
             if (file.delete()) "파일 삭제 완료: $path" else "파일 삭제 실패"
         } catch (e: Exception) {
@@ -751,7 +798,7 @@ class AgentExecutor(
         }
     }
 
-    private fun handleRunCommand(command: String): String {
+    private fun handleRunCommand(command: String, roomId: String): String {
         return try {
             val isWindows = System.getProperty("os.name").lowercase().contains("win")
             val processBuilder = if (isWindows) {
@@ -759,6 +806,8 @@ class AgentExecutor(
             } else {
                 ProcessBuilder("sh", "-c", command)
             }
+            
+            processBuilder.directory(File(getBasePath(roomId)))
             
             val process = processBuilder.start()
             val output = process.inputStream.bufferedReader().readText()

@@ -6,7 +6,7 @@ import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Data
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, AgentLesson, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService, lessonService, shadowService } from "./apiService";
 
 const getAgentColor = (name: string) => {
   const colors = [
@@ -151,6 +151,104 @@ const KnowledgeExplorer = ({
             )}
           </div>
         </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+const WisdomVault = ({ 
+  isOpen, 
+  onClose, 
+  lessons,
+  getAgentColor
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  lessons: AgentLesson[];
+  getAgentColor: (name: string) => any;
+}) => {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[140]"
+          />
+          <motion.div
+            initial={{ opacity: 0, x: 400 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 400 }}
+            className="fixed top-0 right-0 w-[500px] h-full bg-slate-900/90 backdrop-blur-3xl border-l border-amber-500/30 z-[150] shadow-[-20px_0_60px_rgba(0,0,0,0.3)] flex flex-col"
+          >
+            <div className="h-20 border-b border-amber-500/20 flex items-center justify-between px-8 shrink-0 bg-gradient-to-r from-amber-500/10 to-transparent">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-900/40">
+                  <Brain size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-amber-50 tracking-tight">지혜의 전당 (Wisdom Vault)</h3>
+                  <p className="text-[10px] text-amber-500/70 font-bold uppercase tracking-widest">에이전트 자율 기술 회고</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white/50 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+              {lessons.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 opacity-60">
+                  <Brain size={40} className="mb-2" />
+                  <p className="text-sm font-bold text-center text-slate-400">아직 에이전트가 터득한<br/>교훈이 없습니다.</p>
+                </div>
+              ) : (
+                lessons.map((lesson) => (
+                  <motion.div
+                    key={lesson.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-amber-500/50 transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 text-[10px] font-black tracking-wider uppercase">
+                          {lesson.category}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-bold">Priority {lesson.importance}</span>
+                      </div>
+                      <span className={`text-[10px] font-black ${getAgentColor(lesson.agentName).text}`}>{lesson.agentName}</span>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {lesson.failPattern && (
+                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
+                          <p className="text-[10px] text-rose-400 font-black mb-1 flex items-center gap-1">
+                            <ShieldAlert size={12} /> FAILURE PATTERN
+                          </p>
+                          <p className="text-xs text-rose-100/80 leading-relaxed font-mono">{lesson.failPattern}</p>
+                        </div>
+                      )}
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                          <p className="text-[10px] text-emerald-400 font-black mb-1 flex items-center gap-1">
+                            <Zap size={12} /> TECHNICAL WISDOM
+                          </p>
+                          <p className="text-xs text-emerald-50/90 leading-relaxed italic">{lesson.wisdom}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-3 border-t border-white/5 flex justify-between items-center text-[9px] text-slate-500 font-bold uppercase tracking-tighter">
+                      <span>Learned at {new Date(lesson.createdAt).toLocaleString()}</span>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
@@ -999,10 +1097,17 @@ export default function VirtualOfficeBright() {
   const [techPulses, setTechPulses] = useState<TechPulse[]>([]);
   const [isTechPulseLoading, setIsTechPulseLoading] = useState(false);
 
-  // Project Health State
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
   const [healthReport, setHealthReport] = useState<ProjectHealth | null>(null);
   const [isHealthLoading, setIsHealthLoading] = useState(false);
+
+  // Shadow & ATR State
+  const [isShadowModeActive, setIsShadowModeActive] = useState(false);
+  const [isShadowPreviewOpen, setIsShadowPreviewOpen] = useState(false);
+  const [shadowDiff, setShadowDiff] = useState("");
+  const [lessons, setLessons] = useState<AgentLesson[]>([]);
+  const [isWisdomVaultOpen, setIsWisdomVaultOpen] = useState(false);
+  const [isShadowLoading, setIsShadowLoading] = useState(false);
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1043,11 +1148,65 @@ export default function VirtualOfficeBright() {
         setNewScheduledTask(prev => ({ ...prev, agentId: agentRes.data[0].id }));
       }
 
-      // 지식 이력 초기 로드
-      const memoryRes = await memoryService.getAll(20);
-      setMemories(memoryRes.data);
+      // 기술적 교훈 초기 로드 (ATR)
+      const lessonRes = await lessonService.getAll();
+      setLessons(lessonRes.data);
     } catch (err) {
       console.error("데이터 로드 실패:", err);
+    }
+  };
+
+  const handleStartShadow = async (taskId: number) => {
+    try {
+      setIsShadowLoading(true);
+      await shadowService.start("default", taskId);
+      setIsShadowModeActive(true);
+      // 알림 전송 (시스템 메시지로 이미 백엔드에서 전송됨)
+    } catch (err) {
+      console.error("Shadow start failed:", err);
+    } finally {
+      setIsShadowLoading(false);
+    }
+  };
+
+  const handleOpenShadowPreview = async () => {
+    try {
+      setIsShadowLoading(true);
+      const res = await shadowService.getDiff("default");
+      setShadowDiff(res.data);
+      setIsShadowPreviewOpen(true);
+    } catch (err) {
+      console.error("Diff fetch failed:", err);
+    } finally {
+      setIsShadowLoading(false);
+    }
+  };
+
+  const handleCommitShadow = async () => {
+    try {
+      setIsShadowLoading(true);
+      await shadowService.commit("default");
+      setIsShadowModeActive(false);
+      setIsShadowPreviewOpen(false);
+      // 리로드 데이터
+      fetchInitialData();
+    } catch (err) {
+      console.error("Commit failed:", err);
+    } finally {
+      setIsShadowLoading(false);
+    }
+  };
+
+  const handleDiscardShadow = async () => {
+    try {
+      setIsShadowLoading(true);
+      await shadowService.discard("default");
+      setIsShadowModeActive(false);
+      setIsShadowPreviewOpen(false);
+    } catch (err) {
+      console.error("Discard failed:", err);
+    } finally {
+      setIsShadowLoading(false);
     }
   };
 
@@ -2125,13 +2284,16 @@ export default function VirtualOfficeBright() {
                     )}
                     {activeCategory === 'INTELLIGENCE' && (
                       <>
-                        {['REASONING', 'TECH_PULSE', 'CODE_REVIEW'].map(tab => (
+                        {['REASONING', 'TECH_PULSE', 'CODE_REVIEW', 'WISDOM'].map(tab => (
                           <button
                             key={tab}
-                            onClick={() => setActiveTab(tab as any)}
+                            onClick={() => {
+                              if (tab === 'WISDOM') setIsWisdomVaultOpen(true);
+                              else setActiveTab(tab as any);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
                           >
-                            {tab === 'CODE_REVIEW' ? 'QA REVIEW' : tab}
+                            {tab === 'CODE_REVIEW' ? 'QA REVIEW' : tab === 'WISDOM' ? 'WISDOM VAULT' : tab}
                           </button>
                         ))}
                       </>
@@ -2345,6 +2507,17 @@ export default function VirtualOfficeBright() {
                                         <div className="text-[8px] text-slate-500 border-t border-slate-700/50 pt-1.5 italic line-clamp-2 leading-tight">
                                           {task.result}
                                         </div>
+                                      )}
+                                      {col.id === 'FAILED' && (
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStartShadow(task.id);
+                                          }}
+                                          className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase transition-all shadow-lg shadow-amber-900/20 active:scale-95"
+                                        >
+                                          <Zap size={10} /> Shadow Retry
+                                        </button>
                                       )}
                                       { (col.id === 'RUNNING' || col.id === 'HEALING') && (
                                         <div className="mt-2 flex gap-1">
@@ -3128,6 +3301,101 @@ export default function VirtualOfficeBright() {
             </motion.div>
           )}
         </AnimatePresence>
+ 
+        {/* Shadow Mode Control Bar */}
+        <AnimatePresence>
+          {isShadowModeActive && (
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-4 bg-slate-900/90 backdrop-blur-2xl border border-amber-500/50 px-6 py-4 rounded-3xl shadow-[0_20px_50px_rgba(245,158,11,0.3)]"
+            >
+              <div className="flex items-center gap-4 border-r border-white/10 pr-6">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 flex items-center justify-center text-white animate-pulse">
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-amber-400 uppercase tracking-widest leading-none mb-1">Shadow Mode Active</p>
+                  <p className="text-[10px] text-white/50 font-bold">Changes are isolated in safe sandbox</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleOpenShadowPreview}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-black rounded-xl transition-all border border-white/10"
+                >
+                  PREVIEW DIFF
+                </button>
+                <button 
+                  onClick={handleCommitShadow}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-amber-900/20"
+                >
+                  MERGE TO MAIN
+                </button>
+                <button 
+                  onClick={handleDiscardShadow}
+                  className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-rose-900/20"
+                >
+                  DISCARD
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Shadow Preview Modal */}
+        <AnimatePresence>
+          {isShadowPreviewOpen && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[250] flex items-center justify-center p-8"
+              onClick={() => setIsShadowPreviewOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 30 }}
+                className="bg-slate-900 border border-white/20 w-full max-w-4xl h-[80vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-slate-800/50">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                        <Maximize2 size={20} />
+                      </div>
+                      <h2 className="text-xl font-black text-white">Shadow Diff Preview</h2>
+                   </div>
+                   <button onClick={() => setIsShadowPreviewOpen(false)} className="text-white/40 hover:text-white">
+                      <X size={24} />
+                   </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-8 font-mono text-sm custom-scrollbar bg-slate-950">
+                  <pre className="text-emerald-400 leading-relaxed whitespace-pre-wrap">
+                    {shadowDiff || "No changes detected in sandbox."}
+                  </pre>
+                </div>
+                
+                <div className="px-8 py-6 border-t border-white/10 bg-slate-800/50 flex justify-end gap-3">
+                   <button onClick={handleDiscardShadow} className="px-6 py-3 bg-rose-500/20 text-rose-400 font-black rounded-2xl hover:bg-rose-500/30 transition-all">
+                      Discard Changes
+                   </button>
+                   <button onClick={handleCommitShadow} className="px-8 py-3 bg-amber-500 text-white font-black rounded-2xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-900/40">
+                      Apply to Main Project
+                   </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 1. Wisdom Vault Slide-over (ATR) */}
+        <WisdomVault 
+          isOpen={isWisdomVaultOpen}
+          onClose={() => setIsWisdomVaultOpen(false)}
+          lessons={lessons}
+          getAgentColor={getAgentColor}
+        />
 
       {/* 6. Office Shop Modal */}
       <AnimatePresence>

@@ -78,6 +78,18 @@ export interface ChatMessage {
     timestamp?: string;
 }
 
+export interface AgentLesson {
+    id: number;
+    agentName: string;
+    taskId: number;
+    category: string;
+    failPattern: string | null;
+    wisdom: string;
+    relatedFiles: string | null;
+    importance: number;
+    createdAt: string;
+}
+
 export interface ActivityLog {
     id: number;
     agentId: number;
@@ -235,6 +247,22 @@ export const workstreamService = {
 
 export const projectHealthService = {
     get: () => api.get<ProjectHealth>('/project-health'),
+};
+
+export const lessonService = {
+    getAll: () => api.get<AgentLesson[]>('/lessons'),
+    getByAgent: (name: string) => api.get<AgentLesson[]>(`/lessons/agent/${name}`),
+};
+
+export const shadowService = {
+    start: (roomId: string, taskId: number) => 
+        api.post(`/shadow/start?roomId=${roomId}&taskId=${taskId}`),
+    commit: (roomId: string) => 
+        api.post<string>(`/shadow/commit?roomId=${roomId}`),
+    discard: (roomId: string) => 
+        api.post(`/shadow/discard?roomId=${roomId}`),
+    getDiff: (roomId: string) => 
+        api.get<string>(`/shadow/diff?roomId=${roomId}`),
 };
 
 
