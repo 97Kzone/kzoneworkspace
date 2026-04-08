@@ -1,0 +1,59 @@
+package com.kzoneworkspace.backend.task.entity
+
+import com.kzoneworkspace.backend.agent.entity.Agent
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
+import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
+import java.time.LocalDateTime
+
+@Entity
+@Table(name = "tasks")
+class Task(
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    val id: Long = 0,
+
+    @Column(nullable = false)
+    val roomId: String,                    // 어느 채팅방에서 시작된 태스크인지
+
+    @Column(columnDefinition = "TEXT")
+    val command: String,                   // 사용자가 내린 원본 명령
+
+    @Column(columnDefinition = "TEXT")
+    var result: String? = null,            // 에이전트 수행 결과
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "agent_id")
+    var agent: Agent? = null,              // 담당 에이전트
+
+    @Column(nullable = true)
+    var parentId: Long? = null,             // 상위 태스크 ID (병렬 실행 시 부모/자식 관계)
+
+    @Column(nullable = false)
+    var isDecomposed: Boolean = false,      // 하위 태스크로 분해되었는지 여부
+
+    @Enumerated(EnumType.STRING)
+    var status: TaskStatus = TaskStatus.PENDING,
+
+    @Column(name = "depends_on_ids", columnDefinition = "TEXT")
+    var dependsOnIds: String? = null,        // 선행 태스크 ID 목록 (JSON or CSV)
+
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    var updatedAt: LocalDateTime = LocalDateTime.now()
+)
+
+enum class TaskStatus {
+    PENDING,    // 대기중
+    RUNNING,    // 진행중
+    HEALING,    // 자가 치유 중
+    COMPLETED,  // 완료
+    FAILED      // 실패
+}
