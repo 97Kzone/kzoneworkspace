@@ -609,7 +609,7 @@ export default function VirtualOfficeBright() {
                         <div className="w-8 h-8 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md">
                           <MessageSquare size={16} />
                         </div>
-                        <h3 className="font-black text-slate-800 tracking-tight text-sm uppercase">글로벌 커뮤니케이션</h3>
+                        <h3 className="font-black text-slate-800 tracking-tight text-sm uppercase">워크스페이스</h3>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">실시간 동기화 중</span>
