@@ -144,6 +144,16 @@ export interface CodebaseChunk {
     createdAt: string;
 }
 
+export interface CognitiveTrace {
+    id: string;
+    agentId: number;
+    roomId: string;
+    type: 'PLANNING' | 'INFERENCE' | 'VALIDATION' | 'CORRECTION' | 'OBSERVATION';
+    content: string;
+    confidence: number;
+    timestamp: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -263,6 +273,11 @@ export const shadowService = {
         api.post(`/shadow/discard?roomId=${roomId}`),
     getDiff: (roomId: string) => 
         api.get<string>(`/shadow/diff?roomId=${roomId}`),
+};
+
+export const cognitiveService = {
+    getTracesByRoom: (roomId: string) => api.get<CognitiveTrace[]>(`/cognitive/room/${roomId}`),
+    getTracesByAgent: (agentId: number) => api.get<CognitiveTrace[]>(`/cognitive/agent/${agentId}`),
 };
 
 
