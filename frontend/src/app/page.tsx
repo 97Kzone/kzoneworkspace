@@ -1,3892 +1,1262 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, BarChart2, Brain, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag, Zap, Target, Heart, ShieldAlert, TrendingUp, History } from "lucide-react";
+import { 
+  Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, 
+  Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, 
+  BarChart3, BarChart2, Brain, Calendar, Activity, ChevronRight, Pause, Play, 
+  Trash2, Search, Leaf, ShoppingBag, Zap, Target, Heart, ShieldAlert, TrendingUp, History 
+} from "lucide-react";
 import ReactMarkdown from 'react-markdown';
-import mermaid from 'mermaid';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, AgentLesson, CognitiveTrace, MaintenanceIssue, MissionContext, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService, lessonService, shadowService, cognitiveService, janitorService, missionIntelligenceService } from "./apiService";
 
-const getAgentColor = (name: string) => {
-  const colors = [
-    { bg: "bg-indigo-500", text: "text-indigo-500", light: "bg-indigo-50", border: "border-indigo-100", soft: "text-indigo-600" },
-    { bg: "bg-rose-500", text: "text-rose-500", light: "bg-rose-50", border: "border-rose-100", soft: "text-rose-600" },
-    { bg: "bg-emerald-500", text: "text-emerald-500", light: "bg-emerald-50", border: "border-emerald-100", soft: "text-emerald-600" },
-    { bg: "bg-amber-500", text: "text-amber-500", light: "bg-amber-50", border: "border-amber-100", soft: "text-amber-600" },
-    { bg: "bg-violet-500", text: "text-violet-500", light: "bg-violet-50", border: "border-violet-100", soft: "text-violet-600" },
-    { bg: "bg-sky-500", text: "text-sky-500", light: "bg-sky-50", border: "border-sky-100", soft: "text-sky-600" },
-  ];
+// Types and Services
+import { 
+  agentService, taskService, chatService, skillService, activityService, 
+  schedulingService, codeReviewService, memoryService, officeService, 
+  codebaseService, briefingService, techPulseService, projectHealthService, 
+  lessonService, shadowService, cognitiveService, janitorService, 
+  missionIntelligenceService, ActionableStrategy 
+} from "./apiService";
 
-  if (name === "시스템") return { bg: "bg-slate-500", text: "text-slate-500", light: "bg-slate-50", border: "border-slate-100", soft: "text-slate-600" };
+// Utilities
+import { getAgentColor } from "../utils/agentColors";
 
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % colors.length;
-  return colors[index];
-};
+// Hooks
+import { useVirtualOffice } from "../hooks/useVirtualOffice";
+import { useStompWS } from "../hooks/useStompWS";
 
-const EmotionBubble = ({ 
-  emotion, 
-  agentName,
-  getAgentColor 
-}: { 
-  emotion: string, 
-  agentName: string,
-  getAgentColor: (name: string) => any 
-}) => {
-  const emojis: Record<string, string> = {
-    "HAPPY": "🎉",
-    "SAD": "😫",
-    "THINKING": "🤔",
-    "ANGRY": "💢",
-    "SUCCESS": "✅",
-    "ERROR": "❌"
-  };
-
-  return (
-    <motion.div
-      initial={{ scale: 0, y: 0, opacity: 0 }}
-      animate={{ scale: [0, 1.3, 1], y: -50, opacity: 1 }}
-      exit={{ scale: 0, opacity: 0 }}
-      className="absolute left-1/2 -translate-x-1/2 z-[100] text-3xl filter drop-shadow-lg"
-    >
-      {emojis[emotion] || emotion}
-    </motion.div>
-  );
-};
-
-const KnowledgeExplorer = ({ 
-  isOpen, 
-  onClose, 
-  memories, 
-  onSearch, 
-  isLoading,
-  getAgentColor
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  memories: Memory[]; 
-  onSearch: (query: string) => void;
-  isLoading: boolean;
-  getAgentColor: (name: string) => any;
-}) => {
-  const [query, setQuery] = useState("");
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, x: 400 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 400 }}
-          className="fixed top-0 right-0 w-[450px] h-full bg-white/80 backdrop-blur-2xl border-l border-indigo-100/50 z-[150] shadow-[-20px_0_60px_rgba(0,0,0,0.05)] flex flex-col"
-        >
-          <div className="h-20 border-b border-slate-100/50 flex items-center justify-between px-8 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
-                <Database size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-800 tracking-tight">지식 탐색기</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">에이전트 메모리 탐색</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 transition-colors">
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="p-6 border-b border-slate-100/50 bg-white/50">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="어떤 지식을 찾으시나요? (예: 코드 리뷰 결과)"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onSearch(query)}
-                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all shadow-sm"
-              />
-              <button 
-                onClick={() => onSearch(query)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-200"
-              >
-                {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/30">
-            {memories.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4 opacity-60">
-                <Database size={40} className="mb-2" />
-                <p className="text-sm font-bold text-center">검색 결과가 없거나<br/>아직 지식이 축적되지 않았습니다.</p>
-              </div>
-            ) : (
-              memories.map((memory) => (
-                <motion.div
-                  key={memory.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-lg ${getAgentColor(memory.agentName).light} flex items-center justify-center border border-indigo-50`}>
-                        <Bot size={14} className={getAgentColor(memory.agentName).text} />
-                      </div>
-                      <span className={`text-[11px] font-black ${getAgentColor(memory.agentName).soft}`}>{memory.agentName}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-bold font-mono">
-                      {new Date(memory.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-600 leading-relaxed italic border-l-2 border-indigo-100 pl-3">
-                    <ReactMarkdown>{memory.content}</ReactMarkdown>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const WisdomVault = ({ 
-  isOpen, 
-  onClose, 
-  lessons,
-  getAgentColor
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  lessons: AgentLesson[];
-  getAgentColor: (name: string) => any;
-}) => {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[140]"
-          />
-          <motion.div
-            initial={{ opacity: 0, x: 400 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 400 }}
-            className="fixed top-0 right-0 w-[500px] h-full bg-slate-900/90 backdrop-blur-3xl border-l border-amber-500/30 z-[150] shadow-[-20px_0_60px_rgba(0,0,0,0.3)] flex flex-col"
-          >
-            <div className="h-20 border-b border-amber-500/20 flex items-center justify-between px-8 shrink-0 bg-gradient-to-r from-amber-500/10 to-transparent">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-900/40">
-                  <Brain size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-amber-50 tracking-tight">지혜의 전당 (Wisdom Vault)</h3>
-                  <p className="text-[10px] text-amber-500/70 font-bold uppercase tracking-widest">에이전트 자율 기술 회고</p>
-                </div>
-              </div>
-              <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white/50 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-              {lessons.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 opacity-60">
-                  <Brain size={40} className="mb-2" />
-                  <p className="text-sm font-bold text-center text-slate-400">아직 에이전트가 터득한<br/>교훈이 없습니다.</p>
-                </div>
-              ) : (
-                lessons.map((lesson) => (
-                  <motion.div
-                    key={lesson.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-amber-500/50 transition-all group"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 text-[10px] font-black tracking-wider uppercase">
-                          {lesson.category}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-bold">Priority {lesson.importance}</span>
-                      </div>
-                      <span className={`text-[10px] font-black ${getAgentColor(lesson.agentName).text}`}>{lesson.agentName}</span>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {lesson.failPattern && (
-                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
-                          <p className="text-[10px] text-rose-400 font-black mb-1 flex items-center gap-1">
-                            <ShieldAlert size={12} /> FAILURE PATTERN
-                          </p>
-                          <p className="text-xs text-rose-100/80 leading-relaxed font-mono">{lesson.failPattern}</p>
-                        </div>
-                      )}
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-                          <p className="text-[10px] text-emerald-400 font-black mb-1 flex items-center gap-1">
-                            <Zap size={12} /> TECHNICAL WISDOM
-                          </p>
-                          <p className="text-xs text-emerald-50/90 leading-relaxed italic">{lesson.wisdom}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 pt-3 border-t border-white/5 flex justify-between items-center text-[9px] text-slate-500 font-bold uppercase tracking-tighter">
-                      <span>Learned at {new Date(lesson.createdAt).toLocaleString()}</span>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const CodebaseExplorer = ({ 
-  isOpen, 
-  onClose, 
-  results, 
-  onSearch, 
-  onIndex,
-  isLoading,
-  isIndexing
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  results: CodebaseChunk[]; 
-  onSearch: (query: string) => void;
-  onIndex: () => void;
-  isLoading: boolean;
-  isIndexing: boolean;
-}) => {
-  const [query, setQuery] = useState("");
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, x: 400 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 400 }}
-          className="fixed top-0 right-0 w-[550px] h-full bg-slate-900/95 backdrop-blur-2xl border-l border-slate-700 z-[150] shadow-[-20px_0_60px_rgba(0,0,0,0.2)] flex flex-col text-slate-200"
-        >
-          <div className="h-20 border-b border-slate-700/50 flex items-center justify-between px-8 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-900/20">
-                <Search size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white tracking-tight">시맨틱 코드 탐색</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">코드베이스 지능형 검색</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={onIndex}
-                disabled={isIndexing}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all ${isIndexing ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'}`}
-              >
-                {isIndexing ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
-                {isIndexing ? "인덱싱 중..." : "인덱싱 갱신"}
-              </button>
-              <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6 border-b border-slate-700/50 bg-slate-800/20">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="어떤 코드를 찾으시나요? (예: '로그인 검증 로직')"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onSearch(query)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 transition-all shadow-inner"
-              />
-              <button 
-                onClick={() => onSearch(query)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-md shadow-emerald-500/20"
-              >
-                {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-900">
-            {results.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-60">
-                <Code2 size={40} className="mb-2" />
-                <p className="text-sm font-bold text-center">의미 기반 검색을 지원합니다.<br/>궁금한 코드 로직을 물어보세요.</p>
-              </div>
-            ) : (
-              results.map((result) => (
-                <motion.div
-                  key={result.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:border-emerald-500/30 transition-all group"
-                >
-                  <div className="bg-slate-800/60 px-5 py-3 border-b border-slate-700 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                       <Code2 size={14} className="text-emerald-400" />
-                       <span className="text-xs font-mono text-slate-300 truncate max-w-[300px]">{result.filePath}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-bold">
-                      L{result.startLine} - L{result.endLine}
-                    </span>
-                  </div>
-                  <div className="p-4 overflow-x-auto custom-scrollbar">
-                    <pre className="text-[11px] font-mono text-emerald-50/80 leading-relaxed">
-                      <code>{result.content}</code>
-                    </pre>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const ProjectHealthModal = ({ 
-  isOpen, 
-  onClose, 
-  report, 
-  isLoading,
-  onAdopt
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  report: ProjectHealth | null; 
-  isLoading: boolean;
-  onAdopt: (strategy: ActionableStrategy) => void;
-}) => {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-white rounded-[2.5rem] shadow-[0_30px_90px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col w-full max-w-4xl h-[85vh] border border-white/20"
-          >
-            <div className="px-10 py-8 bg-gradient-to-br from-rose-500 via-pink-600 to-purple-600 flex items-center justify-between shadow-lg shrink-0 relative overflow-hidden">
-               {/* Background Decoration */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-              
-              <div className="flex items-center gap-5 text-white relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xl">
-                  <Heart size={28} className="text-white fill-white/20" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black tracking-tight uppercase">프로젝트 지능형 헬스 보드</h3>
-                  <p className="text-[11px] text-rose-100 font-bold uppercase tracking-[0.25em] opacity-90">AI 에이전트 종합 상태 및 전략 분석</p>
-                </div>
-              </div>
-              <button 
-                onClick={onClose} 
-                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10 z-10"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-slate-50/30">
-              {isLoading ? (
-                <div className="h-full flex flex-col items-center justify-center space-y-6">
-                  <div className="relative w-24 h-24">
-                    <Loader2 size={64} className="animate-spin text-rose-500" />
-                    <motion.div 
-                      className="absolute inset-0 bg-rose-500 rounded-full blur-2xl opacity-10"
-                      animate={{ scale: [1, 2, 1] }} 
-                      transition={{ repeat: Infinity, duration: 2 }}
-                    />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-black text-slate-800 tracking-tight">전체 프로젝트 데이터 분석 중</p>
-                    <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">업무 효율 및 팀 시너지를 측정하고 있습니다...</p>
-                  </div>
-                </div>
-              ) : report && (
-                <div className="space-y-10">
-                  {/* Score & Core Metrics */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center relative overflow-hidden group">
-                       <div className="absolute inset-0 bg-gradient-to-b from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 relative z-10">Health Score</span>
-                       <div className="relative w-40 h-40 flex items-center justify-center mb-4 z-10">
-                          <svg className="w-full h-full -rotate-90">
-                            <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100" />
-                            <motion.circle 
-                              cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" 
-                              strokeDasharray={440} 
-                              initial={{ strokeDashoffset: 440 }}
-                              animate={{ strokeDashoffset: 440 - (440 * report.score / 100) }}
-                              transition={{ duration: 1.5, ease: "easeOut" }}
-                              className="text-rose-500" 
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-5xl font-black text-slate-900">{report.score}</span>
-                            <span className="text-xs font-bold text-rose-500 uppercase">Points</span>
-                          </div>
-                       </div>
-                       <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                         report.status === 'EXCELLENT' ? 'bg-emerald-500 text-white' : 
-                         report.status === 'GOOD' ? 'bg-indigo-500 text-white' : 
-                         report.status === 'WARNING' ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'
-                       }`}>
-                         {report.status}
-                       </div>
-                    </div>
-
-                    <div className="lg:col-span-2 space-y-6">
-                       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 h-full">
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
-                              <TrendingUp size={20} />
-                            </div>
-                            <h4 className="text-lg font-black text-slate-800 tracking-tight">지능형 상태 요약</h4>
-                          </div>
-                          <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-p:font-medium prose-p:leading-relaxed prose-strong:text-indigo-600">
-                             <ReactMarkdown>{report.analysisReasoning}</ReactMarkdown>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-
-                  {/* Risks & Recommendations */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-amber-50/50 border border-amber-100 rounded-[2rem] p-8">
-                       <div className="flex items-center gap-3 mb-6 font-black text-amber-700 uppercase tracking-tight">
-                         <ShieldAlert size={20} />
-                         감지된 잠재적 위험
-                       </div>
-                       <ul className="space-y-4">
-                         {report.risks.map((risk, i) => (
-                           <motion.li 
-                            initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                            key={i} className="flex items-start gap-3 text-sm text-amber-900/80 font-bold"
-                           >
-                             <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
-                             {risk}
-                           </motion.li>
-                         ))}
-                       </ul>
-                    </div>
-
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-[2rem] p-8">
-                       <div className="flex items-center gap-3 mb-6 font-black text-indigo-700 uppercase tracking-tight">
-                         <Zap size={20} />
-                         AI 자율 전략 로드맵
-                       </div>
-                       <div className="space-y-4">
-                         {report.recommendations.map((strategy, i) => (
-                           <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }} 
-                            animate={{ opacity: 1, scale: 1 }} 
-                            transition={{ delay: i * 0.1 }}
-                            key={i} 
-                            className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group"
-                           >
-                              <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
-                                    strategy.priority === 'HIGH' ? 'bg-rose-500 text-white' : 
-                                    strategy.priority === 'MEDIUM' ? 'bg-amber-500 text-white' : 'bg-slate-400 text-white'
-                                  }`}>
-                                    {strategy.priority}
-                                  </span>
-                                  <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border border-indigo-100">
-                                    {strategy.category}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-400">
-                                  <Activity size={10} /> {strategy.estimatedEffort} Effort
-                                </div>
-                              </div>
-                              <h5 className="font-bold text-slate-800 text-sm mb-2 group-hover:text-indigo-600 transition-colors uppercase leading-tight">{strategy.title}</h5>
-                              <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4">{strategy.description}</p>
-                              <div className="flex items-center justify-end pt-1">
-                                <button
-                                  onClick={() => {
-                                    onAdopt(strategy);
-                                    onClose();
-                                  }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-indigo-500/20 transition-transform active:scale-95"
-                                >
-                                  ADOPT STRATEGY <ChevronRight size={10} />
-                                </button>
-                              </div>
-                           </motion.div>
-                         ))}
-                       </div>
-                    </div>
-                  </div>
-                  
-                  {report.synergyLevel && (
-                    <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
-                       <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center">
-                                <Users size={20} />
-                             </div>
-                             <h4 className="text-lg font-black text-slate-800 tracking-tight">팀 시너지 레벨</h4>
-                          </div>
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${
-                            report.synergyLevel === 'HIGH' ? 'bg-emerald-500 text-white' : 
-                            report.synergyLevel === 'MEDIUM' ? 'bg-indigo-500 text-white' : 'bg-rose-500 text-white'
-                          }`}>{report.synergyLevel} SYNERGY</span>
-                       </div>
-                       <div className="flex items-center gap-2 h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: report.synergyLevel === 'HIGH' ? '100%' : report.synergyLevel === 'MEDIUM' ? '60%' : '30%' }}
-                            transition={{ duration: 1, ease: "easeOut" }}
-                            className={`h-full bg-gradient-to-r ${
-                              report.synergyLevel === 'HIGH' ? 'from-emerald-400 to-teal-500' : 
-                              report.synergyLevel === 'MEDIUM' ? 'from-indigo-400 to-violet-500' : 'from-rose-400 to-pink-500'
-                            }`}
-                          />
-                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            <div className="px-10 py-8 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                분석 일시: {report ? new Date(report.generatedAt).toLocaleString() : '대기 중'}
-              </div>
-              <button 
-                onClick={onClose}
-                className="px-10 py-4 bg-slate-900 hover:bg-rose-600 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-slate-200 hover:shadow-rose-200"
-              >
-                대시보드 닫기
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const TeamProductivityChart = ({ performance }: { performance: TeamPerformance | null }) => {
-  if (!performance) return (
-    <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
-      <Loader2 size={32} className="animate-spin text-indigo-500" />
-      <p className="text-[10px] font-black uppercase tracking-widest text-center">분석 데이터를 불러오는 중...</p>
-    </div>
-  );
-
-  return (
-    <div className="h-full flex flex-col p-4 animate-in fade-in duration-700 bg-black/20">
-      <div className="grid grid-cols-3 gap-3 mb-6 shrink-0">
-        {[
-          { label: "완료 태스크", value: performance.totalTasksCompleted, icon: Target, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-          { label: "평균 성공률", value: `${performance.averageSuccessRate.toFixed(1)}%`, icon: Zap, color: "text-indigo-400", bg: "bg-indigo-500/10" },
-          { label: "활동 지수", value: performance.dailyStats.reduce((acc, curr) => acc + curr.activityCount, 0), icon: Activity, color: "text-amber-400", bg: "bg-amber-500/10" },
-        ].map((stat, i) => (
-          <div key={i} className={`p-3 rounded-2xl ${stat.bg} border border-white/5 flex flex-col items-center justify-center text-center shadow-inner`}>
-            <stat.icon size={14} className={`${stat.color} mb-1.5`} />
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">{stat.label}</span>
-            <span className={`text-lg font-black ${stat.color}`}>{stat.value}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex-1 min-h-[0] relative mt-2">
-        <span className="text-[9px] text-slate-500 uppercase font-black mb-4 flex items-center gap-2">
-          <BarChart3 size={12} className="text-indigo-400" />
-          최근 7일 생산성 트렌드
-        </span>
-        <div className="h-[120px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={performance.dailyStats}>
-              <defs>
-                <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorActivities" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-              <XAxis 
-                dataKey="date" 
-                stroke="#475569" 
-                fontSize={8} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(val) => val.split('-').slice(1).join('/')} 
-              />
-              <YAxis stroke="#475569" fontSize={8} tickLine={false} axisLine={false} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} 
-                itemStyle={{ padding: '0' }}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="taskCount" 
-                name="완료 태스크"
-                stroke="#818cf8" 
-                strokeWidth={2}
-                fillOpacity={1} 
-                fill="url(#colorTasks)" 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="activityCount" 
-                name="에이전트 활동"
-                stroke="#10b981" 
-                strokeWidth={2}
-                fillOpacity={1} 
-                fill="url(#colorActivities)" 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      
-      <div className="mt-4 pt-4 border-t border-white/5 overflow-y-auto custom-scrollbar pr-1">
-        <span className="text-[9px] text-slate-500 uppercase font-black mb-3 block">에이전트별 누적 공헌도</span>
-        <div className="space-y-2 pb-2">
-          {performance.agentPerformance.map((agent, idx) => (
-            <div key={idx} className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/5">
-              <span className="w-16 truncate text-[10px] font-bold text-slate-300">{agent.agentName}</span>
-              <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }} 
-                  animate={{ width: `${(agent.completedTasks / Math.max(1, ...performance.agentPerformance.map(d => d.completedTasks))) * 100}%` }}
-                  className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500"
-                />
-              </div>
-              <span className="text-[9px] font-mono text-slate-400 w-12 text-right">{agent.completedTasks} tasks</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const DailyBriefingModal = ({ 
-  isOpen, 
-  onClose, 
-  content, 
-  isLoading 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  content: string; 
-  isLoading: boolean;
-}) => {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6"
-        >
-          <motion.div
-            initial={{ scale: 0.9, y: 30, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.9, y: 30, opacity: 0 }}
-            className="bg-white rounded-[2.5rem] shadow-[0_25px_70px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col w-full max-w-3xl h-[80vh] border border-white/40"
-          >
-            <div className="px-8 py-6 bg-gradient-to-r from-indigo-500 to-violet-600 flex items-center justify-between shadow-lg shrink-0">
-              <div className="flex items-center gap-4 text-white">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                  <Sparkles size={24} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black tracking-tight uppercase">에이전트 데일리 브리핑</h3>
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-[0.2em] opacity-80">지난 24시간 활동 및 지식 요약</p>
-                </div>
-              </div>
-              <button 
-                onClick={onClose} 
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-slate-50/50">
-              {isLoading ? (
-                <div className="h-full flex flex-col items-center justify-center space-y-4">
-                  <div className="relative">
-                    <Loader2 size={48} className="animate-spin text-indigo-500" />
-                    <motion.div 
-                      className="absolute inset-0 bg-indigo-500 rounded-full blur-xl opacity-20"
-                      animate={{ scale: [1, 1.5, 1] }} 
-                      transition={{ repeat: Infinity, duration: 2 }}
-                    />
-                  </div>
-                  <p className="text-sm font-bold text-slate-500 animate-pulse">에이전트들이 보고서를 작성하고 있습니다...</p>
-                </div>
-              ) : (
-                <div className="prose prose-slate max-w-none prose-headings:text-slate-800 prose-headings:font-black prose-p:text-slate-600 prose-p:leading-relaxed prose-li:text-slate-600 prose-strong:text-indigo-600 prose-blockquote:border-l-indigo-400 prose-blockquote:bg-indigo-50/30 prose-blockquote:py-1 prose-blockquote:px-4">
-                  <ReactMarkdown>{content}</ReactMarkdown>
-                </div>
-              )}
-            </div>
-            
-            <div className="px-10 py-6 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                Gemini 2.0 Flash 분석 완료
-              </div>
-              <button 
-                onClick={onClose}
-                className="px-8 py-3 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg shadow-slate-200 hover:shadow-indigo-200"
-              >
-                확인했습니다
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const MissionMap = ({ parentTask, subTasks, getAgentColor }: { parentTask: Task, subTasks: Task[], getAgentColor: (name: string) => any }) => {
-  const [chart, setChart] = useState<string>("");
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (subTasks.length === 0) return;
-
-    let mermaidGraph = "graph TD\n";
-    mermaidGraph += `  P[${parentTask.command.substring(0, 30)}...]:::parent\n`;
-    
-    // Define nodes
-    subTasks.forEach(task => {
-      const statusClass = task.status === 'COMPLETED' ? 'done' : 
-                          task.status === 'RUNNING' ? 'active' : 
-                          task.status === 'HEALING' ? 'healing' :
-                          task.status === 'FAILED' ? 'error' : 'pending';
-      const agentName = task.agent?.name || "Unknown";
-      const cmdShort = task.command.substring(0, 25).replace(/"/g, "'");
-      mermaidGraph += `  T${task.id}["${agentName}<br/>${cmdShort}..."]:::${statusClass}\n`;
-    });
-
-    // Define edges
-    subTasks.forEach(task => {
-      if (task.dependsOnIds) {
-          const deps = task.dependsOnIds.split(',');
-          deps.forEach(depId => {
-              mermaidGraph += `  T${depId} --> T${task.id}\n`;
-          });
-      } else {
-          // If no dependency, it stems from parent (for visual clarity)
-          mermaidGraph += `  P --> T${task.id}\n`;
-      }
-    });
-
-    // Define Styles
-    mermaidGraph += "  classDef parent fill:#f1f5f9,stroke:#64748b,stroke-width:2px,color:#334155,font-weight:bold\n";
-    mermaidGraph += "  classDef done fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#065f46\n";
-    mermaidGraph += "  classDef active fill:#eef2ff,stroke:#6366f1,stroke-width:3px,color:#312e81,font-weight:bold\n";
-    mermaidGraph += "  classDef healing fill:#fff7ed,stroke:#f97316,stroke-width:3px,color:#9a3412,stroke-dasharray: 2 2\n";
-    mermaidGraph += "  classDef error fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#7f1d1d\n";
-    mermaidGraph += "  classDef pending fill:#fafafa,stroke:#e2e8f0,stroke-width:1px,color:#94a3b8,stroke-dasharray: 5 5\n";
-
-    setChart(mermaidGraph);
-  }, [parentTask, subTasks]);
-
-  useEffect(() => {
-    if (containerRef.current && chart) {
-        try {
-            mermaid.render(`mission-${parentTask.id}`, chart).then(({ svg }) => {
-                if (containerRef.current) {
-                    containerRef.current.innerHTML = svg;
-                }
-            });
-        } catch (err) {
-            console.error("Mermaid Render Error (Mission):", err);
-        }
-    }
-  }, [chart]);
-
-  return (
-    <div className="h-full flex flex-col p-4 bg-slate-900/40 rounded-xl border border-slate-800/60 transition-all">
-       <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-             <Target size={16} className="text-indigo-400" />
-             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">실시간 미션 의존 관계도</span>
-          </div>
-          <div className="flex gap-3">
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-slate-400"></div><span className="text-[8px] text-slate-500 uppercase font-bold">Pending</span></div>
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-indigo-500"></div><span className="text-[8px] text-indigo-400 uppercase font-bold">Running</span></div>
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[8px] text-orange-400 uppercase font-bold">Healing</span></div>
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div><span className="text-[8px] text-emerald-400 uppercase font-bold">Done</span></div>
-          </div>
-       </div>
-       <div className="flex-1 overflow-auto bg-white/5 rounded-xl border border-white/5 flex items-center justify-center p-4">
-          <div ref={containerRef} className="w-full scale-125" />
-       </div>
-    </div>
-  );
-};
-
-const MermaidRenderer = ({ chart }: { chart: string }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      mermaid.render(`mermaid-${Math.random().toString(36).substr(2, 9)}`, chart).then(({ svg }) => {
-        if (containerRef.current) {
-          containerRef.current.innerHTML = svg;
-        }
-      }).catch(err => {
-        console.error("Mermaid Render Error:", err);
-      });
-    }
-  }, [chart]);
-
-  return <div ref={containerRef} className="flex justify-center w-full my-6 p-4 bg-white border border-slate-100 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)]" />;
-};
-
-const LivePreviewBubble = ({ 
-  preview, 
-  getAgentColor 
-}: { 
-  preview: { toolName: string, target: string, agentName: string },
-  getAgentColor: (name: string) => any 
-}) => {
-  const Icon = preview.toolName.includes('write') ? Code2 : 
-               preview.toolName.includes('command') ? Terminal : 
-               preview.toolName.includes('search') ? Search : 
-               preview.toolName.includes('browse') ? Layout : Bot;
-  
-  const color = getAgentColor(preview.agentName);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8, y: 15 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8, y: 15 }}
-      className={`absolute -top-32 left-1/2 -translate-x-1/2 w-52 bg-white/40 backdrop-blur-xl border border-white/60 rounded-2xl p-3 shadow-[0_15px_45px_rgba(0,0,0,0.08)] z-[60] overflow-hidden group`}
-    >
-      <div className={`absolute inset-0 bg-gradient-to-br ${color.light} opacity-30 -z-10`} />
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`p-1.5 rounded-lg ${color.bg} text-white shadow-md`}>
-          <Icon size={12} className={preview.toolName.includes('thinking') ? "animate-spin" : "animate-pulse"} />
-        </div>
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-[0.15em] ${color.soft}`}>
-            {preview.toolName.replace('_', ' ')}
-          </span>
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">실시간 업무 중</span>
-        </div>
-      </div>
-      <div className="text-[10px] font-mono text-slate-600 bg-white/60 rounded-xl p-2.5 border border-white/90 break-all line-clamp-2 shadow-inner">
-        {preview.target}
-      </div>
-      
-      <div className="mt-2.5 flex items-center justify-between">
-        <div className="flex gap-1">
-          {[0, 0.1, 0.2].map((delay, i) => (
-            <motion.div 
-              key={i}
-              animate={{ 
-                height: [4, 12, 4],
-                opacity: [0.3, 1, 0.3]
-              }} 
-              transition={{ repeat: Infinity, duration: 0.8, delay }}
-              className={`w-0.5 ${color.bg} rounded-full`} 
-            />
-          ))}
-        </div>
-        <div className={`w-1.5 h-1.5 rounded-full ${color.bg} animate-ping opacity-60`} />
-      </div>
-    </motion.div>
-  );
-};
-
-const MissionIntelligenceBoard = ({ 
-  intelligence, 
-  isLoading 
-}: { 
-  intelligence: MissionContext[]; 
-  isLoading: boolean;
-}) => {
-  return (
-    <div className="h-full flex flex-col p-4">
-      <div className="flex items-center justify-between mb-6 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-500 text-white flex items-center justify-center shadow-lg shadow-violet-900/40 animate-pulse">
-            <Brain size={20} />
-          </div>
-          <div>
-             <h4 className="text-[12px] font-black text-white tracking-widest uppercase">Collective Mission Intelligence</h4>
-             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">실시간 세션 지능 & 미션 동기화 보드</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-            <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest uppercase flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Syncing
-            </span>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2 pb-6">
-        {isLoading && intelligence.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50 py-20">
-             <Loader2 size={40} className="animate-spin text-slate-500" />
-             <p className="text-[11px] font-black uppercase tracking-widest text-center">지능을 수집하는 중입니다...</p>
-          </div>
-        ) : intelligence.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50 py-20">
-              <div className="p-4 rounded-full bg-slate-800/50">
-                <Target size={40} className="text-slate-500" />
-              </div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-center leading-relaxed">아직 수집된 지능이 없습니다.<br/>에이전트들이 작업을 완료하면 여기에 전역 지식이 공유됩니다.</p>
-            </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {intelligence.map((intel) => (
-              <motion.div 
-                key={intel.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`bg-slate-800/60 border ${intel.importance >= 4 ? 'border-amber-500/40 shadow-amber-500/5' : 'border-slate-700/50'} rounded-2xl p-4 hover:bg-slate-800/80 transition-all relative overflow-hidden group`}
-              >
-                {intel.importance >= 4 && (
-                    <div className="absolute top-0 right-0 px-2.5 py-1 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest rounded-bl-xl shadow-lg">
-                        Critical Intel
-                    </div>
-                )}
-                <div className="flex items-center gap-2 mb-3 text-left">
-                  <span className={`px-2 py-0.5 rounded-lg ${intel.importance >= 4 ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'} text-[9px] font-black tracking-widest uppercase`}>
-                    {intel.intelKey}
-                  </span>
-                  <span className="text-[9px] text-slate-500 font-bold">•</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase">{intel.agentName} 발견</span>
-                </div>
-                <p className="text-[11px] font-bold text-slate-200 leading-relaxed mb-4 text-left">{intel.intelValue}</p>
-                <div className="flex items-center justify-between text-[8px] text-slate-500 font-black uppercase tracking-widest">
-                  <div className="flex items-center gap-1">
-                    <History size={10} />
-                    {new Date(intel.createdAt).toLocaleTimeString()}
-                  </div>
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className={`w-2 h-0.5 rounded-full ${i < intel.importance ? 'bg-indigo-500' : 'bg-slate-700'}`} />
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const TechPulseCard = ({ pulse }: { pulse: TechPulse }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  const categoryColors: Record<string, { bg: string, text: string, border: string, icon: any }> = {
-    "KOTLIN": { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20", icon: Code2 },
-    "SPRING": { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20", icon: Leaf },
-    "REACT": { bg: "bg-cyan-500/10", text: "text-cyan-400", border: "border-cyan-500/20", icon: Layout },
-    "NEXTJS": { bg: "bg-slate-700/30", text: "text-slate-300", border: "border-slate-600/30", icon: Activity },
-    "AI": { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/20", icon: Sparkles },
-    "SECURITY": { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20", icon: Database },
-    "GENERAL": { bg: "bg-slate-700/20", text: "text-slate-400", border: "border-slate-700/50", icon: Bot }
-  };
-
-  const status = categoryColors[pulse.category.toUpperCase()] || categoryColors["GENERAL"];
-  const Icon = status.icon;
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-slate-800/40 border ${status.border} rounded-2xl overflow-hidden shadow-lg transition-all group hover:bg-slate-800/60`}
-    >
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl ${status.bg} ${status.text} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform`}>
-              <Icon size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-black uppercase tracking-widest ${status.text}`}>{pulse.category}</span>
-                <span className="text-slate-700 font-black">/</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Impact Score:</span>
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className={`w-3 h-1 rounded-full ${i < (pulse.impactScore / 2) ? status.bg.replace('/10', '').replace('/30', '').replace('700', '400') : 'bg-slate-800'}`} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <h4 className="text-[13px] font-black text-white leading-tight mt-1 tracking-tight">{pulse.title}</h4>
-            </div>
-          </div>
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 hover:bg-white/5 rounded-lg text-slate-500 transition-colors"
-          >
-            <ChevronRight size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
-          </button>
-        </div>
-        
-        <p className="text-[11px] text-slate-400 leading-relaxed font-medium line-clamp-2">{pulse.description}</p>
-        
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="pt-4 mt-3 border-t border-slate-700/50 space-y-3">
-                <div className="bg-indigo-500/5 rounded-xl p-3 border border-indigo-500/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles size={12} className="text-indigo-400 animate-pulse" />
-                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Project Impact Analysis</span>
-                  </div>
-                  <div className="text-[11px] text-slate-300 leading-relaxed font-medium prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown>{pulse.projectImpact}</ReactMarkdown>
-                  </div>
-                </div>
-                
-                {pulse.sourceUrl && (
-                  <a 
-                    href={pulse.sourceUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-[9px] font-black text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20"
-                  >
-                   <Search size={10} />
-                   View Detailed Source
-                  </a>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
-  );
-};
-
-const CognitiveTraceTimeline = ({ traces, getAgentColor, agents }: { traces: CognitiveTrace[], getAgentColor: (name: string) => any, agents: Agent[] }) => {
-    const typeConfigs: Record<string, { icon: any, color: string, label: string }> = {
-        'PLANNING': { icon: Target, color: 'text-sky-400', label: '차세대 전략 수립' },
-        'INFERENCE': { icon: Brain, color: 'text-indigo-400', label: '논리적 추론 도출' },
-        'VALIDATION': { icon: ShieldAlert, color: 'text-amber-400', label: '자율 무결성 검증' },
-        'CORRECTION': { icon: Zap, color: 'text-rose-400', label: '인지적 평형 복구' },
-        'OBSERVATION': { icon: Activity, color: 'text-emerald-400', label: '코드 시퀀스 관측' }
-    };
-
-    return (
-        <div className="space-y-8 p-4 pt-6 relative before:absolute before:inset-y-0 before:left-10 before:w-px before:bg-slate-800/50 overflow-x-hidden">
-            {traces.length === 0 ? (
-                <div className="h-40 flex flex-col items-center justify-center text-slate-600 opacity-50 italic">
-                    <Brain size={32} className="mb-2" />
-                    추론 데이터가 아직 수집되지 않았습니다.
-                </div>
-            ) : traces.map((trace, i) => {
-                const config = typeConfigs[trace.type] || typeConfigs['INFERENCE'];
-                const Icon = config.icon;
-                const agent = agents.find(a => a.id === Number(trace.agentId));
-                const agentName = agent?.name || "Unknown";
-
-                return (
-                    <motion.div 
-                        key={trace.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="relative pl-14 group"
-                    >
-                        {/* Dot */}
-                        <div className={`absolute left-10 top-2 w-5 h-5 rounded-full border-4 border-slate-900 bg-slate-800 z-10 group-hover:scale-125 group-hover:bg-indigo-500 transition-all duration-300 transform -translate-x-1/2 shadow-[0_0_15px_rgba(99,102,241,0.2)]`} />
-
-                        <div className="bg-slate-800/40 border border-slate-700/50 rounded-[2rem] p-6 hover:bg-slate-800/60 hover:border-indigo-500/40 transition-all shadow-xl backdrop-blur-sm relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none"></div>
-                            
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center ${config.color} shadow-lg shadow-black/20`}>
-                                        <Icon size={24} className={trace.type === 'CORRECTION' ? 'animate-pulse' : ''} />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${config.color}`}>
-                                                {config.label}
-                                            </span>
-                                            {trace.type === 'CORRECTION' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>}
-                                        </div>
-                                        <h5 className="text-[12px] font-black text-slate-100 flex items-center gap-2 mt-1">
-                                            <span className={getAgentColor(agentName).soft}>{agentName}</span>
-                                            <span className="text-slate-600 font-normal">/</span>
-                                            <span className="text-slate-500 font-mono text-[10px] uppercase tracking-tighter">{new Date(trace.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                                        </h5>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end shrink-0">
-                                    <div className="flex items-center gap-2 mb-1.5">
-                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Confidence Score</span>
-                                        <span className={`text-[10px] font-mono font-bold ${trace.confidence > 0.8 ? 'text-emerald-400' : 'text-indigo-400'}`}>{(trace.confidence * 100).toFixed(0)}%</span>
-                                    </div>
-                                    <div className="w-24 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700/50 shadow-inner">
-                                        <motion.div 
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${trace.confidence * 100}%` }}
-                                            transition={{ duration: 1, ease: "easeOut" }}
-                                            className={`h-full bg-gradient-to-r ${trace.confidence > 0.8 ? 'from-emerald-500 to-teal-400' : 'from-indigo-500 to-violet-400'} shadow-[0_0_8px_rgba(99,102,241,0.5)]`}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="text-[11px] text-slate-300 leading-relaxed font-medium bg-black/30 p-5 rounded-2xl border border-white/5 shadow-inner">
-                                <ReactMarkdown
-                                    components={{
-                                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                        code: ({ node, ...props }) => (
-                                          <code className="bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded-md font-mono text-[11px] border border-slate-700" {...props} />
-                                        ),
-                                        strong: ({ children }) => <strong className="text-white font-black">{children}</strong>,
-                                    }}
-                                >
-                                    {trace.content}
-                                </ReactMarkdown>
-                            </div>
-                        </div>
-                    </motion.div>
-                );
-            })}
-            <div className="h-10" />
-        </div>
-    );
-};
+// Components
+import { EmotionBubble } from "../components/EmotionBubble";
+import { KnowledgeExplorer } from "../components/KnowledgeExplorer";
+import { WisdomVault } from "../components/WisdomVault";
+import { CodebaseExplorer } from "../components/CodebaseExplorer";
+import { ProjectHealthModal } from "../components/modals/ProjectHealthModal";
+import { TeamProductivityChart } from "../components/charts/TeamProductivityChart";
+import { DailyBriefingModal } from "../components/modals/DailyBriefingModal";
+import { MissionMap } from "../components/MissionMap";
+import { MissionIntelligenceBoard } from "../components/MissionIntelligenceBoard";
+import { TechPulseCard } from "../components/TechPulseCard";
+import { CognitiveTraceTimeline } from "../components/CognitiveTraceTimeline";
+import { CommandPalette } from "../components/CommandPalette";
+import { LivePreviewBubble } from "../components/LivePreviewBubble";
 
 export default function VirtualOfficeBright() {
-  const [activeChat, setActiveChat] = useState<string | null>(null);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [skills, setSkills] = useState<any[]>([]);
-  const [inputValue, setInputValue] = useState("");
-  const [isSkillInventoryOpen, setIsSkillInventoryOpen] = useState(false);
-
-  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
-  const [newAgent, setNewAgent] = useState({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "", assignedSkills: [] as string[] });
-  const [editingAgentId, setEditingAgentId] = useState<number | null>(null);
-  const [isDeploying, setIsDeploying] = useState(false);
-  const [showActivityPanel, setShowActivityPanel] = useState(true);
-  const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
-  const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR' | 'MISSION_CONTROL'>('LOGS');
-  const [janitorIssues, setJanitorIssues] = useState<MaintenanceIssue[]>([]);
-  const [isJanitorScanning, setIsJanitorScanning] = useState(false);
-  const [isJanitorLoading, setIsJanitorLoading] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<'PROCESS' | 'INTELLIGENCE' | 'METRICS'>('PROCESS');
-  const [openNavMenu, setOpenNavMenu] = useState<'INSIGHT' | 'ANALYSIS' | 'TOOLS' | null>(null);
-  const [codeReviews, setCodeReviews] = useState<CodeReviewResult[]>([]);
-  const [showHealingToast, setShowHealingToast] = useState<string | null>(null);
-  const [performanceData, setPerformanceData] = useState<TeamPerformance | null>(null);
-  const [isPerformanceLoading, setIsPerformanceLoading] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
-  const [activeCollaborations, setActiveCollaborations] = useState<Record<string, string | null>>({});
-
-  // Stats & Scheduler State
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([]);
-  const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
-  const [newScheduledTask, setNewScheduledTask] = useState({ description: "", agentId: 0, command: "", cronExpression: "0 0/1 * * * ?" });
-
-
-  // Whiteboard State
-  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
-  const [whiteboardContent, setWhiteboardContent] = useState<string | null>(null);
-  const [isFullscreenWhiteboard, setIsFullscreenWhiteboard] = useState(false);
-
-  // Browser Preview State
-  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
-  const [browserUrl, setBrowserUrl] = useState<string>("");
-  const [browserScreenshot, setBrowserScreenshot] = useState<string | null>(null);
-
-  // Knowledge Explorer State
-  const [isKnowledgeExplorerOpen, setIsKnowledgeExplorerOpen] = useState(false);
-  const [memories, setMemories] = useState<Memory[]>([]);
-  const [isMemoriesLoading, setIsMemoriesLoading] = useState(false);
-  const [activePreviews, setActivePreviews] = useState<Record<string, { toolName: string, target: string, agentName: string } | null>>({});
-  
-  // Office Decorator State
-  const [officeItems, setOfficeItems] = useState<OfficeItem[]>([]);
-  const [isShopOpen, setIsShopOpen] = useState(false);
-
-  // Codebase Explorer State
-  const [isCodebaseExplorerOpen, setIsCodebaseExplorerOpen] = useState(false);
-  const [codebaseResults, setCodebaseResults] = useState<CodebaseChunk[]>([]);
-  const [isCodebaseLoading, setIsCodebaseLoading] = useState(false);
-  const [isIndexing, setIsIndexing] = useState(false);
-
-  // Daily Briefing State
-  const [isBriefingOpen, setIsBriefingOpen] = useState(false);
-  const [briefingContent, setBriefingContent] = useState("");
-  const [isBriefingLoading, setIsBriefingLoading] = useState(false);
-  const [isIntelligenceBoosted, setIsIntelligenceBoosted] = useState<Record<string, boolean>>({});
-
-  // Tech Pulse State
-  const [techPulses, setTechPulses] = useState<TechPulse[]>([]);
-  const [isTechPulseLoading, setIsTechPulseLoading] = useState(false);
-
-  const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
-  const [healthReport, setHealthReport] = useState<ProjectHealth | null>(null);
-  const [isHealthLoading, setIsHealthLoading] = useState(false);
-  const [cognitiveTraces, setCognitiveTraces] = useState<CognitiveTrace[]>([]);
-  const [isCognitiveLoading, setIsCognitiveLoading] = useState(false);
-
-  // Shadow & ATR State
-  const [isShadowModeActive, setIsShadowModeActive] = useState(false);
-  const [isShadowPreviewOpen, setIsShadowPreviewOpen] = useState(false);
-  const [shadowDiff, setShadowDiff] = useState("");
-  const [lessons, setLessons] = useState<AgentLesson[]>([]);
-  const [isWisdomVaultOpen, setIsWisdomVaultOpen] = useState(false);
-  const [isShadowLoading, setIsShadowLoading] = useState(false);
-  const [missionIntelligence, setMissionIntelligence] = useState<MissionContext[]>([]);
-  const [isMissionIntelligenceLoading, setIsMissionIntelligenceLoading] = useState(false);
-
+  const vo = useVirtualOffice();
   const stompClient = useRef<any>(null);
+
+  // Initialize WebSocket and Data
+  useStompWS(
+    stompClient,
+    vo.setMessages,
+    vo.setTasks,
+    vo.setAgents,
+    vo.setActivities,
+    vo.setPerformanceData,
+    vo.setActiveConnections,
+    vo.setActiveChat,
+    vo.setActivePreviews,
+    vo.setShowHealingToast,
+    vo.setCognitiveTraces,
+    vo.setActiveCollaborations,
+    vo.setIsIntelligenceBoosted,
+    vo.fetchInitialData
+  );
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const consoleScrollRef = useRef<HTMLDivElement>(null);
 
-  const fetchInitialData = async () => {
-    try {
-      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes] = await Promise.all([
-        agentService.getAll(),
-        taskService.getByRoom("default"),
-        chatService.getHistory("default"),
-        skillService.getAll(),
-        activityService.getAll(),
-        schedulingService.getAll(),
-        techPulseService.getAll()
-      ]);
-      setAgents(agentRes.data);
-      setTasks(taskRes.data);
-      setMessages(historyRes.data);
-      setSkills(skillRes.data);
-      setActivities(activityRes.data);
-      setScheduledTasks(scheduledRes.data);
-      setTechPulses(pulseRes.data);
-      
-      // 성능 데이터 로드
-      try {
-        const perfRes = await agentService.getPerformance();
-        setPerformanceData(perfRes.data);
-      } catch (e) {
-        console.error("성능 데이터 로드 실패:", e);
-      }
-      
-      // 오피스 아이템 로드
-      const officeRes = await officeService.getAll();
-      setOfficeItems(officeRes.data);
-      
-      if (agentRes.data.length > 0) {
-        setNewScheduledTask(prev => ({ ...prev, agentId: agentRes.data[0].id }));
-      }
-
-      const lessonRes = await lessonService.getAll();
-      setLessons(lessonRes.data);
-
-      // 미션 지능 초기 로드
-      const missionRes = await missionIntelligenceService.get("default");
-      setMissionIntelligence(missionRes.data);
-    } catch (err) {
-      console.error("데이터 로드 실패:", err);
-    }
-  };
-
-  const fetchMissionIntelligence = async () => {
-    try {
-      const res = await missionIntelligenceService.get("default");
-      setMissionIntelligence(res.data);
-    } catch (err) {
-      console.error("Mission Intelligence fetch failed:", err);
-    }
-  };
-
-  // Poll mission intelligence when active
   useEffect(() => {
-    if (activeTab === 'MISSION_CONTROL') {
-      fetchMissionIntelligence();
-      const interval = setInterval(fetchMissionIntelligence, 5000);
-      return () => clearInterval(interval);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [activeTab]);
+  }, [vo.messages]);
 
-  const handleStartShadow = async (taskId: number) => {
+  useEffect(() => {
+    if (consoleScrollRef.current) {
+      consoleScrollRef.current.scrollTop = consoleScrollRef.current.scrollHeight;
+    }
+  }, [vo.activities]);
+
+  // Handlers (Simplified for extraction in next phase)
+  const handleSendMessage = async () => {
+    if (!vo.inputValue.trim()) return;
     try {
-      setIsShadowLoading(true);
-      await shadowService.start("default", taskId);
-      setIsShadowModeActive(true);
-      // 알림 전송 (시스템 메시지로 이미 백엔드에서 전송됨)
+      await chatService.send("default", "User", vo.inputValue);
+      vo.setInputValue("");
     } catch (err) {
-      console.error("Shadow start failed:", err);
-    } finally {
-      setIsShadowLoading(false);
+      console.error("메시지 전송 실패:", err);
     }
   };
 
-  const handleOpenShadowPreview = async () => {
+  const handleCreateAgent = async () => {
+    vo.setIsDeploying(true);
     try {
-      setIsShadowLoading(true);
-      const res = await shadowService.getDiff("default");
-      setShadowDiff(res.data);
-      setIsShadowPreviewOpen(true);
+      if (vo.editingAgentId) {
+        await agentService.update(vo.editingAgentId, vo.newAgent);
+      } else {
+        await agentService.create(vo.newAgent);
+      }
+      vo.setIsDeployModalOpen(false);
+      vo.setEditingAgentId(null);
+      vo.setNewAgent({ name: "", role: "", model: vo.newAgent.model, systemPrompt: "", assignedSkills: [] });
+      vo.fetchInitialData();
     } catch (err) {
-      console.error("Diff fetch failed:", err);
+      console.error("에이전트 처리 실패:", err);
     } finally {
-      setIsShadowLoading(false);
+      vo.setIsDeploying(false);
     }
   };
 
-  const handleCommitShadow = async () => {
+  const handleDeleteAgent = async (id: number) => {
+    if (!confirm("정말 이 에이전트를 해제하시겠습니까?")) return;
     try {
-      setIsShadowLoading(true);
-      await shadowService.commit("default");
-      setIsShadowModeActive(false);
-      setIsShadowPreviewOpen(false);
-      // 리로드 데이터
-      fetchInitialData();
+      await agentService.delete(id);
+      vo.fetchInitialData();
     } catch (err) {
-      console.error("Commit failed:", err);
-    } finally {
-      setIsShadowLoading(false);
+      console.error("에이전트 해제 실패:", err);
     }
   };
 
-  const handleDiscardShadow = async () => {
+  const handleExecuteCommand = async (command: string) => {
     try {
-      setIsShadowLoading(true);
-      await shadowService.discard("default");
-      setIsShadowModeActive(false);
-      setIsShadowPreviewOpen(false);
+      await taskService.execute("default", command);
+      vo.setInputValue("");
     } catch (err) {
-      console.error("Discard failed:", err);
-    } finally {
-      setIsShadowLoading(false);
+      console.error("명령 실행 실패:", err);
     }
   };
 
-  const handleSearchMemories = async (query: string) => {
-    if (!query.trim()) {
-      const res = await memoryService.getAll(20);
-      setMemories(res.data);
-      return;
-    }
-    setIsMemoriesLoading(true);
+  const handleStartReview = async () => {
+    vo.setIsReviewing(true);
     try {
-      const res = await memoryService.search(query);
-      setMemories(res.data);
-    } catch (err) {
-      console.error("지식 검색 실패:", err);
-    } finally {
-      setIsMemoriesLoading(false);
-    }
-  };
-
-  const handleSearchCodebase = async (query: string) => {
-    if (!query.trim()) return;
-    setIsCodebaseLoading(true);
-    try {
-      const res = await codebaseService.search(query);
-      setCodebaseResults(res.data);
-    } catch (err) {
-      console.error("코드 탐색 실패:", err);
-    } finally {
-      setIsCodebaseLoading(false);
-    }
-  };
-
-  const handleIndexCodebase = async () => {
-    setIsIndexing(true);
-    try {
-      await codebaseService.index();
-      alert("코드베이스 인덱싱이 시작되었습니다. (백엔드 로그에서 진행 상황을 확인하세요)");
-    } catch (err) {
-      console.error("인덱싱 요청 실패:", err);
-      alert("인덱싱 요청에 실패했습니다.");
-    } finally {
-      setIsIndexing(false);
-    }
-  };
-
-  const handleRefreshTechPulses = async () => {
-    setIsTechPulseLoading(true);
-    try {
-      const res = await techPulseService.refresh();
-      setTechPulses(res.data);
-    } catch (err) {
-      console.error("테크 펄스 갱신 실패:", err);
-      alert("테크 트렌드 분석에 실패했습니다.");
-    } finally {
-      setIsTechPulseLoading(false);
-    }
-  };
-
-  const handleOpenBriefing = async () => {
-    setIsBriefingOpen(true);
-    setIsBriefingLoading(true);
-    try {
-      const res = await briefingService.get();
-      setBriefingContent(res.data.content);
-    } catch (err) {
-      console.error("브리핑 로드 실패:", err);
-      setBriefingContent("브리핑 정보를 가져오는 데 실패했습니다. 다시 시도해 주세요.");
-    } finally {
-      setIsBriefingLoading(false);
-    }
-  };
-
-  const handleOpenHealthDashboard = async () => {
-    setIsHealthModalOpen(true);
-    setIsHealthLoading(true);
-    try {
-      const res = await projectHealthService.get();
-      setHealthReport(res.data);
-    } catch (err) {
-      console.error("헬스 리포트 로드 실패:", err);
-    } finally {
-      setIsHealthLoading(false);
-    }
-  };
-
-  const handleAdoptStrategy = (strategy: ActionableStrategy) => {
-    if (agents.length === 0 || !stompClient.current?.connected) return;
-    
-    // 가장 적합한 에이전트 선택 (여기선 간단히 첫 번째 에이전트)
-    const agent = agents[0];
-
-    const chatMsg: ChatMessage = {
-      roomId: "default",
-      senderId: "user-1",
-      senderName: "사용자",
-      content: `@${agent.name} [전략 채택] ${strategy.title}: ${strategy.description}`,
-      type: "CHAT"
-    };
-
-    stompClient.current.publish({
-      destination: "/app/chat.send",
-      body: JSON.stringify(chatMsg)
-    });
-
-    alert(`${strategy.title} 전략이 채택되었습니다! ${agent.name} 에이전트가 즉시 분석 및 실행에 착수합니다.`);
-  };
-
-  const handleBuyItem = async (itemType: string, price: number) => {
-    if (agents.length === 0) return;
-    
-    // 가장 포인트가 많은 에이전트로 구매 시도 (또는 선택 로직 추가 가능)
-    const buyer = [...agents].sort((a,b) => b.points - a.points)[0];
-    
-    if (buyer.points < price) {
-      alert(`${buyer.name} 요원의 포인트가 부족합니다! (필요: ${price}, 보유: ${buyer.points})`);
-      return;
-    }
-
-    try {
-      const res = await officeService.buyItem({
-        agentId: buyer.id,
-        name: itemType.replace('_', ' '),
-        type: itemType,
-        x: Math.floor(Math.random() * 600) + 100, // 랜덤 위치
-        y: Math.floor(Math.random() * 400) + 100,
-        price: price
-      });
-      setOfficeItems(prev => [...prev, res.data]);
-      setAgents(prev => prev.map(a => a.id === buyer.id ? { ...a, points: a.points - price } : a));
-      setIsShopOpen(false);
+        await codeReviewService.analyze();
+        const res = await codeReviewService.getAll();
+        vo.setCodeReviews(res.data);
     } catch (e) {
-      console.error("Failed to buy item", e);
+        console.error("리뷰 실패:", e);
+    } finally {
+        vo.setIsReviewing(false);
     }
   };
 
-  const fetchCodeReviews = async () => {
+  const handleApplyFix = async (reviewId: number) => {
     try {
+      await codeReviewService.applyFix(reviewId);
+      alert("AI 제안 코드가 반영되었습니다.");
       const res = await codeReviewService.getAll();
-      setCodeReviews(res.data);
+      vo.setCodeReviews(res.data);
     } catch (e) {
-      console.error("코드 리뷰 로드 실패:", e);
+      console.error("Refactor failed:", e);
     }
   };
 
-  const handleApplyFix = async (id: number) => {
+  const handleStartJanitor = async () => {
+    vo.setIsJanitorScanning(true);
     try {
-      const res = await codeReviewService.applyFix(id);
-      if (res.data.success) {
-        alert(res.data.message);
-        fetchCodeReviews();
-      } else {
-        alert(res.data.message);
-      }
-    } catch (e) {
-      console.error("수정 적용 실패:", e);
-      alert("수정 중 오류가 발생했습니다.");
-    }
-  };
-
-  const fetchCognitiveTraces = async () => {
-    const roomId = activeChat === '라운지 미팅' || !activeChat ? "default" : `agent-${activeChat}`;
-    setIsCognitiveLoading(true);
-    try {
-      const res = await cognitiveService.getTracesByRoom(roomId);
-      setCognitiveTraces(res.data);
-    } catch (err) {
-      console.error("추론 데이터 로드 실패:", err);
-    } finally {
-      setIsCognitiveLoading(false);
-    }
-  };
-
-  const fetchJanitorIssues = async () => {
-    setIsJanitorLoading(true);
-    try {
+      await janitorService.scan();
       const res = await janitorService.getIssues();
-      setJanitorIssues(res.data);
-    } catch (err) {
-      console.error("Janitor issues load failed:", err);
+      vo.setJanitorIssues(res.data);
+    } catch (e) {
+      console.error("Scanning failed:", e);
     } finally {
-      setIsJanitorLoading(false);
+      vo.setIsJanitorScanning(false);
     }
   };
 
-  const handleTriggerJanitorScan = async () => {
-    setIsJanitorScanning(true);
+  const handleJanitorFix = async (issueId: number) => {
+    vo.setIsJanitorLoading(true);
     try {
-      const res = await janitorService.triggerScan();
-      if (res.data.success) {
-        alert(`${res.data.foundCount}개의 유지보수 이슈가 발견되었습니다.`);
-        fetchJanitorIssues();
-      }
-    } catch (err) {
-      console.error("Janitor scan failed:", err);
-      alert("스캔 중 오류가 발생했습니다.");
+      await janitorService.fix(issueId);
+      const res = await janitorService.getIssues();
+      vo.setJanitorIssues(res.data);
+    } catch (e) {
+      console.error("Fix failed:", e);
     } finally {
-      setIsJanitorScanning(false);
+      vo.setIsJanitorLoading(false);
     }
   };
 
-  const handleApplyJanitorFix = async (id: number) => {
+  const handleCreateScheduledTask = async () => {
     try {
-      const res = await janitorService.applyFix(id);
-      if (res.data.success) {
-        alert(res.data.message);
-        fetchJanitorIssues();
-      } else {
-        alert(res.data.message);
-      }
-    } catch (err) {
-      console.error("Fix apply failed:", err);
-      alert("수정 적용 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleIgnoreJanitorIssue = async (id: number) => {
-    try {
-      await janitorService.ignoreIssue(id);
-      fetchJanitorIssues();
-    } catch (err) {
-      console.error("Ignore failed:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'REASONING') {
-      fetchCognitiveTraces();
-    }
-    if (activeTab === 'JANITOR') {
-      fetchJanitorIssues();
-    }
-  }, [activeTab, activeChat]);
-
-  useEffect(() => {
-    if (activeTab === 'CODE_REVIEW') {
-      fetchCodeReviews();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    fetchInitialData();
-
-    const client = createWebSocketClient((msg: ChatMessage) => {
-      setMessages((prev) => {
-        if (prev.some(m => m.timestamp === msg.timestamp && m.content === msg.content)) return prev;
-        return [...prev, msg];
-      });
-
-      if (msg.type === 'AGENT') {
-        taskService.getByRoom("default").then(res => setTasks(res.data));
-        // 활동 로그도 갱신
-        activityService.getAll().then(res => setActivities(res.data));
-      }
-      
-      // ... (기존 로직)
-
-      // Connection Line Logic
-      if (msg.type === 'AGENT' || msg.type === 'CHAT') {
-        const mentionMatch = msg.content.match(/@([\w가-힣]+)/);
-        if (mentionMatch) {
-          const targetName = mentionMatch[1];
-          setActiveConnections(prev => [...prev, { from: msg.senderName, to: targetName, timestamp: Date.now() }]);
-          setTimeout(() => {
-            setActiveConnections(prev => prev.filter(conn => conn.timestamp > Date.now() - 3000));
-          }, 3000);
-        }
-      }
-
-      // Whiteboard Logic
-      if (msg.type === 'WHITEBOARD_UPDATE') {
-        setWhiteboardContent(msg.content);
-        if (!isWhiteboardOpen) {
-          setIsWhiteboardOpen(true);
-        }
-      }
-
-      // Browser Update Logic
-      if (msg.type === 'BROWSER_UPDATE') {
-        try {
-          const payload = JSON.parse(msg.content);
-          setBrowserUrl(payload.url || "");
-          setBrowserScreenshot(payload.screenshot || null);
-          if (!isBrowserOpen) {
-            setIsBrowserOpen(true);
-          }
-        } catch (e) {
-          console.error("Failed to parse BROWSER_UPDATE payload", e);
-        }
-      }
-
-      // Collaboration Logic
-      if (msg.type === 'COLLABORATION') {
-        try {
-          const payload = JSON.parse(msg.content);
-          const { from, to, status } = payload;
-          setActiveCollaborations(prev => ({
-            ...prev,
-            [from]: status === 'START' ? to : null
-          }));
-        } catch (e) {
-          console.error("Failed to parse COLLABORATION payload", e);
-        }
-      }
-
-      // Live Working Preview Logic
-      if (msg.type === 'LIVE_WORKING') {
-        try {
-          const payload = JSON.parse(msg.content);
-          const { agentName, toolName, target, status } = payload;
-          setActivePreviews(prev => ({
-            ...prev,
-            [agentName]: status === 'START' ? { toolName, target, agentName } : null
-          }));
-        } catch (e) {
-          console.error("Failed to parse LIVE_WORKING payload", e);
-        }
-      }
-
-      // Agent Status Update Logic (Points/Emotions/Intelligence)
-      if (msg.type === 'SYSTEM') {
-        if (msg.content === 'intelligence_boosted') {
-          const agentName = msg.senderName;
-          setIsIntelligenceBoosted(prev => ({ ...prev, [agentName]: true }));
-          setTimeout(() => {
-              setIsIntelligenceBoosted(prev => ({ ...prev, [agentName]: false }));
-          }, 3000);
-        }
-
-
-        try {
-          const payload = JSON.parse(msg.content);
-          if (payload.agentId && (payload.points !== undefined || payload.lastEmotion !== undefined)) {
-            setAgents(prev => prev.map(a => 
-              a.id === payload.agentId 
-                ? { ...a, points: payload.points ?? a.points, lastEmotion: payload.lastEmotion ?? a.lastEmotion } 
-                : a
-            ));
-            
-            // 감정 표현 후 일정 시간 뒤 초기화 (선택 사항)
-            if (payload.lastEmotion) {
-              setTimeout(() => {
-                setAgents(prev => prev.map(a => 
-                  a.id === payload.agentId ? { ...a, lastEmotion: null } : a
-                ));
-              }, 5000);
-            }
-          }
-        } catch (e) {
-          // 일반 시스템 메시지는 무시하거나 처리
-        }
-      }
-
-      // 자가 치유 성공 감지 및 Toast 노출 (AGENT 블록 분리)
-      if (msg.type === 'AGENT' && msg.content.includes('자가 치유 성공')) {
-        setShowHealingToast(`${msg.senderName} 에이전트가 스스로 오류를 수정하고 업무를 완수했습니다!`);
-        setTimeout(() => setShowHealingToast(null), 5000);
-      }
-    });
-
-    stompClient.current = client;
-    client.activate();
-
-    // Initialize mermaid
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'default',
-      securityLevel: 'loose',
-    });
-
-    return () => {
-      client.deactivate();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages, activeChat]);
-
-  // 채팅방 변경 시 이력 가져오기
-  useEffect(() => {
-    if (!activeChat) return;
-    const currentRoomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
-
-    chatService.getHistory(currentRoomId).then(res => {
-      setMessages(prev => {
-        const newMessages = res.data;
-        // 기존 메시지와 중복 제거 후 합치기
-        const existingIds = new Set(prev.map(m => m.id));
-        const uniqueNew = newMessages.filter(m => !existingIds.has(m.id));
-        return [...prev, ...uniqueNew].sort((a, b) => {
-          const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-          const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-          return timeA - timeB;
-        });
-      });
-    });
-  }, [activeChat]);
-
-  useEffect(() => {
-    if (consoleScrollRef.current) consoleScrollRef.current.scrollTop = consoleScrollRef.current.scrollHeight;
-  }, [messages, tasks]);
-
-  const handleSendMessage = () => {
-    if (!inputValue.trim() || !stompClient.current?.connected) return;
-
-    const currentRoomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
-
-    const chatMsg: ChatMessage = {
-      roomId: currentRoomId,
-      senderId: "user-1",
-      senderName: "사용자",
-      content: activeChat && activeChat !== '라운지 미팅' && !inputValue.startsWith('@')
-        ? `@${activeChat} ${inputValue}`
-        : inputValue,
-      type: "CHAT"
-    };
-
-    stompClient.current.publish({
-      destination: "/app/chat.send",
-      body: JSON.stringify(chatMsg)
-    });
-
-    setInputValue("");
-  };
-
-  const handleStartCodeReview = async () => {
-    const filePath = window.prompt("리뷰를 수행할 파일 경로를 입력하세요 (예: backend/src/main/kotlin/com/kzoneworkspace/backend/tools/CodeReviewService.kt)", "backend/src/main/kotlin/com/kzoneworkspace/backend/tools/CodeReviewService.kt");
-    if (!filePath) return;
-
-    setIsReviewing(true);
-    try {
-      await codeReviewService.perform(filePath);
-      setActiveTab('CODE_REVIEW');
-      fetchCodeReviews();
-    } catch (err) {
-      console.error("리뷰 요청 실패:", err);
-      alert("코드 리뷰 요청에 실패했습니다.");
-    } finally {
-      setIsReviewing(false);
-    }
-  };
-
-  const handleDeployAgent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAgent.name || !newAgent.role) return;
-    setIsDeploying(true);
-
-    let provider = "ANTHROPIC";
-    if (newAgent.model.includes("gemini")) provider = "GOOGLE";
-    else if (newAgent.model.includes("gpt")) provider = "OPENAI";
-
-    try {
-      if (editingAgentId) {
-        await agentService.updateAgent(editingAgentId, { ...newAgent, provider });
-      } else {
-        await agentService.createAgent({ ...newAgent, provider });
-      }
-      await fetchInitialData();
-      setIsDeployModalOpen(false);
-      setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "", assignedSkills: [] });
-      setEditingAgentId(null);
-    } catch (err) {
-      console.error("작업 실패:", err);
-      alert("에이전트 처리 중 오류가 발생했습니다.");
-    } finally {
-      setIsDeploying(false);
-    }
-  };
-
-  const handleOpenEditModal = (agent: any) => {
-    setNewAgent({
-      name: agent.name,
-      role: agent.role,
-      model: agent.model,
-      systemPrompt: agent.systemPrompt || "",
-      assignedSkills: agent.assignedSkills || []
-    });
-    setEditingAgentId(agent.id);
-    setIsDeployModalOpen(true);
-  };
-
-  const handleCreateScheduledTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (!newScheduledTask.agentId || !newScheduledTask.command || !newScheduledTask.cronExpression) return;
-      await schedulingService.create({ ...newScheduledTask, roomId: "default" });
+      await schedulingService.create(vo.newScheduledTask);
+      vo.setIsSchedulerModalOpen(false);
       const res = await schedulingService.getAll();
-      setScheduledTasks(res.data);
-      setIsSchedulerModalOpen(false);
-      setNewScheduledTask({ description: "", agentId: agents[0]?.id || 0, command: "", cronExpression: "0 0/1 * * * ?" });
+      vo.setScheduledTasks(res.data);
     } catch (err) {
-      console.error("스케줄 생성 실패:", err);
+      console.error("Scheduler failed:", err);
     }
   };
 
-  const handleToggleScheduledTask = async (id: number) => {
+  const handleToggleScheduler = async (id: number) => {
     try {
       await schedulingService.toggle(id);
       const res = await schedulingService.getAll();
-      setScheduledTasks(res.data);
+      vo.setScheduledTasks(res.data);
     } catch (err) {
-      console.error("스케줄 토글 실패:", err);
+      console.error("Toggle failed:", err);
     }
   };
-  
-  const handleRunScheduledTask = async (id: number) => {
+
+  const handleOpenWhiteboard = async (agentName: string) => {
     try {
-      await schedulingService.runNow(id);
-      const res = await schedulingService.getAll();
-      setScheduledTasks(res.data);
-      // 알림 (임시로 콘솔에 기록하거나 시스템 메시지로 추가 가능)
-      console.log(`Task ${id} triggered manually.`);
+      const res = await agentService.getWhiteboard(agentName);
+      vo.setWhiteboardContent(res.data);
+      vo.setIsWhiteboardOpen(true);
     } catch (err) {
-      console.error("스케줄 즉시 실행 실패:", err);
+      console.error("Whiteboard load failed:", err);
     }
   };
 
-  const handleDeleteScheduledTask = async (id: number) => {
-    if (!confirm("이 예약 작업을 삭제하시겠습니까?")) return;
+  const handleBrowse = async (url: string) => {
     try {
-      await schedulingService.delete(id);
-      const res = await schedulingService.getAll();
-      setScheduledTasks(res.data);
+      vo.setIsBrowserOpen(true);
+      vo.setBrowserUrl(url);
+      const res = await agentService.browse(url);
+      vo.setBrowserScreenshot(res.data);
     } catch (err) {
-      console.error("스케줄 삭제 실패:", err);
+      console.error("Browse failed:", err);
     }
   };
 
-  const getActivityChartData = () => {
-    const now = new Date();
-    const last24h = Array.from({ length: 24 }, (_, i) => {
-      const d = new Date(now);
-      d.setHours(d.getHours() - (23 - i));
-      d.setMinutes(0, 0, 0);
-      return {
-        time: `${d.getHours()}시`,
-        count: 0
-      };
-    });
-
-    activities.forEach(log => {
-      const logDate = new Date(log.timestamp);
-      const hourDiff = Math.floor((now.getTime() - logDate.getTime()) / (1000 * 60 * 60));
-      if (hourDiff < 24) {
-        const index = 23 - hourDiff;
-        if (index >= 0 && index < 24) {
-          last24h[index].count++;
-        }
-      }
-    });
-    return last24h;
+  const handleAdoptStrategy = async (strategy: ActionableStrategy) => {
+    try {
+      await projectHealthService.adopt(strategy);
+      vo.fetchInitialData();
+    } catch (err) {
+      console.error("Strategy adoption failed:", err);
+    }
   };
 
-  const getToolUsageData = () => {
-    const usage: Record<string, number> = {};
-    activities.filter(a => a.activityType === 'TOOL_CALL' && a.toolName).forEach(log => {
-      const name = log.toolName || 'Unknown';
-      usage[name] = (usage[name] || 0) + 1;
-    });
-    return Object.entries(usage).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
-  };
-
-
-  const getAgentPosition = (agent: Agent, index: number): { top: number, left: number } => {
-    // 1. 협업 이동: 호출한 에이전트가 대상 에이전트 옆으로 이동
-    const collidingWith = activeCollaborations[agent.name];
-    if (collidingWith) {
-      const targetAgent = agents.find(a => a.name === collidingWith);
-      if (targetAgent) {
-        const targetIdx = agents.indexOf(targetAgent);
-        const targetPos = getBaseAgentPosition(targetAgent, targetIdx);
-        return { top: targetPos.top + 20, left: targetPos.left - 70 };
+  const handleCommanderAction = (id: string) => {
+    vo.setIsCommanderOpen(false);
+    if (id.startsWith('NAV_')) {
+      vo.setActiveTab(id.replace('NAV_', '') as any);
+      if (['STATS', 'ANALYTICS'].includes(id.replace('NAV_', ''))) {
+          vo.setActiveCategory('METRICS');
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL'].includes(id.replace('NAV_', ''))) {
+          vo.setActiveCategory('INTELLIGENCE');
+      } else {
+          vo.setActiveCategory('PROCESS');
       }
     }
-    return getBaseAgentPosition(agent, index);
-  };
-
-  const getBaseAgentPosition = (agent: Agent, index: number) => {
-    // Default positions (Lounge area)
-    const loungeBase = { top: 450, left: 150 };
-
-    // Check if agent is running a task
-    const isRunning = tasks.some(t => t.agent?.id === agent.id && t.status === 'RUNNING');
-    if (!isRunning) {
-      // Idle agents stay in the lounge but spread out
-      const cols = 3;
-      const row = Math.floor(index / cols);
-      const col = index % cols;
-      return { top: loungeBase.top + (row * 100), left: loungeBase.left + (col * 120) };
+    if (id === 'ACTION_DAILY_BRIEFING') {
+      vo.setIsBriefingOpen(true);
     }
-
-    // Agent is active, determine zone based on last tool message
-    const lastToolMsg = [...messages].reverse().find(m => m.senderName === agent.name && m.type === 'TOOL');
-    const content = lastToolMsg?.content || "";
-
-    if (content.includes('write_file') || content.includes('read_file') || content.includes('search_files') || content.includes('git_')) {
-      // Coding Desk (Top Right Area)
-      return { top: 150 + (index * 80), left: 600 + (Math.random() * 50) };
-    } else if (content.includes('call_agent') || content.includes('request_code_review')) {
-      // Meeting/Brainstorm Zone (Left Middle)
-      return { top: 250 + (Math.random() * 60), left: 100 + (Math.random() * 60) };
-    } else if (content.includes('run_command')) {
-      // Terminal execution zone (Center Right)
-      return { top: 300 + (index * 60), left: 500 };
-    } else if (content.includes('web_search') || content.includes('browse')) {
-      // Research/Idea zone (Top Left)
-      return { top: 120 + (Math.random() * 50), left: 60 + (Math.random() * 50) };
+    if (id === 'ACTION_PROJECT_HEALTH') {
+      vo.setIsHealthModalOpen(true);
     }
-
-    // Default active position (thinking, no tool yet)
-    return { top: 350, left: 350 + (index * 80) };
   };
 
-  const getRecentFiles = () => {
-    const toolMsgs = messages.filter(m => m.type === 'TOOL' && (m.content.includes('write_file') || m.content.includes('delete_file') || m.content.includes('read_file')));
-    const files = new Set<string>();
-    toolMsgs.forEach(m => {
-      const match = m.content.match(/(?:"path":"([^"]+)"|'([^']+)')/);
-      if (match) {
-        const path = match[1] || match[2];
-        files.add(path);
-      }
-    });
-    return Array.from(files).slice(-5).reverse();
-  };
+  const commanderActions = [
+    { id: 'NAV_LOGS', label: 'Go to Activity Logs', icon: Terminal, category: 'NAVIGATION' },
+    { id: 'NAV_REASONING', label: 'Go to Reasoning Trace', icon: Brain, category: 'NAVIGATION' },
+    { id: 'NAV_MISSION_CONTROL', label: 'Go to Mission Control', icon: Target, category: 'NAVIGATION' },
+    { id: 'NAV_JANITOR', label: 'Go to Technical Janitor', icon: Trash2, category: 'NAVIGATION' },
+    { id: 'NAV_CODE_REVIEW', label: 'Go to Code Review', icon: ShieldAlert, category: 'NAVIGATION' },
+    { id: 'NAV_STATS', label: 'Go to Stats Center', icon: BarChart2, category: 'NAVIGATION' },
+    { id: 'NAV_ANALYTICS', label: 'Go to Team Analytics', icon: BarChart3, category: 'NAVIGATION' },
+    { id: 'NAV_TECH_PULSE', label: 'Go to Tech Pulse', icon: Activity, category: 'NAVIGATION' },
+    { id: 'ACTION_DAILY_BRIEFING', label: 'Open Daily Briefing', icon: Sparkles, category: 'ACTIONS' },
+    { id: 'ACTION_PROJECT_HEALTH', label: 'Run Project Health Audit', icon: Heart, category: 'ACTIONS' },
+    { id: 'TOOL_SEARCH', label: 'Semantic Code Search', icon: Search, category: 'TOOLS' },
+    { id: 'TOOL_KNOWLEDGE', label: 'Knowledge Explorer', icon: Database, category: 'TOOLS' },
+  ];
 
-  const getFileName = (content: string) => {
-    const match = content.match(/(?:"path":"([^"]+)"|'([^']+)')/);
-    if (match) {
-      const path = match[1] || match[2];
-      return path.split(/[\\/]/).pop();
-    }
-    return null;
-  };
-
+  // Render Logic
   return (
-    <div className="flex bg-[#fcfdfe] text-slate-700 h-screen w-full font-sans overflow-hidden selection:bg-indigo-100">
-
-      {/* 1. Left Panel: Activity Feed (Glassmorphism) */}
-      <div className="w-[420px] border-r border-indigo-50/50 bg-white/70 backdrop-blur-2xl flex flex-col shrink-0 relative z-20 shadow-[10px_0_40px_rgba(0,0,0,0.02)] transition-all duration-500">
-        <div className="h-16 border-b border-slate-100/50 flex items-center px-6 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center mr-3 shadow-inner">
-            <Terminal size={18} className="text-indigo-400" />
-          </div>
-          <span className="text-[11px] font-black tracking-[0.2em] text-slate-500 uppercase">활동 기록</span>
-          <div className="ml-auto flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100/50">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)] animate-pulse"></span>
-            <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-tighter">실시간</span>
-          </div>
-        </div>
-
-        <div ref={consoleScrollRef} className="flex-1 overflow-y-auto p-6 text-[11px] leading-relaxed space-y-5 custom-scrollbar bg-white/30">
-          <div className="bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border border-indigo-100/30 rounded-2xl p-4 mb-6 flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0">
-              <Sparkles size={18} className="text-indigo-400" />
-            </div>
-            <div>
-              <h4 className="font-bold text-slate-700 mb-1 font-mono">K-Zone 워크스페이스</h4>
-              <p className="text-slate-400 font-medium leading-normal">AI 오케스트레이션 준비 완료. 캔버스에서 에이전트와 소통하세요.</p>
-            </div>
-          </div>
-
-          {messages.slice(-50).map((msg, i) => (
-            <div key={i} className={`flex gap-2.5 items-start ${msg.type === 'SYSTEM' ? 'text-slate-400' : msg.type === 'THINKING' ? 'text-indigo-400/80' : ''}`}>
-              <span className="text-slate-400 shrink-0 font-mono text-[10px] mt-0.5">
-                {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' }) : '방금'}
-              </span>
-              <div>
-                <span className={`font-semibold mr-1.5 ${msg.senderId === 'user-1' ? 'text-blue-500' : msg.type === 'AGENT' ? 'text-indigo-500' : msg.type === 'THINKING' ? 'text-indigo-400' : 'text-slate-500'}`}>
-                  {msg.senderId === 'user-1' ? '나' : msg.senderName}
-                  {msg.type === 'THINKING' && <span className="ml-1 text-[8px] font-black uppercase tracking-tighter opacity-50">[Thinking]</span>}
-                </span>
-                <div className={`prose prose-sm max-w-none ${msg.type === 'THINKING' ? 'text-indigo-400/70 italic bg-indigo-50/30 px-2 py-0.5 rounded-lg border border-indigo-100/20' : 'text-slate-600 italic'}`}>
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }) => <span className="inline">{children}</span>,
-                      code: ({ node, ...props }) => (
-                        <code className="bg-slate-200 text-pink-500 px-1 rounded font-mono text-[10px]" {...props} />
-                      ),
-                    }}
-                  >
-                    {msg.type === 'AGENT' && msg.content.length > 50
-                      ? `${msg.senderName}님이 답변을 완료했습니다. (우측 채팅창에서 확인 가능)`
-                      : msg.content}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {tasks.filter(t => t.status === 'RUNNING').map(task => (
-            <motion.div
-              key={`task-${task.id}`}
-              initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex items-start gap-2 text-indigo-700 shadow-sm"
-            >
-              <Loader2 size={14} className="animate-spin mt-0.5 shrink-0" />
-              <div className="flex flex-col">
-                <span className="font-semibold text-[11px] mb-0.5">{task.agent?.name} 업무 중</span>
-                <span className="text-xs text-indigo-600/80 line-clamp-2">"{task.command}"</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* 2. Center: Virtual Office Canvas */}
-      <div className="flex-1 bg-[#f8fafc] relative overflow-hidden flex flex-col">
-        {/* Office Top Bar */}
-        <div className="absolute top-0 left-0 w-full h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/50 z-10 flex items-center justify-between px-8 shadow-sm">
-          <h1 className="text-xl font-extrabold text-slate-800 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-md shadow-indigo-200">
-              <Command size={18} className="text-white" />
-            </div>
-            가상 오피스
-          </h1>
-          <div className="flex items-center gap-2">
-            {/* 1. Group: Insight */}
-            <div className="relative">
-              <button 
-                onClick={() => setOpenNavMenu(openNavMenu === 'INSIGHT' ? null : 'INSIGHT')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border transition-all font-black text-[10px] uppercase tracking-widest ${openNavMenu === 'INSIGHT' ? 'bg-indigo-600 text-white border-indigo-700 shadow-lg' : 'bg-white/80 hover:bg-slate-50 text-slate-600 border-slate-200'}`}
-              >
-                <Sparkles size={14} className={openNavMenu === 'INSIGHT' ? 'animate-pulse' : ''} /> Insight <ChevronRight size={12} className={`transition-transform ${openNavMenu === 'INSIGHT' ? 'rotate-90' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {openNavMenu === 'INSIGHT' && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-12 left-0 w-56 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl p-2 z-[60] overflow-hidden">
-                    <button onClick={() => { handleOpenBriefing(); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors"><Zap size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Daily Briefing</div><div className="text-[8px] text-slate-400 font-bold uppercase">AI 요약 보고서</div></div>
-                    </button>
-                    <button onClick={() => { handleRefreshTechPulses(); setActiveTab('TECH_PULSE'); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-cyan-50 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center text-cyan-500 group-hover:bg-cyan-500 group-hover:text-white transition-colors"><TrendingUp size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Tech Pulse</div><div className="text-[8px] text-slate-400 font-bold uppercase">실시간 기술 트렌드</div></div>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* 2. Group: Analysis */}
-            <div className="relative">
-              <button 
-                onClick={() => setOpenNavMenu(openNavMenu === 'ANALYSIS' ? null : 'ANALYSIS')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border transition-all font-black text-[10px] uppercase tracking-widest ${openNavMenu === 'ANALYSIS' ? 'bg-rose-600 text-white border-rose-700 shadow-lg' : 'bg-white/80 hover:bg-slate-50 text-slate-600 border-slate-200'}`}
-              >
-                <BarChart3 size={14} className={openNavMenu === 'ANALYSIS' ? 'animate-pulse' : ''} /> Analysis <ChevronRight size={12} className={`transition-transform ${openNavMenu === 'ANALYSIS' ? 'rotate-90' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {openNavMenu === 'ANALYSIS' && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-12 left-0 w-56 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl p-2 z-[60] overflow-hidden">
-                    <button onClick={() => { handleOpenHealthDashboard(); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-rose-50 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors"><Heart size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Project Health</div><div className="text-[8px] text-slate-400 font-bold uppercase">종합 리스크 진단</div></div>
-                    </button>
-                    <button onClick={() => { setActiveTab('STATS'); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-emerald-50 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Activity size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Productivity</div><div className="text-[8px] text-slate-400 font-bold uppercase">에이전트 성과 분석</div></div>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* 3. Group: Tools */}
-            <div className="relative">
-              <button 
-                onClick={() => setOpenNavMenu(openNavMenu === 'TOOLS' ? null : 'TOOLS')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border transition-all font-black text-[10px] uppercase tracking-widest ${openNavMenu === 'TOOLS' ? 'bg-amber-600 text-white border-amber-700 shadow-lg' : 'bg-white/80 hover:bg-slate-50 text-slate-600 border-slate-200'}`}
-              >
-                <Command size={14} className={openNavMenu === 'TOOLS' ? 'animate-pulse' : ''} /> Tools <ChevronRight size={12} className={`transition-transform ${openNavMenu === 'TOOLS' ? 'rotate-90' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {openNavMenu === 'TOOLS' && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-12 right-0 w-64 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl p-2 z-[60] overflow-hidden">
-                    <button onClick={() => { setIsCodebaseExplorerOpen(true); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-100 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-slate-800 group-hover:text-white transition-colors"><Search size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Code Explorer</div><div className="text-[8px] text-slate-400 font-bold uppercase">시맨틱 코드 탐색</div></div>
-                    </button>
-                    <button onClick={() => { handleStartCodeReview(); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-emerald-50 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Code2 size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">QA Review</div><div className="text-[8px] text-slate-400 font-bold uppercase">자율 품질 검증</div></div>
-                    </button>
-                    <button onClick={() => { setIsWhiteboardOpen(true); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-amber-50 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Presentation size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Whiteboard</div><div className="text-[8px] text-slate-400 font-bold uppercase">공동 작업 캔버스</div></div>
-                    </button>
-                    <div className="border-t border-slate-100 my-1 mx-2"></div>
-                    <button onClick={() => { setIsShopOpen(true); setOpenNavMenu(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-rose-50 rounded-xl transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors"><ShoppingBag size={14} /></div>
-                      <div><div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Office Shop</div><div className="text-[8px] text-slate-400 font-bold uppercase">포인트 상점</div></div>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="w-px h-6 bg-slate-200 mx-2"></div>
-
-            <button
-              onClick={() => setIsBrowserOpen(!isBrowserOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all font-bold text-[10px] ${isBrowserOpen ? 'bg-sky-500 text-white border-sky-600 shadow-md' : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-100'}`}
-            >
-              <Layout size={14} /> 브라우저 뷰어
-              {browserScreenshot && !isBrowserOpen && <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>}
-            </button>
-          </div>
-        </div>
-
-        {/* The 2D Map Floor (Very subtle cute grid) */}
-        <div
-          className="w-full h-full relative"
-          style={{
-            backgroundImage: `radial-gradient(circle, rgba(99, 102, 241, 0.08) 1.5px, transparent 1.5px)`,
-            backgroundSize: '48px 48px',
-            backgroundPosition: '0 0'
-          }}
-        >
-          {/* Subtle Glow Orbs for depth */}
-          <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-indigo-200/20 blur-[100px] rounded-full -z-10"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-200/20 blur-[100px] rounded-full -z-10"></div>
-
-          {/* Environment Props - Work Zones (Glassmorphism) */}
-          {/* 1. Idea/Research Zone (Top Left) */}
-          <div className="absolute top-[80px] left-[40px] w-52 h-60 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl flex flex-col items-center p-5 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[-2deg] hover:rotate-0 transition-transform duration-500 group">
-            <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform shadow-inner">
-              <Sparkles size={28} />
-            </div>
-            <span className="text-[11px] text-slate-400 font-extrabold tracking-[0.2em] uppercase">리서치 센터</span>
-            <div className="w-full h-1 bg-gradient-to-r from-transparent via-sky-200 to-transparent rounded-full opacity-50"></div>
-            <div className="text-[10px] text-slate-500 text-center font-bold mt-1 px-2">인터넷 검색 및 데이터 분석</div>
-          </div>
-
-          {/* 2. Coding Desk Zone (Top Right) */}
-          <div className="absolute top-[100px] right-[400px] w-64 h-72 bg-slate-800/5 backdrop-blur-md border border-slate-800/10 rounded-3xl flex flex-col items-center p-6 justify-center gap-4 shadow-[0_8px_32px_rgba(31,38,135,0.05)] rotate-[1deg] hover:rotate-0 transition-transform duration-500 group">
-            <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform shadow-lg">
-              <Code2 size={32} />
-            </div>
-            <span className="text-[12px] text-slate-600 font-extrabold tracking-[0.2em] uppercase">개발 스튜디오</span>
-            <div className="w-full h-1 bg-gradient-to-r from-transparent via-emerald-300 to-transparent rounded-full opacity-50"></div>
-            <div className="text-[10px] text-slate-600 text-center font-bold mt-1 px-4">소스코드 편집 및 깃허브 PR 리뷰</div>
-          </div>
-
-          <div className="absolute bottom-[100px] left-[100px] w-72 h-44 bg-indigo-50/40 backdrop-blur-lg border border-indigo-100/60 rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/60 transition-all duration-500 shadow-[0_20px_40px_rgba(0,0,0,0.03)] group"
-            onClick={() => setActiveChat('라운지 미팅')}>
-            <div className="relative">
-              <div className="absolute -inset-4 bg-indigo-400/10 rounded-full blur-xl group-hover:bg-indigo-400/20 transition-colors"></div>
-              <Coffee size={40} className="text-indigo-400 relative z-10 group-hover:scale-110 transition-transform duration-500" />
-            </div>
-            <span className="text-xs text-indigo-500 mt-5 font-black uppercase tracking-widest">미팅 라운지</span>
-            <div className="text-[9px] text-indigo-300 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-              <Plus size={10} /> 클릭하여 브레인스토밍
-            </div>
-          </div>
-
-          {/* Connection Lines (Pulse Lines) */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-            <defs>
-              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(99, 102, 241, 0)" />
-                <stop offset="50%" stopColor="rgba(99, 102, 241, 0.5)" />
-                <stop offset="100%" stopColor="rgba(99, 102, 241, 0)" />
-              </linearGradient>
-              <linearGradient id="collabGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(16, 185, 129, 0)" />
-                <stop offset="50%" stopColor="rgba(16, 185, 129, 0.4)" />
-                <stop offset="100%" stopColor="rgba(16, 185, 129, 0)" />
-              </linearGradient>
-            </defs>
-            <AnimatePresence>
-              {/* 1. 일시적 채팅 연결선 (Mentions) */}
-              {activeConnections.map((conn, i) => {
-                const fromAgent = agents.find(a => a.name === conn.from);
-                const toAgent = agents.find(a => a.name === conn.to);
-
-                // If 'from' is user/lounge, use fixed position
-                const fromPos = fromAgent ? getAgentPosition(fromAgent, agents.indexOf(fromAgent)) : { top: 480, left: 240 }; 
-                const toPos = toAgent ? getAgentPosition(toAgent, agents.indexOf(toAgent)) : null;
-
-                if (!toPos) return null;
-
-                const x1 = fromPos.left + 32;
-                const y1 = fromPos.top + 32;
-                const x2 = toPos.left + 32;
-                const y2 = toPos.top + 32;
-
-                return (
-                  <motion.path
-                    key={`conn-${i}-${conn.timestamp}`}
-                    d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2 - 50} ${x2} ${y2}`}
-                    stroke="url(#lineGradient)"
-                    strokeWidth="3"
-                    fill="none"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.8, ease: "easeInOut" }}
-                  />
-                );
-              })}
-
-              {/* 2. 지속적 협업 연결선 (Collaboration) */}
-              {Object.entries(activeCollaborations).map(([from, to]) => {
-                if (!to) return null;
-                const fromAgent = agents.find(a => a.name === from);
-                const toAgent = agents.find(a => a.name === to);
-                if (!fromAgent || !toAgent) return null;
-
-                const fromPos = getAgentPosition(fromAgent, agents.indexOf(fromAgent));
-                const toPos = getAgentPosition(toAgent, agents.indexOf(toAgent));
-
-                const x1 = fromPos.left + 32;
-                const y1 = fromPos.top + 32;
-                const x2 = toPos.left + 32;
-                const y2 = toPos.top + 32;
-
-                return (
-                  <motion.path
-                    key={`collab-${from}-${to}`}
-                    d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2 - 50} ${x2} ${y2}`}
-                    stroke="url(#collabGradient)"
-                    strokeWidth="4"
-                    strokeDasharray="8 4"
-                    fill="none"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ 
-                      pathLength: 1, 
-                      opacity: 1,
-                      strokeDashoffset: [-20, 0] 
-                    }}
-                    exit={{ opacity: 0 }}
-                    transition={{ 
-                      pathLength: { duration: 0.8 },
-                      strokeDashoffset: { repeat: Infinity, duration: 2, ease: "linear" }
-                    }}
-                  />
-                );
-              })}
-            </AnimatePresence>
-          </svg>
-
-          {/* Office Decorations */}
-          {officeItems.map((item) => {
-            const Icon = item.type === "COFFEE_MACHINE" ? Coffee : 
-                        item.type === "PLANT" ? Leaf : 
-                        item.type === "SERVER_RACK" ? Database : 
-                        item.type === "GAMING_CHAIR" ? User : Layout;
-            return (
-              <motion.div
-                key={item.id}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="absolute z-0 pointer-events-none opacity-40 hover:opacity-80 transition-opacity"
-                style={{ top: item.y, left: item.x }}
-              >
-                <div className="bg-white/20 backdrop-blur-sm border border-white/40 p-3 rounded-2xl shadow-sm">
-                  <Icon size={32} className="text-slate-400" />
-                </div>
-              </motion.div>
-            );
-          })}
-
-          {/* Agents */}
-          {agents.map((agent, i) => {
-            const pos = getAgentPosition(agent, i);
-            const isRunning = tasks.some(t => t.agent?.id === agent.id && t.status === 'RUNNING');
-
-            return (
-              <motion.div
-                key={agent.id}
-                className="absolute flex flex-col items-center cursor-pointer group"
-                initial={{ top: pos.top, left: pos.left }}
-                animate={{ top: pos.top, left: pos.left }}
-                transition={{ type: "spring", stiffness: 60, damping: 15 }}
-                onClick={() => setActiveChat(agent.name)}
-                 whileHover={{ scale: 1.05, zIndex: 40 }}
-                style={{ zIndex: isRunning ? 30 : 20 }}
-              >
-                {/* Live Working Preview Bubble */}
-                <AnimatePresence>
-                  {activePreviews[agent.name] && (
-                    <LivePreviewBubble 
-                      preview={activePreviews[agent.name]!} 
-                      getAgentColor={getAgentColor} 
-                    />
-                  )}
-                  {agent.lastEmotion && (
-                    <EmotionBubble 
-                      emotion={agent.lastEmotion} 
-                      agentName={agent.name} 
-                      getAgentColor={getAgentColor} 
-                    />
-                  )}
-                </AnimatePresence>
-
-                {/* Status bubble */}
-                <div className="absolute -top-7 bg-white border border-slate-200 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-lg shadow-slate-200/50 transform -translate-y-2 group-hover:translate-y-0">
-                  {agent.role} (⭐ {agent.points || 0})
-                </div>
-
-                {/* Activity indicator / Status Bubble */}
-                <AnimatePresence>
-                  {isRunning && (() => {
-                    const lastToolMsg = [...messages].reverse().find(m => m.senderName === agent.name && m.type === 'TOOL');
-                    let statusText = "업무 중...";
-                    let Icon = Loader2;
-
-                    if (lastToolMsg?.content.includes('write_file')) { statusText = "파일 작성 중"; Icon = Code2; }
-                    else if (lastToolMsg?.content.includes('run_command')) { statusText = "명령어 실행 중"; Icon = Terminal; }
-                    else if (lastToolMsg?.content.includes('call_agent')) { statusText = "협업 중"; Icon = Users; }
-                    else if (lastToolMsg?.content.includes('read_file')) { statusText = "파일 읽는 중"; Icon = Database; }
-
-                    return (
-                      <motion.div
-                        className={`absolute -top-14 px-4 py-2 rounded-2xl shadow-[0_10px_25px_rgba(0,0,0,0.1)] z-30 flex items-center gap-2.5 border border-white/60 bg-white/80 backdrop-blur-md ${getAgentColor(agent.name).soft} font-extrabold text-[10px] whitespace-nowrap tracking-tight`}
-                        initial={{ y: 15, opacity: 0, scale: 0.9 }}
-                        animate={{ y: 0, opacity: 1, scale: 1 }}
-                        exit={{ y: 10, opacity: 0, scale: 0.9 }}
-                      >
-                        <Icon size={14} className={Icon === Loader2 ? "animate-spin" : "animate-pulse"} />
-                        <div className="flex flex-col">
-                          <span className="uppercase">{statusText}</span>
-                          {getFileName(lastToolMsg?.content || "") && (
-                            <span className="text-[8px] opacity-70 truncate max-w-[100px]">{getFileName(lastToolMsg?.content || "")}</span>
-                          )}
-                        </div>
-                        <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-white/80 border-r border-b border-white/60`}></div>
-                      </motion.div>
-                    );
-                  })()}
-                </AnimatePresence>
-
-                {/* Animated Avatar */}
-                <div className="relative z-10 w-16 h-16 flex items-center justify-center">
-                  {/* Character Glow */}
-                  {(isRunning || agent.lastEmotion === 'HAPPY') && (
-                    <motion.div
-                      className={`absolute inset-0 rounded-full blur-2xl ${agent.lastEmotion === 'HAPPY' ? 'bg-amber-400' : getAgentColor(agent.name).bg} opacity-30`}
-                      animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.4, 0.2] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                    />
-                  )}
-
-                  {/* Cute Desk Base */}
-                  <div className="absolute bottom-0 w-24 h-12 bg-white/60 backdrop-blur-sm rounded-[2rem] border border-white/80 shadow-sm -z-10 transform perspective-[500px] rotateX-[30deg]"></div>
-
-                  {/* Avatar Character */}
-                  <motion.div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center border-4 shadow-2xl transition-colors duration-500 ${isRunning ? `${getAgentColor(agent.name).bg} border-white` : agent.lastEmotion === 'HAPPY' ? 'bg-amber-400 border-white' : 'bg-white border-slate-100'}`}
-                    animate={isRunning ? {
-                      y: [0, -8, 0],
-                    } : agent.lastEmotion === 'HAPPY' ? {
-                      y: [0, -25, 0],
-                      rotate: [0, 15, -15, 15, -15, 0]
-                    } : agent.lastEmotion === 'SAD' ? {
-                      x: [0, -5, 5, -5, 5, 0],
-                      scale: 0.9
-                    } : {
-                      y: [0, -2, 0]
-                    }}
-                    transition={{
-                      repeat: isRunning ? Infinity : 0,
-                      duration: isRunning ? 0.6 : agent.lastEmotion === 'HAPPY' ? 1 : 0.4,
-                      ease: "easeInOut"
-                    }}
-                  >
-                    {agent.lastEmotion === 'HAPPY' ? <span className="text-xl">😎</span> : 
-                     agent.lastEmotion === 'SAD' ? <span className="text-xl">😫</span> :
-                     <Bot size={28} className={isRunning ? 'text-white' : 'text-slate-300'} />}
-                  </motion.div>
-                </div>
-
-                {/* Nameplate */}
-                <div className={`mt-2 bg-white px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] border ${isRunning ? 'border-indigo-200' : 'border-slate-100'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-300'}`}></span>
-                  <span className="text-xs font-bold tracking-wide text-slate-700">{agent.name}</span>
-                </div>
-              </motion.div>
-            );
-          })}
-          {/* Activity Dashboard (Draggable Bottom Panel) */}
-          <motion.div
-            drag
-            dragMomentum={false}
-            className="absolute bottom-10 left-10 z-[45] flex flex-col"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-          >
-            <div
-              style={{ width: activityPanelSize.width, height: activityPanelSize.height }}
-              className="bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col cursor-move active:scale-[0.99] transition-transform relative"
-            >
-              <div className="h-14 border-b border-slate-700 bg-slate-800/80 flex items-center justify-between px-4 shrink-0 cursor-grab active:cursor-grabbing relative overflow-hidden backdrop-blur-md">
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div>
-                <div className="flex items-center gap-3 relative z-10 shrink-0 mr-4">
-                  <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shadow-inner">
-                    <Terminal size={14} className="text-emerald-400 animate-pulse" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest whitespace-nowrap">실시간 활동 대시보드</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span className="text-[8px] font-bold text-emerald-400/80 uppercase">AI Orchestration Live</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 relative z-10 overflow-x-auto no-scrollbar py-2">
-                  {/* Category Toggle */}
-                  <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/50 shadow-inner shrink-0">
-                    {[
-                      { id: 'PROCESS', label: '실행', icon: Zap, color: 'indigo' },
-                      { id: 'INTELLIGENCE', label: '지능', icon: Brain, color: 'violet' },
-                      { id: 'METRICS', label: '성과', icon: BarChart2, color: 'emerald' }
-                    ].map(cat => (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          setActiveCategory(cat.id as any);
-                          // 카테고리 이동 시 기본 탭 설정
-                          if (cat.id === 'PROCESS') setActiveTab('LOGS');
-                          else if (cat.id === 'INTELLIGENCE') setActiveTab('REASONING');
-                          else if (cat.id === 'METRICS') setActiveTab('STATS');
-                        }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-tighter ${activeCategory === cat.id ? `bg-${cat.color}-500 text-white shadow-lg shadow-${cat.color}-500/20 scale-105` : 'text-slate-500 hover:text-slate-300'}`}
-                      >
-                        <cat.icon size={12} />
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Dynamic Sub Tabs */}
-                  <div className="flex gap-1 items-center border-l border-slate-700/50 pl-4 shrink-0">
-                    {activeCategory === 'PROCESS' && (
-                      <>
-                        {['LOGS', 'KANBAN', 'MISSION', 'SCHEDULER'].map(tab => (
-                          <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab as any)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
-                          >
-                            {tab}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    {activeCategory === 'INTELLIGENCE' && (
-                      <>
-                        {['REASONING', 'MISSION_CONTROL', 'TECH_PULSE', 'CODE_REVIEW', 'JANITOR', 'WISDOM'].map(tab => (
-                            <button
-                              key={tab}
-                              onClick={() => {
-                                if (tab === 'WISDOM') setIsWisdomVaultOpen(true);
-                                else setActiveTab(tab as any);
-                              }}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
-                            >
-                              {tab === 'CODE_REVIEW' ? 'QA REVIEW' : tab === 'WISDOM' ? 'WISDOM VAULT' : tab === 'MISSION_CONTROL' ? 'MISSION CONTROL' : tab}
-                            </button>
-                        ))}
-                      </>
-                    )}
-                    {activeCategory === 'METRICS' && (
-                      <>
-                        {['STATS', 'ANALYTICS'].map(tab => (
-                          <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab as any)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
-                          >
-                            {tab}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleOpenBriefing}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-indigo-500/20 hover:scale-105 transition-transform ml-4 shrink-0"
-                >
-                  <Sparkles size={12} className="animate-pulse" />
-                  DAILY BRIEFING
-                </button>
-              </div>
-              <div className="flex-1 flex overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1.5 custom-scrollbar bg-black/20 text-slate-300">
-                  {activeTab === 'LOGS' ? (
-                    messages.filter(m => m.type === 'TOOL' || m.type === 'COMMAND').slice(-50).map((msg, i) => (
-                      <div key={i} className="flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                        <span className="text-slate-500 shrink-0">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
-                        <span className={`${getAgentColor(msg.senderName).soft} font-bold shrink-0`}>{msg.senderName}:</span>
-                        <span className="text-emerald-400/90 italic truncate">{msg.content.replace('🔍 **도구 사용**:', '').replace('✨ **도구 실행 완료**:', '')}</span>
-                      </div>
-                    ))
-                  ) : activeTab === 'REASONING' ? (
-                    <div className="h-full overflow-y-auto custom-scrollbar">
-                         {isCognitiveLoading && cognitiveTraces.length === 0 ? (
-                            <div className="flex items-center justify-center h-40">
-                                <Loader2 size={24} className="animate-spin text-indigo-400" />
-                            </div>
-                         ) : (
-                            <CognitiveTraceTimeline traces={cognitiveTraces} getAgentColor={getAgentColor} agents={agents} />
-                         )}
-                    </div>
-                  ) : activeTab === 'STATS' ? (
-                    <div className="h-full flex flex-col gap-6 p-2">
-                      <div className="h-32 w-full">
-                        <span className="text-[9px] text-slate-500 uppercase font-black mb-2 block">최근 24시간 활동량</span>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={getActivityChartData()}>
-                            <defs>
-                              <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                            <XAxis dataKey="time" stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#64748b" fontSize={8} tickLine={false} axisLine={false} />
-                            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', fontSize: '10px' }} />
-                            <Area type="monotone" dataKey="count" stroke="#10b981" fillOpacity={1} fill="url(#colorCount)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-[9px] text-slate-500 uppercase font-black mb-3 block">도구 사용 비중</span>
-                        <div className="space-y-2">
-                          {getToolUsageData().map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-3">
-                              <span className="w-16 truncate text-slate-400">{item.name}</span>
-                              <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                <motion.div 
-                                  initial={{ width: 0 }} 
-                                  animate={{ width: `${(item.value / Math.max(...getToolUsageData().map(d => d.value))) * 100}%` }}
-                                  className="h-full bg-indigo-500"
-                                />
-                              </div>
-                              <span className="text-emerald-400 font-bold">{item.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : activeTab === 'SCHEDULER' ? (
-                    <div className="h-full flex flex-col gap-3">
-                      <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-lg border border-slate-700">
-                        <span className="text-[9px] font-bold text-slate-400">자율 예약 작업 목록</span>
-                        <button 
-                          onClick={() => setIsSchedulerModalOpen(true)}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[9px] font-bold flex items-center gap-1 transition-colors"
-                        >
-                          <Plus size={10} /> 작업 추가
-                        </button>
-                      </div>
-                      <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
-                        {scheduledTasks.length === 0 ? (
-                          <div className="h-full flex items-center justify-center text-slate-600 italic">등록된 예약 작업이 없습니다.</div>
-                        ) : (
-                          scheduledTasks.map(task => (
-                            <div key={task.id} className="bg-slate-800/30 border border-slate-700/50 p-2 rounded-lg flex items-center justify-between group">
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${task.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                                    {task.status}
-                                  </span>
-                                  <span className="font-bold text-slate-200">{task.description}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-slate-500 text-[8px] flex-wrap mt-0.5">
-                                  <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                    <Calendar size={8} className="text-amber-400" /> 
-                                    <span className="font-mono">{task.cronExpression}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                    <Play size={8} className="text-emerald-400" /> 
-                                    <span>다음: {task.nextRun ? new Date(task.nextRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '대기 중'}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                    <Activity size={8} className="text-indigo-400" /> 
-                                    <span>최근: {task.lastRun ? new Date(task.lastRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '없음'}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1.5 ml-4">
-                                <button 
-                                  onClick={() => handleRunScheduledTask(task.id)}
-                                  title="지금 바로 실행"
-                                  className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all active:scale-95"
-                                >
-                                  <Play size={12} fill="currentColor" />
-                                </button>
-                                <button 
-                                  onClick={() => handleToggleScheduledTask(task.id)}
-                                  title={task.status === 'ACTIVE' ? '일시 정지' : '다시 시작'}
-                                  className={`p-2 rounded-lg border transition-all active:scale-95 ${task.status === 'ACTIVE' ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'}`}
-                                >
-                                  {task.status === 'ACTIVE' ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteScheduledTask(task.id)}
-                                  title="삭제"
-                                  className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all active:scale-95"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                    ) : activeTab === 'KANBAN' ? (
-                      <div className="h-full overflow-x-auto custom-scrollbar flex gap-4 p-2 pb-4">
-                        {[
-                          { id: 'PENDING', label: 'Backlog', color: 'slate' },
-                          { id: 'RUNNING', label: 'In Progress', color: 'indigo' },
-                          { id: 'HEALING', label: 'Healing', color: 'orange' },
-                          { id: 'COMPLETED', label: 'Done', color: 'emerald' },
-                          { id: 'FAILED', label: 'Failed', color: 'rose' }
-                        ].map(col => (
-                          <div key={col.id} className="min-w-[200px] flex-1 flex flex-col bg-slate-900/40 rounded-xl border border-slate-800/60 overflow-hidden">
-                            <div className={`h-8 px-3 flex items-center justify-between border-b border-slate-800/60 bg-${col.color}-500/10`}>
-                               <span className={`text-[9px] font-black uppercase tracking-widest text-${col.color}-400`}>{col.label}</span>
-                               <span className="bg-slate-800 text-slate-500 text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-slate-700">
-                                 {tasks.filter(t => t.status === col.id).length}
-                               </span>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar min-h-[100px]">
-                              {tasks.filter(t => t.status === col.id).length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-[8px] text-slate-600 italic uppercase tracking-tighter">Empty</div>
-                              ) : (
-                                  tasks.filter(t => t.status === col.id).map(task => (
-                                    <motion.div
-                                      key={task.id}
-                                      layoutId={`task-${task.id}`}
-                                      initial={{ opacity: 0, scale: 0.95 }}
-                                      animate={{ opacity: 1, scale: 1 }}
-                                      className={`bg-slate-800/80 border ${task.parentId ? 'border-indigo-500/30 ml-4 border-l-2' : 'border-slate-700/50'} rounded-lg p-2.5 shadow-sm hover:border-slate-500 transition-colors group cursor-default`}
-                                    >
-                                      <div className="flex items-center justify-between mb-1.5">
-                                        <div className="flex items-center gap-1.5">
-                                          {task.agent ? (
-                                            <div className={`w-4 h-4 rounded-md ${getAgentColor(task.agent.name).bg} flex items-center justify-center text-white shadow-sm`}>
-                                              <Bot size={10} />
-                                            </div>
-                                          ) : (
-                                            <div className="w-4 h-4 rounded-md bg-slate-700 flex items-center justify-center text-white">
-                                              <User size={10} />
-                                            </div>
-                                          )}
-                                          <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">
-                                            {task.agent?.name || 'Unassigned'}
-                                          </span>
-                                        </div>
-                                        {task.parentId && (
-                                          <span className="text-[7px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest">Sub-task</span>
-                                        )}
-                                      </div>
-                                      <p className={`text-[10px] text-slate-200 line-clamp-2 leading-relaxed font-sans mb-2 ${task.parentId ? 'font-medium' : 'font-black text-[11px] text-white'}`}>
-                                        {task.command}
-                                      </p>
-                                      {task.result && (
-                                        <div className="text-[8px] text-slate-500 border-t border-slate-700/50 pt-1.5 italic line-clamp-2 leading-tight">
-                                          {task.result}
-                                        </div>
-                                      )}
-                                      {col.id === 'FAILED' && (
-                                        <button 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStartShadow(task.id);
-                                          }}
-                                          className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase transition-all shadow-lg shadow-amber-900/20 active:scale-95"
-                                        >
-                                          <Zap size={10} /> Shadow Retry
-                                        </button>
-                                      )}
-                                      { (col.id === 'RUNNING' || col.id === 'HEALING') && (
-                                        <div className="mt-2 flex gap-1">
-                                          {[0, 0.2, 0.4].map(d => (
-                                            <motion.div 
-                                              key={d} 
-                                              animate={{ opacity: [0.3, 1, 0.3], scale: col.id === 'HEALING' ? [1, 1.2, 1] : 1 }} 
-                                              transition={{ repeat: Infinity, duration: 1, delay: d }} 
-                                              className={`w-1 h-1 rounded-full ${col.id === 'HEALING' ? 'bg-orange-400' : 'bg-emerald-400'}`} 
-                                            />
-                                          ))}
-                                        </div>
-                                      )}
-                                    </motion.div>
-                                  ))
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : activeTab === 'ANALYTICS' ? (
-                      <TeamProductivityChart performance={performanceData} />
-                    ) : activeTab === 'TECH_PULSE' ? (
-                      <div className="h-full flex flex-col p-4">
-                        <div className="flex items-center justify-between mb-4 shrink-0">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-500/10">
-                              <Sparkles size={20} className="animate-pulse" />
-                            </div>
-                            <div>
-                               <h4 className="text-[12px] font-black text-white tracking-widest uppercase">AI Tech Pulse</h4>
-                               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">실시간 기술 트렌드 및 코드베이스 영향도 분석</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={handleRefreshTechPulses}
-                            disabled={isTechPulseLoading}
-                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black tracking-widest border border-indigo-400/30 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 active:scale-95"
-                          >
-                            {isTechPulseLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                            TREND SCAN
-                          </button>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2 pb-6">
-                          {techPulses.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
-                              <div className="p-4 rounded-full bg-slate-800/50">
-                                <Activity size={40} className="text-slate-500" />
-                              </div>
-                              <p className="text-[11px] font-black uppercase tracking-widest text-center leading-relaxed">아직 분석된 트렌드가 없습니다.<br/><span className="text-indigo-400">TREND SCAN</span> 버튼을 눌러 프로젝트 트렌드를 분석해보세요.</p>
-                            </div>
-                          ) : (
-                            techPulses.map((pulse) => (
-                              <TechPulseCard key={pulse.id} pulse={pulse} />
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    ) : activeTab === 'JANITOR' ? (
-                      <div className="h-full flex flex-col p-4 text-left">
-                        <div className="flex items-center justify-between mb-4 shrink-0">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 flex items-center justify-center shadow-lg shadow-violet-500/10">
-                              <Database size={20} className="animate-pulse" />
-                            </div>
-                            <div>
-                               <h4 className="text-[12px] font-black text-white tracking-widest uppercase">Autonomous Janitor</h4>
-                               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">코드베이스 기술 부채 및 유지보수 관리</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={handleTriggerJanitorScan}
-                            disabled={isJanitorScanning}
-                            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black tracking-widest border border-violet-400/30 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50 active:scale-95"
-                          >
-                            {isJanitorScanning ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                            CLEANUP SCAN
-                          </button>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 pb-6">
-                          {janitorIssues.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50 py-20">
-                              <div className="p-4 rounded-full bg-slate-800/50">
-                                <Database size={40} className="text-slate-500" />
-                              </div>
-                              <p className="text-[11px] font-black uppercase tracking-widest text-center leading-relaxed">발견된 기술 부채가 없습니다.<br/><span className="text-violet-400">CLEANUP SCAN</span> 버튼을 눌러 코드베이스를 점검하세요.</p>
-                            </div>
-                          ) : (
-                            janitorIssues.map((issue) => (
-                              <div key={issue.id} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:bg-slate-800/60 transition-all group overflow-hidden relative">
-                                <div className={`absolute top-0 right-0 px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
-                                  issue.severity === 'CRITICAL' ? 'bg-rose-500 text-white' : 
-                                  issue.severity === 'MAJOR' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-400'
-                                }`}>
-                                  {issue.severity}
-                                </div>
-                                <div className="flex gap-4">
-                                  <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center ${
-                                    issue.category === 'SECURITY' ? 'bg-rose-500/20 text-rose-400' :
-                                    issue.category === 'LOGIC_SMELL' ? 'bg-amber-500/20 text-amber-400' :
-                                    'bg-indigo-500/20 text-indigo-400'
-                                  }`}>
-                                    <ShieldAlert size={20} />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1 text-left">
-                                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{issue.category}</span>
-                                      <span className="text-slate-600">•</span>
-                                      <span className="text-[9px] font-mono text-indigo-400 truncate">{issue.filePath}</span>
-                                    </div>
-                                    <p className="text-[11px] font-black text-slate-200 mb-2 leading-relaxed text-left">{issue.description}</p>
-                                    
-                                    {issue.originalCode && issue.suggestedCode && (
-                                      <div className="mt-3 bg-slate-900/50 rounded-xl overflow-hidden border border-slate-800/50">
-                                        <div className="grid grid-cols-2 text-[8px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-800">
-                                          <div className="p-2 border-r border-slate-800">Original</div>
-                                          <div className="p-2 text-emerald-400">Suggested</div>
-                                        </div>
-                                        <div className="grid grid-cols-2 font-mono text-[9px]">
-                                          <div className="p-3 bg-rose-500/5 text-rose-300 border-r border-slate-800 overflow-x-auto no-scrollbar whitespace-pre-wrap">{issue.originalCode}</div>
-                                          <div className="p-3 bg-emerald-500/5 text-emerald-300 overflow-x-auto no-scrollbar whitespace-pre-wrap">{issue.suggestedCode}</div>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    <div className="flex gap-2 mt-4">
-                                      <button 
-                                        onClick={() => handleApplyJanitorFix(issue.id)}
-                                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-900/20"
-                                      >
-                                        Apply Fix
-                                      </button>
-                                      <button 
-                                        onClick={() => handleIgnoreJanitorIssue(issue.id)}
-                                        className="px-4 py-2 border border-slate-700 hover:bg-slate-700 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                                      >
-                                        Ignore
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    ) : activeTab === 'MISSION_CONTROL' ? (
-                      <MissionIntelligenceBoard intelligence={missionIntelligence} isLoading={isMissionIntelligenceLoading} />
-                    ) : activeTab === 'MISSION' ? (
-                      <div className="h-full p-2">
-                        {tasks.find(t => t.parentId === null && tasks.some(st => st.parentId === t.id && st.status !== 'COMPLETED')) ? (
-                           (() => {
-                              const currentParent = tasks.find(t => t.parentId === null && tasks.some(st => st.parentId === t.id && st.status !== 'COMPLETED'))!;
-                              const subTasks = tasks.filter(t => t.parentId === currentParent.id);
-                              return <MissionMap parentTask={currentParent} subTasks={subTasks} getAgentColor={getAgentColor} />;
-                           })()
-                        ) : (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
-                            <Target size={40} className="text-slate-500" />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-center">진행 중인 미션 워크스트림이 없습니다.</p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-slate-600 italic">No Content</div>
-                    )}
-                    <div className="h-1" ref={consoleScrollRef}></div>
-                  </div>
-                  
-                  {/* Modified Files Side */}
-                  <div className="w-[180px] border-l border-slate-700 bg-slate-800/30 p-3 flex flex-col">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-700 pb-1 flex items-center gap-1.5">
-                      <Zap size={10} className="text-amber-400" />
-                      최근 변경 파일
-                    </span>
-                    <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 text-slate-300">
-                      {getRecentFiles().length > 0 ? getRecentFiles().map((file, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[9px] text-slate-300 group cursor-default hover:text-indigo-400 transition-colors">
-                          <Code2 size={10} className="text-indigo-400 group-hover:scale-110 transition-transform" />
-                          <span className="truncate font-mono" title={file}>{file.split('/').pop()}</span>
-                        </div>
-                      )) : (
-                        <div className="text-[9px] text-slate-600 italic mt-2">변경 이력 없음</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resize Handle */}
-                <div
-                  className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-center justify-center text-slate-600 hover:text-indigo-400 transition-colors group"
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    const startX = e.clientX;
-                    const startY = e.clientY;
-                    const startWidth = activityPanelSize.width;
-                    const startHeight = activityPanelSize.height;
-
-                    const onMouseMove = (moveEvent: MouseEvent) => {
-                      setActivityPanelSize({
-                        width: Math.max(400, startWidth + (moveEvent.clientX - startX)),
-                        height: Math.max(150, startHeight + (moveEvent.clientY - startY))
-                      });
-                    };
-
-                    const onMouseUp = () => {
-                      document.removeEventListener("mousemove", onMouseMove);
-                      document.removeEventListener("mouseup", onMouseUp);
-                    };
-
-                    document.addEventListener("mousemove", onMouseMove);
-                    document.addEventListener("mouseup", onMouseUp);
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 10 10" fill="none" className="rotate-90 group-hover:scale-110 transition-transform">
-                    <path d="M1 9L9 1M4 9L9 4M7 9L9 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                </div>
-              </div>
-            </motion.div>
-
-          {/* Floating Chat Window (Messenger Style) */}
-          <AnimatePresence>
-            {activeChat && (
-              <motion.div
-                initial={{ opacity: 0, y: 50, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                className="absolute bottom-8 right-8 w-[600px] h-[650px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-slate-100 flex flex-col overflow-hidden z-50 transition-all duration-300"
-              >
-                {/* Fake Window Header */}
-                <div className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-5 shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activeChat === '라운지 미팅' ? 'bg-indigo-50' : getAgentColor(activeChat).light} ${activeChat === '라운지 미팅' ? 'text-indigo-500' : getAgentColor(activeChat).text}`}>
-                      {activeChat === '라운지 미팅' ? <Users size={20} /> : <Bot size={20} />}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">{activeChat}</h3>
-                      <div className={`${activeChat === '라운지 미팅' ? 'text-emerald-500' : getAgentColor(activeChat).soft} text-[10px] font-bold flex items-center gap-1`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${activeChat === '라운지 미팅' ? 'bg-emerald-400' : getAgentColor(activeChat).bg}`}></span> 접속 중
-                      </div>
-                    </div>
-                  </div>
-                  <button onClick={() => setActiveChat(null)} className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-                    <X size={16} />
-                  </button>
-                </div>
-
-                {/* Chat Messages */}
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-slate-50/50">
-                  {(() => {
-                    const currentRoomId = activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`;
-                    const roomMessages = messages.filter(msg => msg.roomId === currentRoomId);
-
-                    if (roomMessages.length === 0) {
-                      return (
-                        <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3">
-                          <MessageSquare size={32} className="text-slate-300" />
-                          <p className="text-xs font-medium">인사를 나누어 보세요!</p>
-                        </div>
-                      );
-                    }
-
-                    return roomMessages.map((msg, i) => {
-                      const isMe = msg.senderId === 'user-1';
-                      const isSystem = msg.type === 'SYSTEM';
-                      const isCollaborating = msg.content.includes('🤝 [협업 요청 수신]');
-                      const agentColor = getAgentColor(msg.senderName);
-
-                      return (
-                        <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          {!isMe && !isSystem && (
-                            <div className={`w-8 h-8 rounded-full ${agentColor.light} ${agentColor.text} flex items-center justify-center shrink-0 mr-2 mt-auto mb-1 border ${agentColor.border}`}>
-                              {msg.type === 'AGENT' ? <Bot size={14} /> : <User size={14} />}
-                            </div>
-                          )}
-
-                          <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%]`}>
-                            {!isMe && !isSystem && (
-                              <span className={`text-[10px] ${agentColor.soft} mb-1 ml-1 font-bold`}>{msg.senderName}</span>
-                            )}
-                            <div className={`px-4 py-2.5 text-sm ${isMe
-                              ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm shadow-md'
-                              : isSystem
-                                ? 'bg-transparent text-slate-400 font-medium text-xs w-full text-center'
-                                : msg.type === 'TOOL'
-                                  ? 'bg-slate-50 border border-slate-200 text-slate-600 rounded-lg font-mono text-[11px] w-full'
-                                  : isCollaborating
-                                    ? `bg-gradient-to-br from-white to-${agentColor.light.split('-')[1]}-50 border-2 ${agentColor.border} shadow-lg rounded-2xl rounded-tl-sm`
-                                    : `bg-white border-2 ${agentColor.border} text-slate-700 rounded-2xl rounded-tl-sm shadow-sm`
-                              }`}>
-                              <div className="prose prose-sm max-w-none">
-                                {isSystem ? (
-                                  <div className="italic">{msg.content}</div>
-                                ) : msg.type === 'TOOL' ? (
-                                  <div className="flex items-center gap-2 py-1">
-                                    {msg.content.includes('🛠️') ? <Terminal size={12} className="text-indigo-500" /> : <Code2 size={12} className="text-emerald-500" />}
-                                    <span>{msg.content}</span>
-                                  </div>
-                                ) : (
-                                  <div className={isCollaborating ? 'font-medium' : ''}>
-                                    <ReactMarkdown
-                                      components={{
-                                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                                        code: ({ node, ...props }) => (
-                                          <code className={`${isMe ? 'bg-blue-400/30 text-white' : 'bg-slate-100 text-pink-500'} px-1.5 py-0.5 rounded-md font-mono text-[13px]`} {...props} />
-                                        ),
-                                        pre: ({ node, ...props }) => (
-                                          <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg my-2 overflow-x-auto font-mono text-xs shadow-inner border border-slate-800" {...props} />
-                                        ),
-                                        ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
-                                        ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
-                                        li: ({ children }) => <li className="mb-0.5">{children}</li>,
-                                        h1: ({ children }) => <h1 className="text-lg font-bold mb-2 border-b pb-1">{children}</h1>,
-                                        h2: ({ children }) => <h2 className="text-base font-bold mb-1.5">{children}</h2>,
-                                        strong: ({ children }) => <strong className={`font-bold ${isMe ? 'text-blue-100' : agentColor.soft}`}>{children}</strong>,
-                                      }}
-                                    >
-                                      {msg.content}
-                                    </ReactMarkdown>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-
-                {/* Chat Input */}
-                <div className="p-4 bg-white border-t border-slate-100 shrink-0">
-                  <div className="relative flex items-center">
-                    <input
-                      type="text"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-full py-3 pl-5 pr-12 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
-                      placeholder="메시지를 입력하세요..."
-                      value={inputValue}
-                      onChange={e => setInputValue(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSendMessage}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center transition-colors shadow-md shadow-blue-500/20 text-white"
-                    >
-                      <Send size={15} className="ml-0.5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* 3. Right Panel: Crew Deck (Glassmorphism) */}
-      <div className="w-[320px] border-l border-indigo-50/50 bg-white/70 backdrop-blur-2xl flex flex-col shrink-0 relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.02)]">
-        <div className="h-16 border-b border-slate-100/50 flex items-center justify-between px-6 shrink-0">
-          <h2 className="font-black text-[11px] text-slate-500 flex items-center gap-3 uppercase tracking-[0.2em]">
-            <Users size={18} className="text-blue-400" /> 크루 명단
-          </h2>
-          <span className="text-[9px] bg-blue-50/80 text-blue-600 px-2.5 py-1 rounded-full font-bold uppercase tracking-widest border border-blue-100/50">
-            {agents.length} 온라인
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar bg-white/30">
-          {agents.map(agent => (
-            <div key={agent.id}
-              className="bg-white/60 backdrop-blur-sm border border-white/80 rounded-2xl p-4 hover:border-blue-200/50 hover:bg-white/80 hover:shadow-[0_10px_25px_rgba(0,0,0,0.03)] transition-all cursor-pointer group shadow-sm"
-              onClick={() => setActiveChat(agent.name)}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className={`w-11 h-11 rounded-2xl ${getAgentColor(agent.name).light} flex items-center justify-center group-hover:scale-105 transition-transform border border-white shrink-0 shadow-sm`}>
-                    {agent.role.toLowerCase().includes('front') ? <Layout size={18} className="text-pink-400" /> :
-                      agent.role.toLowerCase().includes('back') ? <Database size={18} className="text-emerald-400" /> :
-                        <Code2 size={18} className={getAgentColor(agent.name).text} />}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className={`text-sm font-bold ${getAgentColor(agent.name).soft} flex items-center gap-1.5`}>
-                      {agent.name}
-                      {tasks.some(t => t.agent?.id === agent.id && t.status === 'RUNNING') && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${getAgentColor(agent.name).bg} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
-                      )}
-                    </h4>
-                    <div className="text-[11px] text-slate-400 font-medium">{agent.role}</div>
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenEditModal(agent);
-                  }}
-                  className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 hover:text-indigo-500 transition-all"
-                  title="정보 수정"
-                >
-                  <Sparkles size={14} />
-                </button>
-              </div>
-              <div className="mt-3 flex items-center justify-between bg-slate-50/50 border border-slate-100/50 rounded-lg py-1.5 px-3">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">모델</span>
-                <span className={`text-[10px] font-bold ${getAgentColor(agent.name).soft} uppercase tracking-widest`}>
-                  {agent.model.includes('claude') ? 'CLAUDE 3.5' : 'GEMINI 2.5'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Deploy Button */}
-        <div className="p-5 border-t border-slate-100 bg-white">
-          <button
-            onClick={() => setIsDeployModalOpen(true)}
-            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30"
-          >
-            <Plus size={18} /> 새 에이전트 배치
-          </button>
-        </div>
-      </div>
-
-      {/* 4. Deploy New Agent Modal */}
+    <main className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-[family-name:var(--font-geist-sans)] selection:bg-indigo-100 selection:text-indigo-900">
       <AnimatePresence>
-        {isDeployModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+        {vo.showHealingToast && (
+          <motion.div 
+            initial={{ y: -100, opacity: 0 }} animate={{ y: 20, opacity: 1 }} exit={{ y: -100, opacity: 0 }}
+            className="fixed top-0 left-1/2 -translate-x-1/2 z-[300] bg-orange-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-orange-400 font-black tracking-tight"
           >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="w-[500px] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-            >
-              <div className="px-7 py-5 border-b border-slate-100 flex items-center justify-between bg-white">
-                <h3 className="text-lg font-extrabold text-slate-800">
-                  {editingAgentId ? "에이전트 정보 수정" : "새 에이전트 배치"}
-                </h3>
-                <button onClick={() => {
-                  setIsDeployModalOpen(false);
-                  setEditingAgentId(null);
-                  setNewAgent({ name: "", role: "", model: "claude-3-5-sonnet-20241022", systemPrompt: "", assignedSkills: [] });
-                }} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
-                  <X size={18} />
-                </button>
-              </div>
-
-              <form onSubmit={handleDeployAgent} className="p-7 space-y-6">
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">에이전트 이름</label>
-                    <input
-                      required
-                      type="text"
-                      value={newAgent.name}
-                      onChange={e => setNewAgent({ ...newAgent, name: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-300"
-                      placeholder="예: 조이"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">모델</label>
-                    <select
-                      value={newAgent.model}
-                      onChange={e => setNewAgent({ ...newAgent, model: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all appearance-none"
-                    >
-                      <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                      <option value="gpt-4o" disabled>OpenAI GPT-4o (준비 중)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">역할 / 직함</label>
-                  <input
-                    required
-                    type="text"
-                    value={newAgent.role}
-                    onChange={e => setNewAgent({ ...newAgent, role: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-300"
-                    placeholder="예: 마스터 플래너"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">시스템 프롬프트 (페르소나)</label>
-                  <textarea
-                    value={newAgent.systemPrompt}
-                    onChange={e => setNewAgent({ ...newAgent, systemPrompt: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 font-medium focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all h-24 resize-none placeholder:text-slate-300"
-                    placeholder="밝고 활기차며 창의적인 플래너로 활동하세요..."
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">할당된 기술 (Skills)</label>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto custom-scrollbar pr-2">
-                    {skills.map(skill => (
-                      <label key={skill.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-indigo-200 cursor-pointer transition-all">
-                        <input
-                          type="checkbox"
-                          checked={newAgent.assignedSkills.includes(skill.name)}
-                          onChange={e => {
-                            const updated = e.target.checked
-                              ? [...newAgent.assignedSkills, skill.name]
-                              : newAgent.assignedSkills.filter(s => s !== skill.name);
-                            setNewAgent({ ...newAgent, assignedSkills: updated });
-                          }}
-                          className="w-4 h-4 text-indigo-500 rounded focus:ring-indigo-400"
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-700">{skill.name}</span>
-                          <span className="text-[9px] text-slate-400 truncate w-32">{skill.description}</span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-2 flex justify-end gap-3 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsDeployModalOpen(false)}
-                    className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    취소
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isDeploying}
-                    className="px-6 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50 hover:shadow-xl hover:-translate-y-0.5"
-                  >
-                    {isDeploying ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                    {editingAgentId ? "정보 반영" : "에이전트 고용"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center animate-pulse"><Zap size={16} fill="white" /></div>
+            {vo.showHealingToast}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {isSkillInventoryOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="w-[700px] h-[600px] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
-            >
-              <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-                    <Database size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-extrabold text-slate-800">기술 인벤토리</h3>
-                    <p className="text-xs text-slate-400 font-medium tracking-tight">현재 시스템에 설치된 기술 리스트</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsSkillInventoryOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-slate-50/30">
-                <div className="grid grid-cols-2 gap-6">
-                  {skills.map(skill => (
-                    <div key={skill.id} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all group">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Code2 size={24} />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-50/50 px-2 py-1 rounded-md">
-                          Skill ID: {skill.id}
-                        </span>
-                      </div>
-                      <h4 className="text-base font-bold text-slate-800 mb-2">{skill.name}</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed mb-4">{skill.description}</p>
-                      <div className="flex items-center gap-2 mt-auto">
-                        <div className="text-[9px] font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded truncate flex-1">
-                          {skill.path}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {skills.length === 0 && (
-                    <div className="col-span-2 flex flex-col items-center justify-center h-64 text-slate-400">
-                      <Loader2 size={32} className="animate-spin mb-4 opacity-20" />
-                      <p className="text-sm font-medium">설치된 기술을 불러오는 중이거나 없습니다.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-6 border-t border-slate-100 bg-white shrink-0 flex justify-center">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Sparkles size={12} className="text-indigo-400" /> 새로운 기슬은 .agent/skills 에 clone 하세요
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 5. Whiteboard Modal */}
-      <AnimatePresence>
-        {isWhiteboardOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-6"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className={`bg-white rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col transition-all duration-300 ${isFullscreenWhiteboard ? 'w-full h-full' : 'w-[1000px] h-[750px] max-h-full'}`}
-            >
-              <div className="px-8 py-5 border-b border-indigo-50 bg-white flex items-center justify-between shadow-sm z-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-inner">
-                    <Presentation size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">에이전트 화이트보드</h3>
-                    <p className="text-sm text-slate-500 font-medium">요원들의 기획안과 다이어그램이 실시간으로 그려집니다.</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setIsFullscreenWhiteboard(!isFullscreenWhiteboard)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
-                    <Maximize2 size={18} />
-                  </button>
-                  <button onClick={() => setIsWhiteboardOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto w-full h-full bg-[#fafbfd] custom-scrollbar p-8">
-                {whiteboardContent ? (
-                  <div className="prose prose-slate max-w-none prose-h1:text-3xl prose-h1:font-black prose-h2:text-2xl prose-h3:text-xl prose-pre:bg-slate-800 prose-pre:text-slate-100 prose-pre:p-4 prose-pre:rounded-xl prose-img:rounded-xl prose-img:shadow-md prose-a:text-indigo-500 prose-a:no-underline hover:prose-a:underline">
-                    <ReactMarkdown
-                      components={{
-                        code: ({ node, className, children, ...props }: any) => {
-                          const match = /language-(\w+)/.exec(className || '');
-                          const isMermaid = match && match[1] === 'mermaid';
-
-                          if (isMermaid) {
-                            return <MermaidRenderer chart={String(children).replace(/\n$/, '')} />;
-                          }
-
-                          return !className ? (
-                            <code className="bg-slate-200 text-pink-500 px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
-                              {children}
-                            </code>
-                          ) : (
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          );
-                        }
-                      }}
-                    >
-                      {whiteboardContent}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
-                    <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center">
-                      <Presentation size={48} className="text-slate-300 opacity-50" />
-                    </div>
-                    <p className="text-lg font-bold">화이트보드가 비어있습니다.</p>
-                    <p className="text-sm font-medium text-slate-400">요원에게 마크다운이나 다이어그램 작성을 요청해 보세요.</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Browser Preview (Floating Modal) */}
-      <AnimatePresence>
-        {isBrowserOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 50 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            drag
-            dragMomentum={false}
-            className="absolute bottom-10 right-[650px] w-[500px] bg-white/90 backdrop-blur-3xl rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-200/60 flex flex-col overflow-hidden z-[60]"
-          >
-            {/* Fake Browser Header */}
-            <div className="h-14 bg-slate-100/80 border-b border-slate-200/50 flex items-center px-4 shrink-0 cursor-grab active:cursor-grabbing justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1.5 mr-2">
-                  <div className="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm"></div>
-                  <div className="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm"></div>
-                  <div className="w-3 h-3 rounded-full bg-[#27c93f] shadow-sm"></div>
-                </div>
-                
-                {/* Live Badge */}
-                <div className="flex items-center gap-1.5 bg-sky-500 px-2 py-0.5 rounded-md border border-sky-600 shadow-sm animate-pulse">
-                  <span className="w-1 h-1 rounded-full bg-white"></span>
-                  <span className="text-[9px] font-black text-white uppercase tracking-tighter">LIVE</span>
-                </div>
-
-                {/* URL Bar */}
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] text-slate-600 w-[240px] truncate shadow-inner font-medium">
-                  <Layout size={12} className="text-slate-400 shrink-0" />
-                  <span className="truncate">{browserUrl || "브라우저 대기 중..."}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => {
-                    if (stompClient.current?.connected) {
-                       const chatMsg: ChatMessage = {
-                        roomId: activeChat === '라운지 미팅' ? "default" : `agent-${activeChat}`,
-                        senderId: "user-1",
-                        senderName: "사용자",
-                        content: "@Browser browser_close",
-                        type: "CHAT"
-                      };
-                      stompClient.current.publish({ destination: "/app/chat.send", body: JSON.stringify(chatMsg) });
-                    }
-                    setIsBrowserOpen(false);
-                  }} 
-                  className="p-2 rounded-lg bg-slate-200/50 hover:bg-rose-50 hover:text-rose-500 text-slate-400 transition-all"
-                  title="세션 종료 및 닫기"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex-1 min-h-[300px] max-h-[500px] bg-[#f8fafc] overflow-y-auto custom-scrollbar flex flex-col relative w-full">
-              {browserScreenshot ? (
-                <img src={browserScreenshot} alt="Browser screenshot" className="w-full h-auto object-cover" />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4 py-20 w-full">
-                  <Loader2 size={32} className="animate-spin text-sky-400" />
-                  <p className="text-sm font-medium">실시간 화면을 가져오는 중...</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-        {/* Scheduler Modal */}
-        <AnimatePresence>
-          {isSchedulerModalOpen && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-              onClick={() => setIsSchedulerModalOpen(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-                className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl overflow-y-auto max-h-[90vh]"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="p-8">
-                  <div className="flex justify-between items-center mb-8">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500">
-                        <Calendar size={24} />
-                      </div>
-                      <h2 className="text-xl font-black text-slate-800">예약 작업 등록</h2>
-                    </div>
-                    <button onClick={() => setIsSchedulerModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                      <X size={24} />
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleCreateScheduledTask} className="space-y-6">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">작업 설명</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all placeholder:text-slate-300"
-                        placeholder="예: 매 분마다 시스템 상태 체크"
-                        value={newScheduledTask.description}
-                        onChange={e => setNewScheduledTask({ ...newScheduledTask, description: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">담당 에이전트</label>
-                        <select
-                          className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all"
-                          value={newScheduledTask.agentId}
-                          onChange={e => setNewScheduledTask({ ...newScheduledTask, agentId: Number(e.target.value) })}
-                        >
-                          {agents.map(a => (
-                            <option key={a.id} value={a.id}>{a.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">크론 표현식</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all"
-                          placeholder="0 0/1 * * * ?"
-                          value={newScheduledTask.cronExpression}
-                          onChange={e => setNewScheduledTask({ ...newScheduledTask, cronExpression: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                        {[
-                          { label: "매 분 마다", cron: "0 * * * * ?" },
-                          { label: "5분 마다", cron: "0 0/5 * * * ?" },
-                          { label: "1시간 마다", cron: "0 0 * * * ?" },
-                          { label: "매일 자정", cron: "0 0 0 * * ?" }
-                        ].map(helper => (
-                          <button
-                            key={helper.label}
-                            type="button"
-                            onClick={() => setNewScheduledTask({ ...newScheduledTask, cronExpression: helper.cron })}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${newScheduledTask.cronExpression === helper.cron ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-200' : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'}`}
-                          >
-                            {helper.label}
-                          </button>
-                        ))}
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">수행할 명령 (Prompt)</label>
-                      <textarea
-                        required
-                        rows={3}
-                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none transition-all placeholder:text-slate-300 resize-none"
-                        placeholder="에이전트에게 내릴 구체적인 지시를 입력하세요."
-                        value={newScheduledTask.command}
-                        onChange={e => setNewScheduledTask({ ...newScheduledTask, command: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="pt-4">
-                      <button
-                        type="submit"
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-amber-200 transition-all flex items-center justify-center gap-2 group"
-                      >
-                        <Calendar size={18} className="group-hover:scale-110 transition-transform" />
-                        스케줄 등록하기
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
- 
-        {/* Shadow Mode Control Bar */}
-        <AnimatePresence>
-          {isShadowModeActive && (
-            <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-4 bg-slate-900/90 backdrop-blur-2xl border border-amber-500/50 px-6 py-4 rounded-3xl shadow-[0_20px_50px_rgba(245,158,11,0.3)]"
-            >
-              <div className="flex items-center gap-4 border-r border-white/10 pr-6">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 flex items-center justify-center text-white animate-pulse">
-                  <Zap size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-amber-400 uppercase tracking-widest leading-none mb-1">Shadow Mode Active</p>
-                  <p className="text-[10px] text-white/50 font-bold">Changes are isolated in safe sandbox</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={handleOpenShadowPreview}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-black rounded-xl transition-all border border-white/10"
-                >
-                  PREVIEW DIFF
-                </button>
-                <button 
-                  onClick={handleCommitShadow}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-amber-900/20"
-                >
-                  MERGE TO MAIN
-                </button>
-                <button 
-                  onClick={handleDiscardShadow}
-                  className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-rose-900/20"
-                >
-                  DISCARD
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Shadow Preview Modal */}
-        <AnimatePresence>
-          {isShadowPreviewOpen && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[250] flex items-center justify-center p-8"
-              onClick={() => setIsShadowPreviewOpen(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.95, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 30 }}
-                className="bg-slate-900 border border-white/20 w-full max-w-4xl h-[80vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-slate-800/50">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                        <Maximize2 size={20} />
-                      </div>
-                      <h2 className="text-xl font-black text-white">Shadow Diff Preview</h2>
-                   </div>
-                   <button onClick={() => setIsShadowPreviewOpen(false)} className="text-white/40 hover:text-white">
-                      <X size={24} />
-                   </button>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-8 font-mono text-sm custom-scrollbar bg-slate-950">
-                  <pre className="text-emerald-400 leading-relaxed whitespace-pre-wrap">
-                    {shadowDiff || "No changes detected in sandbox."}
-                  </pre>
-                </div>
-                
-                <div className="px-8 py-6 border-t border-white/10 bg-slate-800/50 flex justify-end gap-3">
-                   <button onClick={handleDiscardShadow} className="px-6 py-3 bg-rose-500/20 text-rose-400 font-black rounded-2xl hover:bg-rose-500/30 transition-all">
-                      Discard Changes
-                   </button>
-                   <button onClick={handleCommitShadow} className="px-8 py-3 bg-amber-500 text-white font-black rounded-2xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-900/40">
-                      Apply to Main Project
-                   </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 1. Wisdom Vault Slide-over (ATR) */}
-        <WisdomVault 
-          isOpen={isWisdomVaultOpen}
-          onClose={() => setIsWisdomVaultOpen(false)}
-          lessons={lessons}
-          getAgentColor={getAgentColor}
-        />
-
-      {/* 6. Office Shop Modal */}
-      <AnimatePresence>
-        {isShopOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="w-[600px] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
-            >
-              <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500">
-                    <Sparkles size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-extrabold text-slate-800">오피스 상점</h3>
-                    <p className="text-xs text-slate-400 font-medium">에이전트 포인트로 오피스를 꾸며보세요!</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsShopOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-8 grid grid-cols-2 gap-6 bg-slate-50/30 overflow-y-auto max-h-[500px] custom-scrollbar">
-                {[
-                  { type: "COFFEE_MACHINE", name: "고급 커피 머신", price: 50, icon: Coffee, desc: "요원들의 집중력을 높여줍니다." },
-                  { type: "PLANT", name: "공기정화 식물", price: 30, icon: Leaf, desc: "쾌적한 사무 환경을 조성합니다." },
-                  { type: "SERVER_RACK", name: "슈퍼 서버 랙", price: 150, icon: Database, desc: "연산 능력이 상승할 것만 같아요." },
-                  { type: "GAMING_CHAIR", name: "인체공학 체어", price: 80, icon: User, desc: "장시간 업무에도 끄떡없습니다." },
-                ].map(item => {
-                  const buyer = [...agents].sort((a,b) => b.points - a.points)[0];
-                  const canAfford = buyer && buyer.points >= item.price;
-                  
-                  return (
-                    <div key={item.type} className="bg-white border-2 border-slate-100 rounded-2xl p-5 hover:border-amber-200 transition-all group flex flex-col">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <item.icon size={24} className="text-slate-400 group-hover:text-amber-500 transition-colors" />
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Price</span>
-                          <span className="text-lg font-black text-amber-500">⭐ {item.price}</span>
-                        </div>
-                      </div>
-                      <h4 className="font-bold text-slate-800 mb-1">{item.name}</h4>
-                      <p className="text-[11px] text-slate-400 mb-6 font-medium leading-tight">{item.desc}</p>
-                      
-                      <button
-                        disabled={!canAfford}
-                        onClick={() => handleBuyItem(item.type, item.price)}
-                        className={`mt-auto py-2.5 rounded-xl text-xs font-black transition-all ${canAfford ? 'bg-slate-900 text-white hover:bg-amber-500 shadow-lg shadow-slate-200 hover:shadow-amber-200' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}
-                      >
-                        {canAfford ? '구매하기' : '포인트 부족'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="p-6 border-t border-slate-100 bg-white flex justify-center items-center gap-3">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">최고 보유 포인트:</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-black text-blue-600">
-                    {[...agents].sort((a,b) => b.points - a.points)[0]?.name[0]}
-                  </div>
-                  <span className="text-sm font-black text-slate-700">⭐ {[...agents].sort((a,b) => b.points - a.points)[0]?.points || 0}</span>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <CodebaseExplorer 
-        isOpen={isCodebaseExplorerOpen} 
-        onClose={() => setIsCodebaseExplorerOpen(false)} 
-        results={codebaseResults} 
-        onSearch={handleSearchCodebase}
-        onIndex={handleIndexCodebase}
-        isLoading={isCodebaseLoading}
-        isIndexing={isIndexing}
+      <CommandPalette 
+        isOpen={vo.isCommanderOpen}
+        onClose={() => vo.setIsCommanderOpen(false)}
+        actions={commanderActions}
+        onAction={handleCommanderAction}
+        query={vo.commanderQuery}
+        onQueryChange={(q) => vo.setCommanderQuery(q)}
       />
 
       <KnowledgeExplorer 
-        isOpen={isKnowledgeExplorerOpen} 
-        onClose={() => setIsKnowledgeExplorerOpen(false)} 
-        memories={memories} 
-        onSearch={handleSearchMemories}
-        isLoading={isMemoriesLoading}
+        isOpen={vo.isKnowledgeExplorerOpen}
+        onClose={() => vo.setIsKnowledgeExplorerOpen(false)}
+        memories={vo.memories}
+        onSearch={(q) => vo.setMemories([]) || vo.fetchInitialData()} // Simplified for now
+        isLoading={vo.isMemoriesLoading}
         getAgentColor={getAgentColor}
       />
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #cbd5e1;
-          border-radius: 10px;
-        }
-        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-          background-color: #94a3b8;
-        }
-      `}</style>
-      <DailyBriefingModal
-        isOpen={isBriefingOpen}
-        onClose={() => setIsBriefingOpen(false)}
-        content={briefingContent}
-        isLoading={isBriefingLoading}
+      <WisdomVault 
+        isOpen={vo.isWisdomVaultOpen}
+        onClose={() => vo.setIsWisdomVaultOpen(false)}
+        lessons={vo.lessons}
+        getAgentColor={getAgentColor}
       />
-      <ProjectHealthModal
-        isOpen={isHealthModalOpen}
-        onClose={() => setIsHealthModalOpen(false)}
-        report={healthReport}
-        isLoading={isHealthLoading}
+
+      <CodebaseExplorer 
+        isOpen={vo.isCodebaseExplorerOpen}
+        onClose={() => vo.setIsCodebaseExplorerOpen(false)}
+        results={vo.codebaseResults}
+        onSearch={async (q) => {
+            vo.setIsCodebaseLoading(true);
+            const res = await codebaseService.search(q);
+            vo.setCodebaseResults(res.data);
+            vo.setIsCodebaseLoading(false);
+        }}
+        onIndex={async () => {
+            vo.setIsIndexing(true);
+            await codebaseService.index();
+            vo.setIsIndexing(false);
+        }}
+        isLoading={vo.isCodebaseLoading}
+        isIndexing={vo.isIndexing}
+      />
+
+      <ProjectHealthModal 
+        isOpen={vo.isHealthModalOpen}
+        onClose={() => vo.setIsHealthModalOpen(false)}
+        report={vo.healthReport}
+        isLoading={vo.isHealthLoading}
         onAdopt={handleAdoptStrategy}
       />
 
-    </div>
+      <DailyBriefingModal 
+        isOpen={vo.isBriefingOpen}
+        onClose={() => vo.setIsBriefingOpen(false)}
+        content={vo.briefingContent}
+        isLoading={vo.isBriefingLoading}
+      />
+
+      {/* Sidebar */}
+      <div className="w-96 bg-white border-r border-slate-100 flex flex-col shadow-[10px_0_40px_rgba(0,0,0,0.02)] z-10">
+        <div className="p-8 pb-6 bg-gradient-to-b from-slate-50/50 to-transparent">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100 rotate-3 transform hover:rotate-0 transition-transform cursor-pointer group">
+                <Layout size={20} className="group-hover:scale-110 transition-transform" />
+              </div>
+              <h1 className="text-xl font-black italic tracking-tighter text-slate-800">K-ZONE <span className="text-indigo-600">AI</span></h1>
+            </div>
+            <button 
+              onClick={async () => {
+                vo.setIsHealthLoading(true);
+                vo.setIsHealthModalOpen(true);
+                const res = await projectHealthService.getReport();
+                vo.setHealthReport(res.data);
+                vo.setIsHealthLoading(false);
+              }}
+              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-all flex items-center justify-center border border-slate-100 hover:border-rose-100 overflow-hidden relative group"
+            >
+              <Heart size={20} className="group-hover:scale-110 transition-transform" />
+              <motion.div className="absolute inset-0 bg-rose-500/10 scale-0 group-hover:scale-100 transition-transform origin-center" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4 mb-4">
+             <div className="flex-1 px-4 py-2 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-2 group focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 transition-all">
+                <Search size={14} className="text-slate-400 group-focus-within:text-indigo-500" />
+                <input 
+                  type="text" 
+                  placeholder="Quick command (Ctrl+K)..." 
+                  className="bg-transparent border-none outline-none text-xs font-bold text-slate-600 w-full placeholder:text-slate-400"
+                  onFocus={() => vo.setIsCommanderOpen(true)}
+                  readOnly
+                />
+             </div>
+          </div>
+          
+          <div className="flex items-center justify-between px-1">
+             <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Workspace</span>
+             </div>
+             <div className="flex items-center gap-2">
+                <button 
+                   onClick={() => vo.setIsKnowledgeExplorerOpen(true)}
+                   className="p-1.5 hover:bg-indigo-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                   <Database size={14} />
+                </button>
+             </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-2 custom-scrollbar space-y-8">
+          <section>
+            <div className="flex items-center justify-between mb-6 px-2">
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Active Agents</h2>
+              <button 
+                onClick={() => vo.setIsDeployModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-[10px] font-black transition-all border border-indigo-100 shadow-sm"
+              >
+                <Plus size={12} strokeWidth={3} /> DEPLOY
+              </button>
+            </div>
+            <div className="space-y-3">
+              {vo.agents.map((agent) => (
+                <motion.div 
+                  key={agent.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`group relative p-4 rounded-3xl border transition-all cursor-pointer ${vo.activeChat === agent.name ? 'bg-white border-indigo-100 shadow-xl shadow-indigo-500/5 ring-1 ring-indigo-50' : 'bg-white border-slate-100 hover:border-indigo-100 hover:shadow-lg'}`}
+                  onClick={() => vo.setActiveChat(agent.name)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className={`w-12 h-12 rounded-2xl ${getAgentColor(agent.name).bg} flex items-center justify-center text-white shadow-lg relative z-10 overflow-hidden`}>
+                        <Bot size={24} />
+                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center z-20 ${agent.status === 'IDLE' ? 'bg-emerald-500' : 'bg-indigo-500 animate-pulse'}`}>
+                        {agent.status !== 'IDLE' && <Activity size={8} className="text-white" />}
+                      </div>
+                      {vo.activeCollaborations[agent.name] && (
+                        <motion.div 
+                          className="absolute -right-8 top-1/2 -translate-y-1/2 z-30 bg-white shadow-md border border-indigo-100 rounded-full p-1"
+                          initial={{ scale: 0 }} animate={{ scale: 1 }}
+                        >
+                          <Users size={12} className="text-indigo-500" />
+                        </motion.div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-black text-slate-800 truncate text-sm tracking-tight capitalize">{agent.name}</h3>
+                        {vo.activePreviews[agent.name] && (
+                          <span className="flex h-1.5 w-1.5 rounded-full bg-indigo-500 animate-ping"></span>
+                        )}
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{agent.role}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 flex gap-1.5 flex-wrap">
+                    {agent.assignedSkills?.map((skillId : any) => (
+                      <span key={skillId} className="px-2 py-0.5 bg-slate-50 text-slate-400 text-[8px] font-black rounded-lg border border-slate-100 truncate max-w-[60px]">
+                        {skillId}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        vo.setEditingAgentId(agent.id);
+                        vo.setNewAgent({ name: agent.name, role: agent.role, model: agent.model, systemPrompt: agent.systemPrompt || "", assignedSkills: agent.assignedSkills || [] });
+                        vo.setIsDeployModalOpen(true);
+                      }}
+                      className="p-1.5 hover:bg-slate-50 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors"
+                    >
+                      <Code2 size={12} />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAgent(agent.id);
+                      }}
+                      className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4 px-2">
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Active Streams</h2>
+              <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg">{(vo.tasks.filter(t => t.status === 'RUNNING').length)} ACTIVE</span>
+            </div>
+            <div className="space-y-2">
+              {vo.tasks.filter(t => t.status !== 'COMPLETED').slice(0, 5).map((task) => (
+                <div key={task.id} className="p-3 bg-slate-50/50 border border-slate-100 rounded-2xl flex items-center gap-3 group hover:bg-white hover:shadow-md transition-all">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${task.status === 'RUNNING' ? 'bg-indigo-50 text-indigo-500' : task.status === 'HEALING' ? 'bg-orange-50 text-orange-500' : task.status === 'FAILED' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-400'}`}>
+                    {task.status === 'RUNNING' ? <Activity size={14} className="animate-pulse" /> : <Terminal size={14} />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">{task.command}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                       <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{task.agent?.name}</span>
+                       <span className="text-[8px] text-slate-300">•</span>
+                       <span className={`text-[8px] font-black uppercase ${task.status === 'RUNNING' ? 'text-indigo-500' : task.status === 'HEALING' ? 'text-orange-500' : 'text-slate-500'}`}>{task.status}</span>
+                    </div>
+                  </div>
+                  {task.status === 'RUNNING' && (
+                    <button 
+                      onClick={() => handleStartShadow(task.id)}
+                      className="p-1.5 hover:bg-indigo-600 hover:text-white text-indigo-500 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                      title="Shadow Coding"
+                    >
+                        <ShieldAlert size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col relative bg-white">
+        <header className="h-20 border-b border-slate-100 flex items-center justify-between px-10 shrink-0">
+          <div className="flex items-center gap-6">
+            <nav className="flex gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-100">
+              {[
+                { id: 'PROCESS', label: 'WORKSTATION', icon: Terminal },
+                { id: 'INTELLIGENCE', label: 'INTELLIGENCE', icon: Brain },
+                { id: 'METRICS', label: 'ANALYTICS', icon: BarChart3 },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => vo.setActiveCategory(cat.id as any)}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black transition-all tracking-widest ${vo.activeCategory === cat.id ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 ring-1 ring-slate-100' : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'}`}
+                >
+                  <cat.icon size={13} strokeWidth={vo.activeCategory === cat.id ? 3 : 2} />
+                  {cat.label}
+                </button>
+              ))}
+            </nav>
+            <div className="h-4 w-px bg-slate-200"></div>
+            <div className="flex gap-4">
+               {vo.activeCategory === 'PROCESS' && (
+                  <div className="flex gap-1">
+                    {['LOGS', 'SCHEDULER', 'KANBAN', 'MISSION'].map(tab => (
+                      <button key={tab} onClick={() => vo.setActiveTab(tab as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+               )}
+               {vo.activeCategory === 'INTELLIGENCE' && (
+                  <div className="flex gap-1">
+                    {['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL'].map(tab => (
+                      <button key={tab} onClick={() => vo.setActiveTab(tab as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {tab.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+               )}
+               {vo.activeCategory === 'METRICS' && (
+                  <div className="flex gap-1">
+                    {['STATS', 'ANALYTICS', 'TECH_PULSE'].map(tab => (
+                      <button key={tab} onClick={() => vo.setActiveTab(tab as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {tab.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+               )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+             <div className="flex -space-x-3 mr-4">
+                {vo.agents.slice(0, 4).map(agent => (
+                   <div key={agent.id} className={`w-8 h-8 rounded-full border-2 border-white ${getAgentColor(agent.name).bg} flex items-center justify-center text-white text-[10px] font-bold shadow-sm relative group cursor-pointer tooltip`}>
+                      <span className="uppercase">{agent.name[0]}</span>
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                        {agent.name}
+                      </div>
+                   </div>
+                ))}
+             </div>
+             
+             <button 
+                onClick={async () => {
+                  vo.setIsBriefingLoading(true);
+                  vo.setIsBriefingOpen(true);
+                  const res = await briefingService.get();
+                  vo.setBriefingContent(res.data.content);
+                  vo.setIsBriefingLoading(false);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-200 active:scale-95"
+             >
+                <Sparkles size={14} /> DAY BRIEFING
+             </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-hidden flex flex-col p-8 gap-8 bg-slate-50/30">
+          {vo.activeCategory === 'PROCESS' && vo.activeTab === 'LOGS' && (
+             <div className="flex-1 flex gap-8">
+                <div className="flex-1 flex flex-col rounded-[2.5rem] bg-white border border-slate-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.03)] overflow-hidden">
+                   <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md">
+                          <MessageSquare size={16} />
+                        </div>
+                        <h3 className="font-black text-slate-800 tracking-tight text-sm uppercase">Global Communication</h3>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Syncing</span>
+                        <div className="flex gap-1">
+                          <div className="w-1 h-1 rounded-full bg-emerald-400"></div>
+                          <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
+                        </div>
+                      </div>
+                   </div>
+                   
+                   <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar scroll-smooth" ref={scrollRef}>
+                      {vo.messages.map((msg, i) => (
+                        <motion.div 
+                          key={i} 
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                          className={`flex items-start gap-5 ${msg.sender === 'User' ? 'flex-row-reverse' : ''}`}
+                        >
+                          <div className={`w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center text-white shadow-lg ${msg.sender === 'User' ? 'bg-slate-800' : getAgentColor(msg.sender).bg}`}>
+                            {msg.sender === 'User' ? <User size={24} /> : <Bot size={24} />}
+                          </div>
+                          <div className={`max-w-[80%] flex flex-col ${msg.sender === 'User' ? 'items-end' : ''}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{msg.sender}</span>
+                              <span className="text-[9px] text-slate-300 font-mono">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                            <div className={`px-6 py-4 rounded-[1.5rem] text-[13px] font-medium leading-relaxed ${msg.sender === 'User' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100' : 'bg-slate-50 border border-slate-100/50 text-slate-700'}`}>
+                              <ReactMarkdown 
+                                 components={{
+                                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                  code: ({ node, ...props }) => <code className="bg-black/5 px-1 rounded font-mono text-[11px]" {...props} />,
+                                  pre: ({ children }) => <pre className="bg-slate-900 text-slate-50 p-4 rounded-xl my-3 overflow-x-auto text-[11px] font-mono leading-relaxed">{children}</pre>
+                                 }}
+                              >
+                                {msg.content}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                   </div>
+
+                   <div className="p-8 border-t border-slate-50 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.012)]">
+                      <div className="relative group">
+                         <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform"></div>
+                         <div className="flex gap-4">
+                            <input
+                              type="text"
+                              placeholder="Type a global message or command..."
+                              className="w-full bg-slate-50 border border-slate-100/50 rounded-2xl px-6 py-4 text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-100/30 transition-all font-mono"
+                              value={vo.inputValue}
+                              onChange={(e) => vo.setInputValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  if (vo.inputValue.startsWith('/')) handleExecuteCommand(vo.inputValue.substring(1));
+                                  else handleSendMessage();
+                                }
+                              }}
+                            />
+                            <button 
+                              onClick={handleSendMessage}
+                              disabled={!vo.inputValue.trim()}
+                              className="px-8 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:bg-slate-400 text-white rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 flex items-center justify-center group"
+                            > 
+                              <Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                            </button>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="w-96 flex flex-col gap-8">
+                   <div className="flex-1 flex flex-col rounded-[2rem] bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden">
+                      <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-black/20">
+                         <div className="flex items-center gap-2.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                         </div>
+                         <div className="flex items-center gap-2">
+                           <Terminal size={14} className="text-slate-500" />
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Internal Activity</span>
+                         </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar-dark font-mono text-[11px]" ref={consoleScrollRef}>
+                         {vo.activities.map((act, i) => (
+                           <motion.div initial={{ opacity: 0, x: 5 }} animate={{ opacity: 1, x: 0 }} key={act.id}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-slate-500">[{new Date(act.timestamp).toLocaleTimeString()}]</span>
+                                <span className={`${getAgentColor(act.agentName).soft} font-bold`}>{act.agentName}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-white ${act.type === 'PLANNING' ? 'bg-indigo-500' : act.type === 'TOOL' ? 'bg-emerald-600' : 'bg-slate-600'}`}>{act.type}</span>
+                              </div>
+                              <div className="pl-4 border-l border-slate-800 py-1 text-slate-300 leading-relaxed break-all">
+                                {act.content}
+                              </div>
+                           </motion.div>
+                         ))}
+                      </div>
+                   </div>
+                   
+                   <div className="h-64 rounded-[2rem] bg-white border border-slate-100 shadow-xl p-6 flex flex-col items-center justify-center text-center group cursor-pointer relative overflow-hidden overflow-y-auto custom-scrollbar">
+                      <TeamProductivityChart performance={vo.performanceData} />
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {vo.activeTab === 'SCHEDULER' && vo.activeCategory === 'PROCESS' && (
+             <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar pb-10">
+                <motion.div 
+                  onClick={() => vo.setIsSchedulerModalOpen(true)}
+                  initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  className="rounded-3xl border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/20 transition-all cursor-pointer group"
+                >
+                   <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-indigo-500 group-hover:text-white flex items-center justify-center mb-4 transition-all shadow-sm">
+                      <Plus size={32} />
+                   </div>
+                   <p className="text-sm font-black uppercase tracking-widest">New Automated Task</p>
+                </motion.div>
+                
+                {vo.scheduledTasks.map((task) => (
+                  <motion.div 
+                    key={task.id} 
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-white p-6 rounded-3xl border border-slate-100 shadow-lg hover:shadow-2xl transition-all relative overflow-hidden group"
+                  >
+                     <div className="flex justify-between items-start mb-6">
+                        <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-500 shadow-inner">
+                           <Calendar size={24} />
+                        </div>
+                        <button 
+                          onClick={() => handleToggleScheduler(task.id)}
+                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ease-in-out ${task.active ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                        >
+                           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ease-in-out ${task.active ? 'left-7' : 'left-1'}`}></div>
+                        </button>
+                     </div>
+                     <h4 className="text-sm font-black text-slate-800 mb-2 truncate leading-tight uppercase">{task.description}</h4>
+                     <p className="text-[11px] font-mono text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 mb-4 truncate italic">{task.command}</p>
+                     
+                     <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                        <div className="flex items-center gap-2">
+                           <div className={`w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400`}>A</div>
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{vo.agents.find(a => a.id === task.agentId)?.name}</span>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md">{task.cronExpression}</span>
+                     </div>
+                  </motion.div>
+                ))}
+             </div>
+          )}
+
+          {vo.activeTab === 'MISSION' && vo.activeCategory === 'PROCESS' && (
+            <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-8 overflow-y-auto custom-scrollbar pb-10">
+               {vo.tasks.filter(t => t.status === 'RUNNING' || t.status === 'HEALING').map(task => (
+                 <MissionMap key={task.id} parentTask={task} subTasks={vo.tasks.filter(st => st.parentId === task.id)} getAgentColor={getAgentColor} />
+               ))}
+               {vo.tasks.filter(t => t.status === 'RUNNING' || t.status === 'HEALING').length === 0 && (
+                  <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 opacity-50 py-20">
+                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center"><Target size={40} /></div>
+                    <p className="text-sm font-black uppercase tracking-widest">No active missions to track</p>
+                  </div>
+               )}
+            </div>
+          )}
+
+          {vo.activeTab === 'REASONING' && vo.activeCategory === 'INTELLIGENCE' && (
+             <div className="flex-1 overflow-y-auto custom-scrollbar pb-10 pr-4">
+                <CognitiveTraceTimeline traces={vo.cognitiveTraces} getAgentColor={getAgentColor} agents={vo.agents} />
+             </div>
+          )}
+
+          {vo.activeTab === 'CODE_REVIEW' && vo.activeCategory === 'INTELLIGENCE' && (
+            <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+                <div className="flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-200">
+                            <ShieldAlert size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Autonomous QA Center</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">AI 기반 코드 시맨틱 결함 관측 서비스</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleStartReview}
+                        disabled={vo.isReviewing}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${vo.isReviewing ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-rose-600 shadow-xl active:scale-95'}`}
+                    >
+                        {vo.isReviewing ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                        {vo.isReviewing ? 'Analyzing...' : 'Execute Comprehensive Review'}
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-4 pb-10">
+                    {vo.codeReviews.length === 0 && !vo.isReviewing ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-6 opacity-60">
+                            <div className="w-24 h-24 rounded-[2.5rem] bg-slate-50 border border-slate-100 flex items-center justify-center shadow-inner">
+                                <Code2 size={40} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-black uppercase tracking-widest mb-2 text-slate-500">지능형 코드 리뷰 대기 중</p>
+                                <p className="text-[11px] font-bold text-slate-400 max-w-sm leading-relaxed">에이전트들이 코드베이스를 분석하여 잠재적 버그, 보안 취약점, 성능 저하 요인을 발견하고 해결책을 제시합니다.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        vo.codeReviews.map((review) => (
+                            <motion.div 
+                                key={review.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-lg group hover:border-rose-200 transition-all"
+                            >
+                                <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${review.severity === 'CRITICAL' ? 'bg-rose-500 text-white' : review.severity === 'WARNING' ? 'bg-amber-500 text-white' : 'bg-indigo-500 text-white'}`}>
+                                            {review.severity}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Code2 size={14} className="text-slate-400" />
+                                            <span className="text-xs font-mono font-bold text-slate-700">{review.fileName}</span>
+                                        </div>
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(review.generatedAt).toLocaleString()}</span>
+                                </div>
+                                <div className="p-8 space-y-6">
+                                    <div>
+                                        <h4 className="text-sm font-black text-slate-800 mb-2 leading-tight uppercase">{review.reason}</h4>
+                                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic">{review.description}</p>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+                                        <div className="space-y-3">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 italic">Current Implementation</span>
+                                            <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-inner overflow-x-auto">
+                                                <pre className="text-[11px] font-mono text-rose-300 leading-relaxed"><code>{review.originalSnippet}</code></pre>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <span className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] px-2 italic">AI Recommendation</span>
+                                            <div className="bg-indigo-900/10 rounded-2xl p-5 border border-indigo-500/20 shadow-inner overflow-x-auto relative">
+                                                <pre className="text-[11px] font-mono text-indigo-600 leading-relaxed"><code>{review.suggestedFix}</code></pre>
+                                                <div className="absolute top-4 right-4"><Sparkles size={16} className="text-indigo-400 animate-pulse" /></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="pt-6 border-t border-slate-50 flex justify-end gap-3">
+                                        <button className="px-6 py-2.5 rounded-xl border border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">Ignore</button>
+                                        <button 
+                                            onClick={() => handleApplyFix(review.id)}
+                                            className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-95"
+                                        >
+                                            Apply AI Patch
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))
+                    )}
+                </div>
+            </div>
+          )}
+
+          {vo.activeTab === 'JANITOR' && vo.activeCategory === 'INTELLIGENCE' && (
+             <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+                <div className="flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg">
+                            <Trash2 size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Autonomous AI Janitor</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">실시간 기술 부채 스캔 및 자동 해소 시스템</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleStartJanitor}
+                        disabled={vo.isJanitorScanning}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${vo.isJanitorScanning ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-emerald-600 shadow-xl active:scale-95'}`}
+                    >
+                        {vo.isJanitorScanning ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                        {vo.isJanitorScanning ? 'Scanning...' : 'Start Full System Scan'}
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-4 pb-10">
+                    {vo.isJanitorScanning && (
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-4">
+                            <div className="relative">
+                                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 4, ease: "linear" }} className="w-16 h-16 border-4 border-t-indigo-500 border-indigo-100 rounded-full" />
+                                <div className="absolute inset-0 flex items-center justify-center text-indigo-500"><Search size={24} /></div>
+                            </div>
+                            <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">코드베이스 전체 기술 부채 실시간 분석 중...</p>
+                        </div>
+                    )}
+                    {vo.janitorIssues.length === 0 && !vo.isJanitorScanning ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-6 opacity-60">
+                            <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center"><Bot size={40} /></div>
+                            <p className="text-sm font-black uppercase tracking-widest">No critical maintenance issues detected</p>
+                        </div>
+                    ) : (
+                        vo.janitorIssues.map((issue) => (
+                            <motion.div key={issue.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="bg-white border border-slate-100 rounded-3xl p-6 flex items-center gap-6 group hover:shadow-xl hover:border-indigo-100 transition-all">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${issue.severity === 'CRITICAL' ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-amber-50 text-amber-500 border border-amber-100'}`}>
+                                    <ShieldAlert size={28} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${issue.status === 'FIXED' ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white'}`}>{issue.status}</span>
+                                        <span className="text-[10px] font-black text-slate-400 font-mono italic">{issue.filePath}</span>
+                                    </div>
+                                    <h4 className="text-sm font-black text-slate-800 mb-1 leading-tight uppercase">{issue.title}</h4>
+                                    <p className="text-xs text-slate-500 font-medium line-clamp-1">{issue.description}</p>
+                                </div>
+                                <button
+                                    onClick={() => handleJanitorFix(issue.id)}
+                                    disabled={vo.isJanitorLoading || issue.status === 'FIXED'}
+                                    className="px-6 py-3 bg-indigo-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                                >
+                                    {issue.status === 'FIXED' ? 'Resolved' : 'Auto Fix'}
+                                </button>
+                            </motion.div>
+                        ))
+                    )}
+                </div>
+             </div>
+          )}
+
+          {vo.activeTab === 'MISSION_CONTROL' && vo.activeCategory === 'INTELLIGENCE' && (
+              <div className="flex-1 overflow-hidden bg-slate-900 rounded-[2.5rem] border border-slate-800 shadow-2xl flex flex-col">
+                  <div className="p-8 border-b border-slate-800 bg-black/20 shrink-0">
+                     <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg">
+                                <Presentation size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-white tracking-tight uppercase">전역 미션 지능 보드</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Session: Default Alpha</span>
+                                    {vo.isMissionIntelligenceLoading && <Loader2 size={12} className="animate-spin text-slate-600" />}
+                                </div>
+                            </div>
+                         </div>
+                         <div className="flex gap-3">
+                             {['CORE', 'ANOMALY', 'STRATEGY'].map(tag => (
+                                 <span key={tag} className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-black tracking-widest uppercase border border-slate-700">{tag}</span>
+                             ))}
+                         </div>
+                     </div>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden">
+                      <MissionIntelligenceBoard intelligence={vo.missionIntelligence} isLoading={vo.isMissionIntelligenceLoading} />
+                  </div>
+              </div>
+          )}
+
+          {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (
+             <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+                <div className="flex items-center justify-between shrink-0 px-2">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-200">
+                         <Zap size={20} />
+                      </div>
+                      <div>
+                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Global Tech Pulse</h3>
+                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">AI 기반 기술 트렌드 및 프로젝트 영향도 실시간 관측</p>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-4">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">Last Updated: {new Date().toLocaleTimeString()}</span>
+                   </div>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-10">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {vo.techPulses.map(pulse => (
+                         <TechPulseCard key={pulse.id} pulse={pulse} />
+                      ))}
+                      {vo.techPulses.length === 0 && (
+                        <div className="col-span-full h-64 border-2 border-dashed border-slate-100 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-300 gap-4">
+                           <Loader2 size={32} className="animate-spin" />
+                           <p className="text-xs font-black uppercase tracking-widest">트렌드 레이더 가동 중...</p>
+                        </div>
+                      )}
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {vo.activeCategory === 'METRICS' && vo.activeTab === 'STATS' && (
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-y-auto custom-scrollbar pb-10">
+              <div className="lg:col-span-2 flex flex-col gap-8">
+                 <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden min-h-[400px]">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Agent Productivity Trends</h4>
+                    <TeamProductivityChart performance={vo.performanceData} />
+                 </div>
+              </div>
+              <div className="flex flex-col gap-8">
+                 <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl flex-1 flex flex-col overflow-hidden">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">System Morale & Health</h4>
+                    <div className="flex-1 flex flex-col items-center justify-center gap-10">
+                       <div className="relative w-48 h-48 flex items-center justify-center">
+                          <svg className="w-full h-full -rotate-90">
+                             <circle cx="96" cy="96" r="80" stroke="#1e293b" strokeWidth="16" fill="transparent" />
+                             <motion.circle 
+                                cx="96" cy="96" r="80" stroke="#818cf8" strokeWidth="16" fill="transparent" 
+                                strokeDasharray={502.4} 
+                                initial={{ strokeDashoffset: 502.4 }}
+                                animate={{ strokeDashoffset: 502.4 - (502.4 * 0.85) }}
+                                transition={{ duration: 2, ease: "easeOut" }}
+                             />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                             <span className="text-5xl font-black text-white">85</span>
+                             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Condition</span>
+                          </div>
+                       </div>
+                       <div className="w-full space-y-5">
+                          {[
+                            { label: "Memory Retention", val: 92, color: "bg-emerald-500" },
+                            { label: "Task Throughput", val: 78, color: "bg-indigo-500" },
+                            { label: "Logic Consistency", val: 88, color: "bg-violet-500" },
+                          ].map((stat, i) => (
+                             <div key={i} className="space-y-2">
+                                <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                   <span>{stat.label}</span>
+                                   <span>{stat.val}%</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                   <motion.div initial={{ width: 0 }} animate={{ width: `${stat.val}%` }} transition={{ delay: i * 0.1 }} className={`h-full ${stat.color}`} />
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {vo.activeChat && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`fixed bottom-10 right-10 w-[420px] bg-white rounded-[2.5rem] shadow-[0_20px_80px_rgba(0,0,0,0.15)] ring-1 ring-slate-100 overflow-hidden flex flex-col z-[50] border border-slate-100`}
+          >
+            <div className={`px-8 py-6 ${getAgentColor(vo.activeChat).bg} flex items-center justify-between shadow-lg relative overflow-hidden`}>
+              {/* Background Decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-16 -mt-16"></div>
+              
+              <div className="flex items-center gap-4 text-white relative z-10">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                  <Bot size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight capitalize">{vo.activeChat} <span className="text-[10px] opacity-70 font-normal ml-1">Direct Console</span></h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-80">Synchronized</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 relative z-10">
+                 <button onClick={() => vo.setActiveChat(null)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10">
+                   <X size={18} />
+                 </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 h-[450px] overflow-y-auto p-8 space-y-6 custom-scrollbar bg-slate-50/20 relative">
+               {vo.activePreviews[vo.activeChat] && <LivePreviewBubble preview={vo.activePreviews[vo.activeChat]!} getAgentColor={getAgentColor} />}
+               {vo.messages.filter(m => m.sender === vo.activeChat || (m.sender === 'User' && m.content.includes(`@${vo.activeChat}`))).length === 0 ? (
+                 <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 italic text-sm">
+                    No private records found.
+                 </div>
+               ) : (
+                 vo.messages.filter(m => m.sender === vo.activeChat || (m.sender === 'User' && m.content.includes(`@${vo.activeChat}`))).map((msg, i) => (
+                    <motion.div key={i} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className={`flex flex-col ${msg.sender === 'User' ? 'items-end' : 'items-start'}`}>
+                      <div className={`px-5 py-3.5 rounded-2xl text-[12px] font-medium leading-relaxed ${msg.sender === 'User' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'}`}>
+                        {msg.content}
+                      </div>
+                      <span className="text-[8px] font-black text-slate-400 mt-2 uppercase tracking-widest">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                    </motion.div>
+                 ))
+               )}
+            </div>
+            
+            <div className="p-8 bg-white border-t border-slate-100">
+               <div className="flex items-center gap-3">
+                  <div className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 flex items-center gap-3 group focus-within:ring-2 focus-within:ring-indigo-100 focus-within:bg-white transition-all">
+                    <Command size={14} className="text-slate-400 group-focus-within:text-indigo-500" />
+                    <input 
+                      type="text" 
+                      placeholder={`Message ${vo.activeChat}...`}
+                      className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full placeholder:text-slate-400 uppercase tracking-tighter" 
+                      value={vo.inputValue}
+                      onChange={(e) => vo.setInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          chatService.send("default", "User", `@${vo.activeChat} ${vo.inputValue}`);
+                          vo.setInputValue("");
+                        }
+                      }}
+                    />
+                  </div>
+                  <button 
+                  onClick={() => {
+                     chatService.send("default", "User", `@${vo.activeChat} ${vo.inputValue}`);
+                     vo.setInputValue("");
+                  }}
+                  className={`w-12 h-12 flex items-center justify-center rounded-2xl ${getAgentColor(vo.activeChat).bg} text-white shadow-lg shadow-indigo-100 active:scale-90 transition-all`}>
+                    <Send size={18} />
+                  </button>
+               </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {vo.isDeployModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-6">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl p-10 w-full max-w-xl border border-white/20 overflow-hidden relative">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
+               <div className="flex items-center justify-between mb-8 relative z-10">
+                  <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg"><Bot size={24} /></div>
+                     <div>
+                        <h3 className="text-xl font-black italic tracking-tight uppercase">Agent Deployment</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">New Intelligence Registration</p>
+                     </div>
+                  </div>
+                  <button onClick={() => vo.setIsDeployModalOpen(false)} className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400"><X size={20} /></button>
+               </div>
+               
+               <div className="space-y-6 relative z-10">
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identity Name</label>
+                     <input type="text" placeholder="E.g. Analyst, Coder..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-100 transition-all uppercase" value={vo.newAgent.name} onChange={e => vo.setNewAgent({...vo.newAgent, name: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">System Role</label>
+                     <input type="text" placeholder="Describe agent responsibility..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-100 transition-all" value={vo.newAgent.role} onChange={e => vo.setNewAgent({...vo.newAgent, role: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assigned Skills</label>
+                     <div className="flex gap-2 flex-wrap bg-slate-50 p-4 rounded-2xl border border-slate-100 min-h-[60px]">
+                        {vo.skills.map((skill: any) => (
+                           <button 
+                             key={skill.id} 
+                             onClick={() => {
+                                const exists = vo.newAgent.assignedSkills.includes(skill.id);
+                                const nextSkills = exists ? vo.newAgent.assignedSkills.filter((s: any) => s !== skill.id) : [...vo.newAgent.assignedSkills, skill.id];
+                                vo.setNewAgent({...vo.newAgent, assignedSkills: nextSkills});
+                             }}
+                             className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all border ${vo.newAgent.assignedSkills.includes(skill.id) ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg' : 'bg-white text-slate-400 border-slate-200'}`}
+                           >
+                              {skill.name}
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+                  <button onClick={handleCreateAgent} disabled={vo.isDeploying} className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-3xl text-xs font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2">
+                     {vo.isDeploying ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
+                     {vo.editingAgentId ? 'Update Identity' : 'Initiate Deployment'}
+                  </button>
+               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {vo.isSchedulerModalOpen && (
+           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-6">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl p-10 w-full max-w-lg border border-white/20 overflow-hidden">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg"><Calendar size={24} /></div>
+                    <div><h3 className="text-xl font-black tracking-tight uppercase">Automated Routine</h3></div>
+                  </div>
+                  <button onClick={() => vo.setIsSchedulerModalOpen(false)} className="p-2"><X size={20} /></button>
+                </div>
+                <div className="space-y-6">
+                   <input placeholder="Task Description" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold" value={vo.newScheduledTask.description} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, description: e.target.value})} />
+                   <select className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold" value={vo.newScheduledTask.agentId} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, agentId: Number(e.target.value)})}>
+                      {vo.agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                   </select>
+                   <input placeholder="Command (e.g. check logs)" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold font-mono" value={vo.newScheduledTask.command} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, command: e.target.value})} />
+                   <input placeholder="Cron (e.g. 0 0/1 * * * ?)" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold font-mono" value={vo.newScheduledTask.cronExpression} onChange={e => vo.setNewScheduledTask({...vo.setNewScheduledTask, cronExpression: e.target.value})} />
+                   <button onClick={handleCreateScheduledTask} className="w-full py-5 bg-indigo-600 text-white rounded-3xl text-xs font-black uppercase tracking-widest shadow-xl">Activate Schedule</button>
+                </div>
+              </motion.div>
+           </div>
+        )}
+
+        {vo.isWhiteboardOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[300] flex items-center justify-center p-10">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`bg-white rounded-[3rem] shadow-2xl flex flex-col overflow-hidden transition-all border border-white/20 ${vo.isFullscreenWhiteboard ? 'w-full h-full' : 'w-full max-w-5xl h-[85vh]'}`}>
+               <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg"><Presentation size={24} /></div>
+                    <div><h3 className="text-xl font-black tracking-tight uppercase">Agent Collaborative Canvas</h3><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Global Memory Visualizer</p></div>
+                  </div>
+                  <div className="flex gap-3">
+                     <button onClick={() => vo.setIsFullscreenWhiteboard(!vo.isFullscreenWhiteboard)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500"><Maximize2 size={18} /></button>
+                     <button onClick={() => vo.setIsWhiteboardOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-rose-50 text-rose-500 transition-colors"><X size={20} /></button>
+                  </div>
+               </div>
+               <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-slate-50/20">
+                  <div className="prose prose-slate max-w-none prose-pre:bg-slate-900 prose-pre:p-8 prose-pre:rounded-[2rem] prose-pre:shadow-2xl prose-h1:text-4xl prose-h1:font-black prose-h1:italic prose-h1:tracking-tighter prose-p:text-lg prose-p:leading-relaxed">
+                     <ReactMarkdown>{vo.whiteboardContent || ""}</ReactMarkdown>
+                  </div>
+               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {vo.isBrowserOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-6">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col border border-white/20">
+               <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-4 w-full mr-10">
+                     <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-rose-400"></div><div className="w-3 h-3 rounded-full bg-amber-400"></div><div className="w-3 h-3 rounded-full bg-emerald-400"></div></div>
+                     <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-mono text-slate-500 truncate shadow-inner">{vo.browserUrl}</div>
+                  </div>
+                  <button onClick={() => vo.setIsBrowserOpen(false)} className="p-2"><X size={20} /></button>
+               </div>
+               <div className="flex-1 overflow-auto bg-slate-100/30 p-10 flex items-center justify-center">
+                  {vo.browserScreenshot ? <img src={`data:image/png;base64,${vo.browserScreenshot}`} className="shadow-2xl rounded-xl border border-slate-200 bg-white" alt="Browser view" /> : <div className="flex flex-col items-center gap-4 text-slate-400"><Loader2 size={40} className="animate-spin" /><p className="text-xs font-black uppercase tracking-widest">Streaming interface...</p></div>}
+               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {vo.isShadowPreviewOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[300] flex items-center justify-center p-6">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-white/20">
+               <div className="px-10 py-8 bg-indigo-600 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-4 text-white">
+                    <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30"><ShieldAlert size={24} /></div>
+                    <div><h3 className="text-xl font-black tracking-tight uppercase">Shadow Coding Preview</h3><p className="text-[10px] text-indigo-100 font-bold uppercase tracking-widest">Isolated Sandbox Verification</p></div>
+                  </div>
+                  <button onClick={() => vo.setIsShadowPreviewOpen(false)} className="p-2 text-white/50"><X size={24} /></button>
+               </div>
+               <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-slate-900 font-mono text-xs">
+                  <pre className={`p-6 rounded-2xl bg-black/50 border border-slate-800 text-slate-300 leading-relaxed whitespace-pre-wrap`}>
+                    {vo.shadowDiff || "No changes detected in sandbox."}
+                  </pre>
+               </div>
+               <div className="p-10 border-t border-slate-100 bg-white flex justify-end gap-4 shadow-inner">
+                  <button onClick={handleDiscardShadow} className="px-8 py-3 bg-slate-100 hover:bg-rose-50 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Discard Sandbox</button>
+                  <button onClick={handleCommitShadow} className="px-10 py-3 bg-indigo-600 hover:bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-100">Commit Changes to Main</button>
+               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }
