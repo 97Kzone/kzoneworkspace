@@ -27,6 +27,7 @@ import com.kzoneworkspace.backend.agent.service.CodebaseIndexingService
 import com.kzoneworkspace.backend.agent.service.ShadowWorkspaceService
 import com.kzoneworkspace.backend.agent.service.LessonService
 import com.kzoneworkspace.backend.agent.entity.CodebaseChunk
+import com.kzoneworkspace.backend.agent.service.MissionIntelligenceService
 import org.springframework.transaction.annotation.Transactional
 import java.net.URLEncoder
 
@@ -50,6 +51,7 @@ class AgentExecutor(
     private val codebaseIndexingService: CodebaseIndexingService,
     private val shadowWorkspaceService: ShadowWorkspaceService,
     private val lessonService: LessonService,
+    private val missionIntelligenceService: MissionIntelligenceService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val shadowSessions = mutableMapOf<String, Long>() // roomId or sessionId mapping
@@ -97,9 +99,12 @@ class AgentExecutor(
             val projectContext = projectContextService.getProjectContext()
             val lessonsPrompt = lessonService.getRelevantLessonsPrompt(userMessage)
             
+            // 집단 미션 지능(Mission Intelligence) 주입
+            val missionIntelPrompt = missionIntelligenceService.getContextPrompt(roomId)
+            
             messages.add(mapOf(
                 "role" to "user", 
-                "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage\n\n$lessonsPrompt"
+                "content" to "[System Context: Project Overview]\n$projectContext\n\n$missionIntelPrompt\n\n[User Goal]: $userMessage\n\n$lessonsPrompt"
             ))
 
             sendMessage(roomId, agent.name, "최적의 해결 방법을 계획하고 있습니다...", MessageType.THINKING)
@@ -124,6 +129,9 @@ class AgentExecutor(
             // 기억 저장
             val fullDialogue = "User: $userMessage\nAgent: $lastResponse"
             memoryExtractionService.extractAndSaveMemory(agent.id, roomId, fullDialogue)
+            
+            // 미션 지능 추출 및 동기화 (Collective Intelligence)
+            missionIntelligenceService.extractAndSync(task, lastResponse)
             
             // 기술적 교훈 추출 트리거 (성공 시에도 간략한 교훈 추출)
             lessonService.extractAndSaveLesson(task)
@@ -188,7 +196,9 @@ class AgentExecutor(
 
             // 프로젝트 구조 컨텍스트
             val projectContext = projectContextService.getProjectContext()
-            messages.add(mapOf("role" to "user", "content" to "[System Context: Project Overview]\n$projectContext\n\n[User Goal]: $userMessage"))
+            val missionIntelPrompt = missionIntelligenceService.getContextPrompt(roomId)
+            
+            messages.add(mapOf("role" to "user", "content" to "[System Context: Project Overview]\n$projectContext\n\n$missionIntelPrompt\n\n[User Goal]: $userMessage"))
 
             val lastResponse = runReasoningLoop(agent, roomId, messages)
 
@@ -209,6 +219,9 @@ class AgentExecutor(
             // 기억 저장
             val fullDialogue = "User: $userMessage\nAgent: $lastResponse"
             memoryExtractionService.extractAndSaveMemory(agent.id, roomId, fullDialogue)
+
+            // 미션 지능 추출 및 동기화 (Collective Intelligence)
+            missionIntelligenceService.extractAndSync(task, lastResponse)
 
         } catch (e: Exception) {
             // 자가 치유를 위해 예외를 밖으로 던짐

@@ -267,6 +267,20 @@ export const workstreamService = {
     start: (data: { roomId: string, goal: string }) => api.post<string>('/workstreams/start', data),
 };
 
+export interface MissionContext {
+    id: number;
+    roomId: String;
+    intelKey: string;
+    intelValue: string;
+    importance: number;
+    agentName: string;
+    createdAt: string;
+}
+
+export const missionIntelligenceService = {
+    get: (roomId: string) => api.get<MissionContext[]>(`/mission-intelligence/${roomId}`),
+};
+
 export const projectHealthService = {
     get: () => api.get<ProjectHealth>('/project-health'),
 };

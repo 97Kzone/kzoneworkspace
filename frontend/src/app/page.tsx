@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, BarChart2, Brain, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag, Zap, Target, Heart, ShieldAlert, TrendingUp } from "lucide-react";
+import { Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, BarChart3, BarChart2, Brain, Calendar, Activity, ChevronRight, Pause, Play, Trash2, Search, Leaf, ShoppingBag, Zap, Target, Heart, ShieldAlert, TrendingUp, History } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
-import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, AgentLesson, CognitiveTrace, MaintenanceIssue, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService, lessonService, shadowService, cognitiveService, janitorService } from "./apiService";
+import { Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, ActionableStrategy, TeamPerformance, AgentLesson, CognitiveTrace, MaintenanceIssue, MissionContext, agentService, taskService, chatService, skillService, activityService, schedulingService, createWebSocketClient, codeReviewService, memoryService, officeService, codebaseService, briefingService, techPulseService, projectHealthService, lessonService, shadowService, cognitiveService, janitorService, missionIntelligenceService } from "./apiService";
 
 const getAgentColor = (name: string) => {
   const colors = [
@@ -935,6 +935,88 @@ const LivePreviewBubble = ({
   );
 };
 
+const MissionIntelligenceBoard = ({ 
+  intelligence, 
+  isLoading 
+}: { 
+  intelligence: MissionContext[]; 
+  isLoading: boolean;
+}) => {
+  return (
+    <div className="h-full flex flex-col p-4">
+      <div className="flex items-center justify-between mb-6 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-500 text-white flex items-center justify-center shadow-lg shadow-violet-900/40 animate-pulse">
+            <Brain size={20} />
+          </div>
+          <div>
+             <h4 className="text-[12px] font-black text-white tracking-widest uppercase">Collective Mission Intelligence</h4>
+             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">실시간 세션 지능 & 미션 동기화 보드</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+            <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest uppercase flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Live Syncing
+            </span>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2 pb-6">
+        {isLoading && intelligence.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50 py-20">
+             <Loader2 size={40} className="animate-spin text-slate-500" />
+             <p className="text-[11px] font-black uppercase tracking-widest text-center">지능을 수집하는 중입니다...</p>
+          </div>
+        ) : intelligence.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50 py-20">
+              <div className="p-4 rounded-full bg-slate-800/50">
+                <Target size={40} className="text-slate-500" />
+              </div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-center leading-relaxed">아직 수집된 지능이 없습니다.<br/>에이전트들이 작업을 완료하면 여기에 전역 지식이 공유됩니다.</p>
+            </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {intelligence.map((intel) => (
+              <motion.div 
+                key={intel.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`bg-slate-800/60 border ${intel.importance >= 4 ? 'border-amber-500/40 shadow-amber-500/5' : 'border-slate-700/50'} rounded-2xl p-4 hover:bg-slate-800/80 transition-all relative overflow-hidden group`}
+              >
+                {intel.importance >= 4 && (
+                    <div className="absolute top-0 right-0 px-2.5 py-1 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest rounded-bl-xl shadow-lg">
+                        Critical Intel
+                    </div>
+                )}
+                <div className="flex items-center gap-2 mb-3 text-left">
+                  <span className={`px-2 py-0.5 rounded-lg ${intel.importance >= 4 ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'} text-[9px] font-black tracking-widest uppercase`}>
+                    {intel.intelKey}
+                  </span>
+                  <span className="text-[9px] text-slate-500 font-bold">•</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase">{intel.agentName} 발견</span>
+                </div>
+                <p className="text-[11px] font-bold text-slate-200 leading-relaxed mb-4 text-left">{intel.intelValue}</p>
+                <div className="flex items-center justify-between text-[8px] text-slate-500 font-black uppercase tracking-widest">
+                  <div className="flex items-center gap-1">
+                    <History size={10} />
+                    {new Date(intel.createdAt).toLocaleTimeString()}
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className={`w-2 h-0.5 rounded-full ${i < intel.importance ? 'bg-indigo-500' : 'bg-slate-700'}`} />
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const TechPulseCard = ({ pulse }: { pulse: TechPulse }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -1136,7 +1218,7 @@ export default function VirtualOfficeBright() {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR' | 'MISSION_CONTROL'>('LOGS');
   const [janitorIssues, setJanitorIssues] = useState<MaintenanceIssue[]>([]);
   const [isJanitorScanning, setIsJanitorScanning] = useState(false);
   const [isJanitorLoading, setIsJanitorLoading] = useState(false);
@@ -1205,6 +1287,8 @@ export default function VirtualOfficeBright() {
   const [lessons, setLessons] = useState<AgentLesson[]>([]);
   const [isWisdomVaultOpen, setIsWisdomVaultOpen] = useState(false);
   const [isShadowLoading, setIsShadowLoading] = useState(false);
+  const [missionIntelligence, setMissionIntelligence] = useState<MissionContext[]>([]);
+  const [isMissionIntelligenceLoading, setIsMissionIntelligenceLoading] = useState(false);
 
   const stompClient = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1245,13 +1329,34 @@ export default function VirtualOfficeBright() {
         setNewScheduledTask(prev => ({ ...prev, agentId: agentRes.data[0].id }));
       }
 
-      // 기술적 교훈 초기 로드 (ATR)
       const lessonRes = await lessonService.getAll();
       setLessons(lessonRes.data);
+
+      // 미션 지능 초기 로드
+      const missionRes = await missionIntelligenceService.get("default");
+      setMissionIntelligence(missionRes.data);
     } catch (err) {
       console.error("데이터 로드 실패:", err);
     }
   };
+
+  const fetchMissionIntelligence = async () => {
+    try {
+      const res = await missionIntelligenceService.get("default");
+      setMissionIntelligence(res.data);
+    } catch (err) {
+      console.error("Mission Intelligence fetch failed:", err);
+    }
+  };
+
+  // Poll mission intelligence when active
+  useEffect(() => {
+    if (activeTab === 'MISSION_CONTROL') {
+      fetchMissionIntelligence();
+      const interval = setInterval(fetchMissionIntelligence, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   const handleStartShadow = async (taskId: number) => {
     try {
@@ -2455,17 +2560,17 @@ export default function VirtualOfficeBright() {
                     )}
                     {activeCategory === 'INTELLIGENCE' && (
                       <>
-                        {['REASONING', 'TECH_PULSE', 'CODE_REVIEW', 'JANITOR', 'WISDOM'].map(tab => (
-                          <button
-                            key={tab}
-                            onClick={() => {
-                              if (tab === 'WISDOM') setIsWisdomVaultOpen(true);
-                              else setActiveTab(tab as any);
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
-                          >
-                            {tab === 'CODE_REVIEW' ? 'QA REVIEW' : tab === 'WISDOM' ? 'WISDOM VAULT' : tab}
-                          </button>
+                        {['REASONING', 'MISSION_CONTROL', 'TECH_PULSE', 'CODE_REVIEW', 'JANITOR', 'WISDOM'].map(tab => (
+                            <button
+                              key={tab}
+                              onClick={() => {
+                                if (tab === 'WISDOM') setIsWisdomVaultOpen(true);
+                                else setActiveTab(tab as any);
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30 shadow-md' : 'text-slate-500 hover:text-slate-400'}`}
+                            >
+                              {tab === 'CODE_REVIEW' ? 'QA REVIEW' : tab === 'WISDOM' ? 'WISDOM VAULT' : tab === 'MISSION_CONTROL' ? 'MISSION CONTROL' : tab}
+                            </button>
                         ))}
                       </>
                     )}
@@ -2832,6 +2937,8 @@ export default function VirtualOfficeBright() {
                           )}
                         </div>
                       </div>
+                    ) : activeTab === 'MISSION_CONTROL' ? (
+                      <MissionIntelligenceBoard intelligence={missionIntelligence} isLoading={isMissionIntelligenceLoading} />
                     ) : activeTab === 'MISSION' ? (
                       <div className="h-full p-2">
                         {tasks.find(t => t.parentId === null && tasks.some(st => st.parentId === t.id && st.status !== 'COMPLETED')) ? (
