@@ -1,31 +1,16 @@
 import { motion } from "framer-motion";
 
-export const EmotionBubble = ({ 
-  emotion, 
-  agentName,
-  getAgentColor 
-}: { 
-  emotion: string, 
-  agentName: string,
-  getAgentColor: (name: string) => any 
-}) => {
-  const emojis: Record<string, string> = {
-    "HAPPY": "🎉",
-    "SAD": "😫",
-    "THINKING": "🤔",
-    "ANGRY": "💢",
-    "SUCCESS": "✅",
-    "ERROR": "❌"
-  };
-
+/**
+ * 에이전트의 현재 감정 상태를 이모지로 표시하는 작은 거품 컴포넌트
+ */
+export const EmotionBubble = ({ emotion }: { emotion: string }) => {
   return (
     <motion.div
-      initial={{ scale: 0, y: 0, opacity: 0 }}
-      animate={{ scale: [0, 1.3, 1], y: -50, opacity: 1 }}
-      exit={{ scale: 0, opacity: 0 }}
-      className="absolute left-1/2 -translate-x-1/2 z-[100] text-3xl filter drop-shadow-lg"
+      initial={{ scale: 0, y: 10 }}
+      animate={{ scale: 1, y: 0 }}
+      className="bg-white px-2 py-1 rounded-full shadow-lg border border-slate-100 flex items-center justify-center pointer-events-none"
     >
-      {emojis[emotion] || emotion}
+      <span className="text-xs" title="에이전트 감정">{emotion}</span>
     </motion.div>
   );
 };

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Database, X, Loader2, Search, Bot } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
-import { Memory } from "../apiService";
+import { Database, X, Search, Terminal, Loader2, Sparkles, Brain, Clock } from "lucide-react";
+import { Memory } from "../app/apiService";
 
+/**
+ * 에이전트들의 지식(에피소드 기억)을 탐색하고 검색하는 모달 컴포넌트
+ */
 export const KnowledgeExplorer = ({ 
   isOpen, 
   onClose, 
@@ -15,7 +17,7 @@ export const KnowledgeExplorer = ({
   isOpen: boolean; 
   onClose: () => void; 
   memories: Memory[]; 
-  onSearch: (query: string) => void;
+  onSearch: (q: string) => void;
   isLoading: boolean;
   getAgentColor: (name: string) => any;
 }) => {
@@ -25,77 +27,99 @@ export const KnowledgeExplorer = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, x: 400 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 400 }}
-          className="fixed top-0 right-0 w-[450px] h-full bg-white/80 backdrop-blur-2xl border-l border-indigo-100/50 z-[150] shadow-[-20px_0_60px_rgba(0,0,0,0.05)] flex flex-col"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6"
         >
-          <div className="h-20 border-b border-slate-100/50 flex items-center justify-between px-8 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
-                <Database size={20} />
+          <motion.div
+            initial={{ scale: 0.9, y: 30, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: 30, opacity: 0 }}
+            className="bg-white rounded-[2.5rem] shadow-[0_25px_70px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col w-full max-w-4xl h-[85vh] border border-white/40"
+          >
+            <div className="px-8 py-6 bg-gradient-to-r from-slate-900 to-indigo-900 flex items-center justify-between shadow-lg shrink-0">
+              <div className="flex items-center gap-4 text-white">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                  <Database size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black tracking-tight uppercase">전역 지식 탐색기</h3>
+                  <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-[0.2em] opacity-80">분산된 에이전트의 에피소드 기억 및 교훈 조회</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-black text-slate-800 tracking-tight">지식 탐색기</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">에이전트 메모리 탐색</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 transition-colors">
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="p-6 border-b border-slate-100/50 bg-white/50">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="어떤 지식을 찾으시나요? (예: 코드 리뷰 결과)"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onSearch(query)}
-                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all shadow-sm"
-              />
               <button 
-                onClick={() => onSearch(query)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-200"
+                onClick={onClose} 
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
               >
-                {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                <X size={20} />
               </button>
             </div>
-          </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/30">
-            {memories.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4 opacity-60">
-                <Database size={40} className="mb-2" />
-                <p className="text-sm font-bold text-center">검색 결과가 없거나<br/>아직 지식이 축적되지 않았습니다.</p>
+            <div className="p-8 border-b border-slate-100 bg-slate-50/50 shrink-0">
+              <div className="relative group">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
+                <input
+                  type="text"
+                  placeholder="의미론적 지식 검색 (예: '기술 부채', '최적화 사례'...)"
+                  className="w-full bg-white border border-slate-200 rounded-3xl pl-16 pr-8 py-5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder:text-slate-400 shadow-sm"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && onSearch(query)}
+                />
+                {isLoading && (
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                    <Loader2 size={24} className="animate-spin text-indigo-500" />
+                  </div>
+                )}
               </div>
-            ) : (
-              memories.map((memory) => (
-                <motion.div
-                  key={memory.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-lg ${getAgentColor(memory.agentName).light} flex items-center justify-center border border-indigo-50`}>
-                        <Bot size={14} className={getAgentColor(memory.agentName).text} />
-                      </div>
-                      <span className={`text-[11px] font-black ${getAgentColor(memory.agentName).soft}`}>{memory.agentName}</span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar bg-white">
+              {memories.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center space-y-6 opacity-30 text-slate-400">
+                  <div className="p-10 rounded-[3rem] bg-slate-50 border-2 border-dashed border-slate-200">
+                    <Sparkles size={64} strokeWidth={1} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-black uppercase tracking-widest text-slate-500">검색 결과가 없습니다</p>
+                    <p className="text-xs font-bold mt-2">지식 베이스에서 에피소드를 조회해 보세요.</p>
+                  </div>
+                </div>
+              ) : (
+                memories.map((memory, i) => (
+                  <motion.div 
+                    key={memory.id} 
+                    initial={{ opacity: 0, x: -20 }} 
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="p-8 rounded-[2rem] bg-slate-50 border border-slate-100/50 hover:bg-white hover:border-indigo-100 hover:shadow-2xl hover:-translate-y-1 transition-all group relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+                    <div className="flex items-center gap-2 mb-4 relative z-10">
+                      <span className={`px-3 py-1 rounded-full ${getAgentColor(memory.agentName).soft} text-[9px] font-black tracking-widest uppercase`}>
+                        발견자: {memory.agentName}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-bold">•</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1.5 leading-none">
+                        <Clock size={10} /> {new Date(memory.timestamp).toLocaleString()}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-bold font-mono">
-                      {new Date(memory.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-600 leading-relaxed italic border-l-2 border-indigo-100 pl-3">
-                    <ReactMarkdown>{memory.content}</ReactMarkdown>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
+                    <h4 className="text-base font-black text-slate-800 mb-3 group-hover:text-indigo-600 transition-colors uppercase leading-tight relative z-10">{memory.content}</h4>
+                    <div className="flex items-center gap-3 relative z-10">
+                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                        <Brain size={14} className="text-slate-400" />
+                      </div>
+                      <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${(memory.importance || 5) * 10}%` }} className="h-full bg-indigo-500" />
+                      </div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">중요도 {memory.importance || 5}/10</span>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

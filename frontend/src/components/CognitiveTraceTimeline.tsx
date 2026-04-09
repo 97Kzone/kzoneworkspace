@@ -1,8 +1,11 @@
 import { motion } from "framer-motion";
 import { Brain, Target, ShieldAlert, Zap, Activity } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
-import { CognitiveTrace, Agent } from "../apiService";
+import { CognitiveTrace, Agent } from "../app/apiService";
 
+/**
+ * 에이전트의 사고 과정(Planning, Inference 등)을 타임라인으로 표시
+ */
 export const CognitiveTraceTimeline = ({ 
   traces, 
   getAgentColor, 
@@ -12,6 +15,7 @@ export const CognitiveTraceTimeline = ({
   getAgentColor: (name: string) => any, 
   agents: Agent[] 
 }) => {
+    // 각 트레이스 타입별 아이콘 및 레이블 매핑
     const typeConfigs: Record<string, { icon: any, color: string, label: string }> = {
         'PLANNING': { icon: Target, color: 'text-sky-400', label: '차세대 전략 수립' },
         'INFERENCE': { icon: Brain, color: 'text-indigo-400', label: '논리적 추론 도출' },
@@ -31,7 +35,7 @@ export const CognitiveTraceTimeline = ({
                 const config = typeConfigs[trace.type] || typeConfigs['INFERENCE'];
                 const Icon = config.icon;
                 const agent = agents.find(a => a.id === Number(trace.agentId));
-                const agentName = agent?.name || "Unknown";
+                const agentName = agent?.name || "미지정";
 
                 return (
                     <motion.div 
@@ -41,7 +45,7 @@ export const CognitiveTraceTimeline = ({
                         transition={{ delay: i * 0.05 }}
                         className="relative pl-14 group"
                     >
-                        {/* Dot */}
+                        {/* 타임라인 점(Dot) */}
                         <div className={`absolute left-10 top-2 w-5 h-5 rounded-full border-4 border-slate-900 bg-slate-800 z-10 group-hover:scale-125 group-hover:bg-indigo-500 transition-all duration-300 transform -translate-x-1/2 shadow-[0_0_15px_rgba(99,102,241,0.2)]`} />
 
                         <div className="bg-slate-800/40 border border-slate-700/50 rounded-[2rem] p-6 hover:bg-slate-800/60 hover:border-indigo-500/40 transition-all shadow-xl backdrop-blur-sm relative overflow-hidden">
@@ -68,7 +72,7 @@ export const CognitiveTraceTimeline = ({
                                 </div>
                                 <div className="flex flex-col items-end shrink-0">
                                     <div className="flex items-center gap-2 mb-1.5">
-                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Confidence Score</span>
+                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">추론 신뢰도</span>
                                         <span className={`text-[10px] font-mono font-bold ${trace.confidence > 0.8 ? 'text-emerald-400' : 'text-indigo-400'}`}>{(trace.confidence * 100).toFixed(0)}%</span>
                                     </div>
                                     <div className="w-24 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700/50 shadow-inner">

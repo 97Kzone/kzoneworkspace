@@ -1,8 +1,11 @@
 import { motion } from "framer-motion";
 import { Loader2, Target, Zap, Activity, BarChart3 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-import { TeamPerformance } from "../apiService";
+import { TeamPerformance } from "../../app/apiService";
 
+/**
+ * 팀 전체의 생산성 메트릭과 에이전트별 기여도를 시각화하는 차트
+ */
 export const TeamProductivityChart = ({ performance }: { performance: TeamPerformance | null }) => {
   if (!performance) return (
     <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
@@ -30,7 +33,7 @@ export const TeamProductivityChart = ({ performance }: { performance: TeamPerfor
       <div className="flex-1 min-h-[0] relative mt-2">
         <span className="text-[9px] text-slate-500 uppercase font-black mb-4 flex items-center gap-2">
           <BarChart3 size={12} className="text-indigo-400" />
-          최근 7일 생산성 트렌드
+          최근 7일 생산성 추이
         </span>
         <div className="h-[120px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -58,6 +61,7 @@ export const TeamProductivityChart = ({ performance }: { performance: TeamPerfor
               <Tooltip 
                 contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} 
                 itemStyle={{ padding: '0' }}
+                formatter={(value, name) => [value, name === 'taskCount' ? '완료 태스크' : '활동 수']}
               />
               <Area 
                 type="monotone" 
@@ -95,7 +99,7 @@ export const TeamProductivityChart = ({ performance }: { performance: TeamPerfor
                   className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500"
                 />
               </div>
-              <span className="text-[9px] font-mono text-slate-400 w-12 text-right">{agent.completedTasks} tasks</span>
+              <span className="text-[9px] font-mono text-slate-400 w-12 text-right">{agent.completedTasks}개</span>
             </div>
           ))}
         </div>

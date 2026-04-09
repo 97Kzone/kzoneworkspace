@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
-// Types and Services
+// API 서비스 및 타입
 import { 
   agentService, taskService, chatService, skillService, activityService, 
   schedulingService, codeReviewService, memoryService, officeService, 
@@ -19,14 +19,14 @@ import {
   missionIntelligenceService, ActionableStrategy 
 } from "./apiService";
 
-// Utilities
+// 유틸리티
 import { getAgentColor } from "../utils/agentColors";
 
-// Hooks
+// 커스텀 훅
 import { useVirtualOffice } from "../hooks/useVirtualOffice";
 import { useStompWS } from "../hooks/useStompWS";
 
-// Components
+// 컴포넌트
 import { EmotionBubble } from "../components/EmotionBubble";
 import { KnowledgeExplorer } from "../components/KnowledgeExplorer";
 import { WisdomVault } from "../components/WisdomVault";
@@ -45,7 +45,7 @@ export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
   const stompClient = useRef<any>(null);
 
-  // Initialize WebSocket and Data
+  // WebSocket 연결 및 초기 데이터 로드
   useStompWS(
     stompClient,
     vo.setMessages,
@@ -66,6 +66,7 @@ export default function VirtualOfficeBright() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const consoleScrollRef = useRef<HTMLDivElement>(null);
 
+  // 메시지 및 활동 로그 자동 스크롤
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -78,7 +79,7 @@ export default function VirtualOfficeBright() {
     }
   }, [vo.activities]);
 
-  // Handlers (Simplified for extraction in next phase)
+  // 핸들러 함수들
   const handleSendMessage = async () => {
     if (!vo.inputValue.trim()) return;
     try {
@@ -147,7 +148,7 @@ export default function VirtualOfficeBright() {
       const res = await codeReviewService.getAll();
       vo.setCodeReviews(res.data);
     } catch (e) {
-      console.error("Refactor failed:", e);
+      console.error("코드 반영 실패:", e);
     }
   };
 
@@ -158,7 +159,7 @@ export default function VirtualOfficeBright() {
       const res = await janitorService.getIssues();
       vo.setJanitorIssues(res.data);
     } catch (e) {
-      console.error("Scanning failed:", e);
+      console.error("스캔 실패:", e);
     } finally {
       vo.setIsJanitorScanning(false);
     }
@@ -171,7 +172,7 @@ export default function VirtualOfficeBright() {
       const res = await janitorService.getIssues();
       vo.setJanitorIssues(res.data);
     } catch (e) {
-      console.error("Fix failed:", e);
+      console.error("수정 실패:", e);
     } finally {
       vo.setIsJanitorLoading(false);
     }
@@ -184,7 +185,7 @@ export default function VirtualOfficeBright() {
       const res = await schedulingService.getAll();
       vo.setScheduledTasks(res.data);
     } catch (err) {
-      console.error("Scheduler failed:", err);
+      console.error("스케줄 생성 실패:", err);
     }
   };
 
@@ -194,7 +195,7 @@ export default function VirtualOfficeBright() {
       const res = await schedulingService.getAll();
       vo.setScheduledTasks(res.data);
     } catch (err) {
-      console.error("Toggle failed:", err);
+      console.error("스케줄 토글 실패:", err);
     }
   };
 
@@ -204,7 +205,7 @@ export default function VirtualOfficeBright() {
       vo.setWhiteboardContent(res.data);
       vo.setIsWhiteboardOpen(true);
     } catch (err) {
-      console.error("Whiteboard load failed:", err);
+      console.error("화이트보드 로드 실패:", err);
     }
   };
 
@@ -215,7 +216,7 @@ export default function VirtualOfficeBright() {
       const res = await agentService.browse(url);
       vo.setBrowserScreenshot(res.data);
     } catch (err) {
-      console.error("Browse failed:", err);
+      console.error("브라우징 실패:", err);
     }
   };
 
@@ -224,7 +225,7 @@ export default function VirtualOfficeBright() {
       await projectHealthService.adopt(strategy);
       vo.fetchInitialData();
     } catch (err) {
-      console.error("Strategy adoption failed:", err);
+      console.error("전략 채택 실패:", err);
     }
   };
 
@@ -249,21 +250,30 @@ export default function VirtualOfficeBright() {
   };
 
   const commanderActions = [
-    { id: 'NAV_LOGS', label: 'Go to Activity Logs', icon: Terminal, category: 'NAVIGATION' },
-    { id: 'NAV_REASONING', label: 'Go to Reasoning Trace', icon: Brain, category: 'NAVIGATION' },
-    { id: 'NAV_MISSION_CONTROL', label: 'Go to Mission Control', icon: Target, category: 'NAVIGATION' },
-    { id: 'NAV_JANITOR', label: 'Go to Technical Janitor', icon: Trash2, category: 'NAVIGATION' },
-    { id: 'NAV_CODE_REVIEW', label: 'Go to Code Review', icon: ShieldAlert, category: 'NAVIGATION' },
-    { id: 'NAV_STATS', label: 'Go to Stats Center', icon: BarChart2, category: 'NAVIGATION' },
-    { id: 'NAV_ANALYTICS', label: 'Go to Team Analytics', icon: BarChart3, category: 'NAVIGATION' },
-    { id: 'NAV_TECH_PULSE', label: 'Go to Tech Pulse', icon: Activity, category: 'NAVIGATION' },
-    { id: 'ACTION_DAILY_BRIEFING', label: 'Open Daily Briefing', icon: Sparkles, category: 'ACTIONS' },
-    { id: 'ACTION_PROJECT_HEALTH', label: 'Run Project Health Audit', icon: Heart, category: 'ACTIONS' },
-    { id: 'TOOL_SEARCH', label: 'Semantic Code Search', icon: Search, category: 'TOOLS' },
-    { id: 'TOOL_KNOWLEDGE', label: 'Knowledge Explorer', icon: Database, category: 'TOOLS' },
+    { id: 'NAV_LOGS', label: '활동 로그 보기', icon: Terminal, category: 'NAVIGATION' },
+    { id: 'NAV_REASONING', label: '추론 기록 보기', icon: Brain, category: 'NAVIGATION' },
+    { id: 'NAV_MISSION_CONTROL', label: '미션 컨트롤 본부', icon: Target, category: 'NAVIGATION' },
+    { id: 'NAV_JANITOR', label: '기술 부채 관리 (AI Janitor)', icon: Trash2, category: 'NAVIGATION' },
+    { id: 'NAV_CODE_REVIEW', label: '코드 리뷰 센터', icon: ShieldAlert, category: 'NAVIGATION' },
+    { id: 'NAV_STATS', label: '워크스테이션 통계', icon: BarChart2, category: 'NAVIGATION' },
+    { id: 'NAV_ANALYTICS', label: '팀 생산성 분석', icon: BarChart3, category: 'NAVIGATION' },
+    { id: 'NAV_TECH_PULSE', label: '기술 트렌드 레이더', icon: Activity, category: 'NAVIGATION' },
+    { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
+    { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
+    { id: 'TOOL_SEARCH', label: '시맨틱 코드 검색', icon: Search, category: 'TOOLS' },
+    { id: 'TOOL_KNOWLEDGE', label: '전역 지식 탐색', icon: Database, category: 'TOOLS' },
   ];
 
-  // Render Logic
+  const handleStartShadow = (taskId: number) => {
+    // 섀도우 코딩 로직 (필요 시 구현)
+  };
+
+  const handleDiscardShadow = () => vo.setIsShadowPreviewOpen(false);
+  const handleCommitShadow = () => {
+    alert("변경 사항이 메인 브랜치에 반영되었습니다.");
+    vo.setIsShadowPreviewOpen(false);
+  };
+
   return (
     <main className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-[family-name:var(--font-geist-sans)] selection:bg-indigo-100 selection:text-indigo-900">
       <AnimatePresence>
@@ -291,7 +301,12 @@ export default function VirtualOfficeBright() {
         isOpen={vo.isKnowledgeExplorerOpen}
         onClose={() => vo.setIsKnowledgeExplorerOpen(false)}
         memories={vo.memories}
-        onSearch={(q) => vo.setMemories([]) || vo.fetchInitialData()} // Simplified for now
+        onSearch={async (q) => {
+           vo.setIsMemoriesLoading(true);
+           const res = await memoryService.search(q);
+           vo.setMemories(res.data);
+           vo.setIsMemoriesLoading(false);
+        }}
         isLoading={vo.isMemoriesLoading}
         getAgentColor={getAgentColor}
       />
@@ -337,7 +352,7 @@ export default function VirtualOfficeBright() {
         isLoading={vo.isBriefingLoading}
       />
 
-      {/* Sidebar */}
+      {/* 사이드바 */}
       <div className="w-96 bg-white border-r border-slate-100 flex flex-col shadow-[10px_0_40px_rgba(0,0,0,0.02)] z-10">
         <div className="p-8 pb-6 bg-gradient-to-b from-slate-50/50 to-transparent">
           <div className="flex items-center justify-between mb-8">
@@ -367,7 +382,7 @@ export default function VirtualOfficeBright() {
                 <Search size={14} className="text-slate-400 group-focus-within:text-indigo-500" />
                 <input 
                   type="text" 
-                  placeholder="Quick command (Ctrl+K)..." 
+                  placeholder="빠른 명령어 찾기 (Ctrl+K)..." 
                   className="bg-transparent border-none outline-none text-xs font-bold text-slate-600 w-full placeholder:text-slate-400"
                   onFocus={() => vo.setIsCommanderOpen(true)}
                   readOnly
@@ -378,12 +393,13 @@ export default function VirtualOfficeBright() {
           <div className="flex items-center justify-between px-1">
              <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Workspace</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">실시간 워크스페이스 가동 중</span>
              </div>
              <div className="flex items-center gap-2">
                 <button 
                    onClick={() => vo.setIsKnowledgeExplorerOpen(true)}
                    className="p-1.5 hover:bg-indigo-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                   title="전역 지식 탐색"
                 >
                    <Database size={14} />
                 </button>
@@ -394,12 +410,12 @@ export default function VirtualOfficeBright() {
         <div className="flex-1 overflow-y-auto px-6 py-2 custom-scrollbar space-y-8">
           <section>
             <div className="flex items-center justify-between mb-6 px-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Active Agents</h2>
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">활성 에이전트</h2>
               <button 
                 onClick={() => vo.setIsDeployModalOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-[10px] font-black transition-all border border-indigo-100 shadow-sm"
               >
-                <Plus size={12} strokeWidth={3} /> DEPLOY
+                <Plus size={12} strokeWidth={3} /> 배포하기
               </button>
             </div>
             <div className="space-y-3">
@@ -433,7 +449,7 @@ export default function VirtualOfficeBright() {
                       <div className="flex items-center gap-2">
                         <h3 className="font-black text-slate-800 truncate text-sm tracking-tight capitalize">{agent.name}</h3>
                         {vo.activePreviews[agent.name] && (
-                          <span className="flex h-1.5 w-1.5 rounded-full bg-indigo-500 animate-ping"></span>
+                          <span className="flex h-1.5 w-1.5 rounded-full bg-indigo-500 animate-ping" title="추론 진행 중"></span>
                         )}
                       </div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{agent.role}</p>
@@ -457,6 +473,7 @@ export default function VirtualOfficeBright() {
                         vo.setIsDeployModalOpen(true);
                       }}
                       className="p-1.5 hover:bg-slate-50 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors"
+                      title="에이전트 수정"
                     >
                       <Code2 size={12} />
                     </button>
@@ -466,6 +483,7 @@ export default function VirtualOfficeBright() {
                         handleDeleteAgent(agent.id);
                       }}
                       className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                      title="에이전트 해제"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -477,8 +495,8 @@ export default function VirtualOfficeBright() {
 
           <section>
             <div className="flex items-center justify-between mb-4 px-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Active Streams</h2>
-              <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg">{(vo.tasks.filter(t => t.status === 'RUNNING').length)} ACTIVE</span>
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">진행 중인 태스크</h2>
+              <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg">{(vo.tasks.filter(t => t.status === 'RUNNING').length)}개 활성</span>
             </div>
             <div className="space-y-2">
               {vo.tasks.filter(t => t.status !== 'COMPLETED').slice(0, 5).map((task) => (
@@ -491,18 +509,11 @@ export default function VirtualOfficeBright() {
                     <div className="flex items-center gap-1.5 mt-0.5">
                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{task.agent?.name}</span>
                        <span className="text-[8px] text-slate-300">•</span>
-                       <span className={`text-[8px] font-black uppercase ${task.status === 'RUNNING' ? 'text-indigo-500' : task.status === 'HEALING' ? 'text-orange-500' : 'text-slate-500'}`}>{task.status}</span>
+                       <span className={`text-[8px] font-black uppercase ${task.status === 'RUNNING' ? 'text-indigo-500' : task.status === 'HEALING' ? 'text-orange-500' : 'text-slate-500'}`}>
+                          {task.status === 'RUNNING' ? '실행 중' : task.status === 'HEALING' ? '자가 복구 중' : task.status === 'FAILED' ? '실패' : '대기'}
+                       </span>
                     </div>
                   </div>
-                  {task.status === 'RUNNING' && (
-                    <button 
-                      onClick={() => handleStartShadow(task.id)}
-                      className="p-1.5 hover:bg-indigo-600 hover:text-white text-indigo-500 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                      title="Shadow Coding"
-                    >
-                        <ShieldAlert size={12} />
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -510,15 +521,15 @@ export default function VirtualOfficeBright() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* 메인 컨텐츠 영역 */}
       <div className="flex-1 flex flex-col relative bg-white">
         <header className="h-20 border-b border-slate-100 flex items-center justify-between px-10 shrink-0">
           <div className="flex items-center gap-6">
             <nav className="flex gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-100">
               {[
-                { id: 'PROCESS', label: 'WORKSTATION', icon: Terminal },
-                { id: 'INTELLIGENCE', label: 'INTELLIGENCE', icon: Brain },
-                { id: 'METRICS', label: 'ANALYTICS', icon: BarChart3 },
+                { id: 'PROCESS', label: '워크스테이션', icon: Terminal },
+                { id: 'INTELLIGENCE', label: '인텔리전스', icon: Brain },
+                { id: 'METRICS', label: '분석 및 통계', icon: BarChart3 },
               ].map((cat) => (
                 <button
                   key={cat.id}
@@ -534,27 +545,27 @@ export default function VirtualOfficeBright() {
             <div className="flex gap-4">
                {vo.activeCategory === 'PROCESS' && (
                   <div className="flex gap-1">
-                    {['LOGS', 'SCHEDULER', 'KANBAN', 'MISSION'].map(tab => (
-                      <button key={tab} onClick={() => vo.setActiveTab(tab as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                        {tab}
+                    {[{id:'LOGS', label:'활동 로그'}, {id:'SCHEDULER', label:'스케줄러'}, {id:'KANBAN', label:'칸반 보드'}, {id:'MISSION', label:'미션 맵'}].map(tab => (
+                      <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {tab.label}
                       </button>
                     ))}
                   </div>
                )}
                {vo.activeCategory === 'INTELLIGENCE' && (
                   <div className="flex gap-1">
-                    {['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL'].map(tab => (
-                      <button key={tab} onClick={() => vo.setActiveTab(tab as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                        {tab.replace('_', ' ')}
+                    {[{id:'REASONING', label:'추론 타임라인'}, {id:'CODE_REVIEW', label:'QA 리뷰'}, {id:'JANITOR', label:'AI 자니터'}, {id:'MISSION_CONTROL', label:'미션 컨트롤'}].map(tab => (
+                      <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {tab.label}
                       </button>
                     ))}
                   </div>
                )}
                {vo.activeCategory === 'METRICS' && (
                   <div className="flex gap-1">
-                    {['STATS', 'ANALYTICS', 'TECH_PULSE'].map(tab => (
-                      <button key={tab} onClick={() => vo.setActiveTab(tab as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                        {tab.replace('_', ' ')}
+                    {[{id:'STATS', label:'핵심 지표'}, {id:'ANALYTICS', label:'생산성 분석'}, {id:'TECH_PULSE', label:'기술 트렌드'}].map(tab => (
+                      <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {tab.label}
                       </button>
                     ))}
                   </div>
@@ -584,7 +595,7 @@ export default function VirtualOfficeBright() {
                 }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-200 active:scale-95"
              >
-                <Sparkles size={14} /> DAY BRIEFING
+                <Sparkles size={14} /> 데일리 브리핑
              </button>
           </div>
         </header>
@@ -598,15 +609,15 @@ export default function VirtualOfficeBright() {
                         <div className="w-8 h-8 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md">
                           <MessageSquare size={16} />
                         </div>
-                        <h3 className="font-black text-slate-800 tracking-tight text-sm uppercase">Global Communication</h3>
+                        <h3 className="font-black text-slate-800 tracking-tight text-sm uppercase">글로벌 커뮤니케이션</h3>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Syncing</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">실시간 동기화 중</span>
                         <div className="flex gap-1">
                           <div className="w-1 h-1 rounded-full bg-emerald-400"></div>
                           <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
                         </div>
-                      </div>
+                   </div>
                    </div>
                    
                    <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar scroll-smooth" ref={scrollRef}>
@@ -621,7 +632,7 @@ export default function VirtualOfficeBright() {
                           </div>
                           <div className={`max-w-[80%] flex flex-col ${msg.sender === 'User' ? 'items-end' : ''}`}>
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{msg.sender}</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{msg.sender === 'User' ? '마스터' : msg.sender}</span>
                               <span className="text-[9px] text-slate-300 font-mono">{new Date(msg.timestamp).toLocaleTimeString()}</span>
                             </div>
                             <div className={`px-6 py-4 rounded-[1.5rem] text-[13px] font-medium leading-relaxed ${msg.sender === 'User' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100' : 'bg-slate-50 border border-slate-100/50 text-slate-700'}`}>
@@ -646,7 +657,7 @@ export default function VirtualOfficeBright() {
                          <div className="flex gap-4">
                             <input
                               type="text"
-                              placeholder="Type a global message or command..."
+                              placeholder="전역 메시지 또는 명령어를 입력하세요..."
                               className="w-full bg-slate-50 border border-slate-100/50 rounded-2xl px-6 py-4 text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-100/30 transition-all font-mono"
                               value={vo.inputValue}
                               onChange={(e) => vo.setInputValue(e.target.value)}
@@ -679,7 +690,7 @@ export default function VirtualOfficeBright() {
                          </div>
                          <div className="flex items-center gap-2">
                            <Terminal size={14} className="text-slate-500" />
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Internal Activity</span>
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내부 활동 로그</span>
                          </div>
                       </div>
                       <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar-dark font-mono text-[11px]" ref={consoleScrollRef}>
@@ -688,7 +699,9 @@ export default function VirtualOfficeBright() {
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-slate-500">[{new Date(act.timestamp).toLocaleTimeString()}]</span>
                                 <span className={`${getAgentColor(act.agentName).soft} font-bold`}>{act.agentName}</span>
-                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-white ${act.type === 'PLANNING' ? 'bg-indigo-500' : act.type === 'TOOL' ? 'bg-emerald-600' : 'bg-slate-600'}`}>{act.type}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-white ${act.type === 'PLANNING' ? 'bg-indigo-500' : act.type === 'TOOL' ? 'bg-emerald-600' : 'bg-slate-600'}`}>
+                                   {act.type === 'PLANNING' ? '전략수립' : act.type === 'TOOL' ? '도구사용' : '사고과정'}
+                                </span>
                               </div>
                               <div className="pl-4 border-l border-slate-800 py-1 text-slate-300 leading-relaxed break-all">
                                 {act.content}
@@ -715,7 +728,7 @@ export default function VirtualOfficeBright() {
                    <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-indigo-500 group-hover:text-white flex items-center justify-center mb-4 transition-all shadow-sm">
                       <Plus size={32} />
                    </div>
-                   <p className="text-sm font-black uppercase tracking-widest">New Automated Task</p>
+                   <p className="text-sm font-black uppercase tracking-widest">자동화 태스크 예약하기</p>
                 </motion.div>
                 
                 {vo.scheduledTasks.map((task) => (
@@ -758,7 +771,7 @@ export default function VirtualOfficeBright() {
                {vo.tasks.filter(t => t.status === 'RUNNING' || t.status === 'HEALING').length === 0 && (
                   <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 opacity-50 py-20">
                     <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center"><Target size={40} /></div>
-                    <p className="text-sm font-black uppercase tracking-widest">No active missions to track</p>
+                    <p className="text-sm font-black uppercase tracking-widest">현재 진행 중인 미션이 없습니다</p>
                   </div>
                )}
             </div>
@@ -778,8 +791,8 @@ export default function VirtualOfficeBright() {
                             <ShieldAlert size={20} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Autonomous QA Center</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">AI 기반 코드 시맨틱 결함 관측 서비스</p>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">자율 QA 센터</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">AI 기반 코드 시맨틱 결함 분석 서비스</p>
                         </div>
                     </div>
                     <button 
@@ -788,7 +801,7 @@ export default function VirtualOfficeBright() {
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${vo.isReviewing ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-rose-600 shadow-xl active:scale-95'}`}
                     >
                         {vo.isReviewing ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-                        {vo.isReviewing ? 'Analyzing...' : 'Execute Comprehensive Review'}
+                        {vo.isReviewing ? '분석 중...' : '종합 코드 리뷰 실행'}
                     </button>
                 </div>
 
@@ -800,7 +813,7 @@ export default function VirtualOfficeBright() {
                             </div>
                             <div className="text-center">
                                 <p className="text-sm font-black uppercase tracking-widest mb-2 text-slate-500">지능형 코드 리뷰 대기 중</p>
-                                <p className="text-[11px] font-bold text-slate-400 max-w-sm leading-relaxed">에이전트들이 코드베이스를 분석하여 잠재적 버그, 보안 취약점, 성능 저하 요인을 발견하고 해결책을 제시합니다.</p>
+                                <p className="text-[11px] font-bold text-slate-400 max-w-sm leading-relaxed">에이전트들이 코드베이스를 분석하여 잠재적 버그, 보안 취약점, 성능 요인을 발견하고 해결책을 제시합니다.</p>
                             </div>
                         </div>
                     ) : (
@@ -812,7 +825,7 @@ export default function VirtualOfficeBright() {
                                 <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
                                     <div className="flex items-center gap-4">
                                         <div className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${review.severity === 'CRITICAL' ? 'bg-rose-500 text-white' : review.severity === 'WARNING' ? 'bg-amber-500 text-white' : 'bg-indigo-500 text-white'}`}>
-                                            {review.severity}
+                                            {review.severity === 'CRITICAL' ? '중대' : review.severity === 'WARNING' ? '경고' : '정보'}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Code2 size={14} className="text-slate-400" />
@@ -829,13 +842,13 @@ export default function VirtualOfficeBright() {
                                     
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
                                         <div className="space-y-3">
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 italic">Current Implementation</span>
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 italic">현재 코드</span>
                                             <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-inner overflow-x-auto">
                                                 <pre className="text-[11px] font-mono text-rose-300 leading-relaxed"><code>{review.originalSnippet}</code></pre>
                                             </div>
                                         </div>
                                         <div className="space-y-3">
-                                            <span className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] px-2 italic">AI Recommendation</span>
+                                            <span className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] px-2 italic">AI 추천 패치</span>
                                             <div className="bg-indigo-900/10 rounded-2xl p-5 border border-indigo-500/20 shadow-inner overflow-x-auto relative">
                                                 <pre className="text-[11px] font-mono text-indigo-600 leading-relaxed"><code>{review.suggestedFix}</code></pre>
                                                 <div className="absolute top-4 right-4"><Sparkles size={16} className="text-indigo-400 animate-pulse" /></div>
@@ -844,12 +857,12 @@ export default function VirtualOfficeBright() {
                                     </div>
                                     
                                     <div className="pt-6 border-t border-slate-50 flex justify-end gap-3">
-                                        <button className="px-6 py-2.5 rounded-xl border border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">Ignore</button>
+                                        <button className="px-6 py-2.5 rounded-xl border border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">무시하기</button>
                                         <button 
                                             onClick={() => handleApplyFix(review.id)}
                                             className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-95"
                                         >
-                                            Apply AI Patch
+                                            AI 패치 적용
                                         </button>
                                     </div>
                                 </div>
@@ -868,7 +881,7 @@ export default function VirtualOfficeBright() {
                             <Trash2 size={20} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Autonomous AI Janitor</h3>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">자율 AI 자니터</h3>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">실시간 기술 부채 스캔 및 자동 해소 시스템</p>
                         </div>
                     </div>
@@ -878,7 +891,7 @@ export default function VirtualOfficeBright() {
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${vo.isJanitorScanning ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-emerald-600 shadow-xl active:scale-95'}`}
                     >
                         {vo.isJanitorScanning ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-                        {vo.isJanitorScanning ? 'Scanning...' : 'Start Full System Scan'}
+                        {vo.isJanitorScanning ? '스캔 중...' : '시스템 전체 스캔 시작'}
                     </button>
                 </div>
 
@@ -889,13 +902,13 @@ export default function VirtualOfficeBright() {
                                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 4, ease: "linear" }} className="w-16 h-16 border-4 border-t-indigo-500 border-indigo-100 rounded-full" />
                                 <div className="absolute inset-0 flex items-center justify-center text-indigo-500"><Search size={24} /></div>
                             </div>
-                            <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">코드베이스 전체 기술 부채 실시간 분석 중...</p>
+                            <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">코드베이스 기술 부채 분석 중...</p>
                         </div>
                     )}
                     {vo.janitorIssues.length === 0 && !vo.isJanitorScanning ? (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-6 opacity-60">
                             <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center"><Bot size={40} /></div>
-                            <p className="text-sm font-black uppercase tracking-widest">No critical maintenance issues detected</p>
+                            <p className="text-sm font-black uppercase tracking-widest">감지된 유지보수 이슈가 없습니다</p>
                         </div>
                     ) : (
                         vo.janitorIssues.map((issue) => (
@@ -905,7 +918,9 @@ export default function VirtualOfficeBright() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-1">
-                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${issue.status === 'FIXED' ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white'}`}>{issue.status}</span>
+                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${issue.status === 'FIXED' ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white'}`}>
+                                           {issue.status === 'FIXED' ? '해결됨' : '미관리'}
+                                        </span>
                                         <span className="text-[10px] font-black text-slate-400 font-mono italic">{issue.filePath}</span>
                                     </div>
                                     <h4 className="text-sm font-black text-slate-800 mb-1 leading-tight uppercase">{issue.title}</h4>
@@ -916,7 +931,7 @@ export default function VirtualOfficeBright() {
                                     disabled={vo.isJanitorLoading || issue.status === 'FIXED'}
                                     className="px-6 py-3 bg-indigo-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
                                 >
-                                    {issue.status === 'FIXED' ? 'Resolved' : 'Auto Fix'}
+                                    {issue.status === 'FIXED' ? '완료됨' : '자동 수정'}
                                 </button>
                             </motion.div>
                         ))
@@ -934,15 +949,15 @@ export default function VirtualOfficeBright() {
                                 <Presentation size={24} />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-white tracking-tight uppercase">전역 미션 지능 보드</h3>
+                                <h3 className="text-lg font-black text-white tracking-tight uppercase">전역 미션 인텔리전스 보드</h3>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Session: Default Alpha</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> 활성 세션: Default Alpha</span>
                                     {vo.isMissionIntelligenceLoading && <Loader2 size={12} className="animate-spin text-slate-600" />}
                                 </div>
                             </div>
                          </div>
                          <div className="flex gap-3">
-                             {['CORE', 'ANOMALY', 'STRATEGY'].map(tag => (
+                             {['핵심정보', '특이사항', '전략교훈'].map(tag => (
                                  <span key={tag} className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-black tracking-widest uppercase border border-slate-700">{tag}</span>
                              ))}
                          </div>
@@ -963,12 +978,12 @@ export default function VirtualOfficeBright() {
                          <Zap size={20} />
                       </div>
                       <div>
-                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Global Tech Pulse</h3>
-                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">AI 기반 기술 트렌드 및 프로젝트 영향도 실시간 관측</p>
+                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">기술 트렌드 레이더</h3>
+                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">AI 기반 기술 동향 및 프로젝트 영향도 실시간 관측</p>
                       </div>
                    </div>
                    <div className="flex items-center gap-4">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">Last Updated: {new Date().toLocaleTimeString()}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">마지막 업데이트: {new Date().toLocaleTimeString()}</span>
                    </div>
                 </div>
                 
@@ -992,13 +1007,13 @@ export default function VirtualOfficeBright() {
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-y-auto custom-scrollbar pb-10">
               <div className="lg:col-span-2 flex flex-col gap-8">
                  <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden min-h-[400px]">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Agent Productivity Trends</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">에이전트별 생산성 트렌드</h4>
                     <TeamProductivityChart performance={vo.performanceData} />
                  </div>
               </div>
               <div className="flex flex-col gap-8">
                  <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl flex-1 flex flex-col overflow-hidden">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">System Morale & Health</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">시스템 멘탈 및 보전 상태</h4>
                     <div className="flex-1 flex flex-col items-center justify-center gap-10">
                        <div className="relative w-48 h-48 flex items-center justify-center">
                           <svg className="w-full h-full -rotate-90">
@@ -1013,14 +1028,14 @@ export default function VirtualOfficeBright() {
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
                              <span className="text-5xl font-black text-white">85</span>
-                             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Condition</span>
+                             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">컨디션 지수</span>
                           </div>
                        </div>
                        <div className="w-full space-y-5">
                           {[
-                            { label: "Memory Retention", val: 92, color: "bg-emerald-500" },
-                            { label: "Task Throughput", val: 78, color: "bg-indigo-500" },
-                            { label: "Logic Consistency", val: 88, color: "bg-violet-500" },
+                            { label: "지식 보존율", val: 92, color: "bg-emerald-500" },
+                            { label: "태스크 처리량", val: 78, color: "bg-indigo-500" },
+                            { label: "논리 정합성", val: 88, color: "bg-violet-500" },
                           ].map((stat, i) => (
                              <div key={i} className="space-y-2">
                                 <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -1047,7 +1062,6 @@ export default function VirtualOfficeBright() {
             className={`fixed bottom-10 right-10 w-[420px] bg-white rounded-[2.5rem] shadow-[0_20px_80px_rgba(0,0,0,0.15)] ring-1 ring-slate-100 overflow-hidden flex flex-col z-[50] border border-slate-100`}
           >
             <div className={`px-8 py-6 ${getAgentColor(vo.activeChat).bg} flex items-center justify-between shadow-lg relative overflow-hidden`}>
-              {/* Background Decoration */}
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-16 -mt-16"></div>
               
               <div className="flex items-center gap-4 text-white relative z-10">
@@ -1055,10 +1069,10 @@ export default function VirtualOfficeBright() {
                   <Bot size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black tracking-tight capitalize">{vo.activeChat} <span className="text-[10px] opacity-70 font-normal ml-1">Direct Console</span></h3>
+                  <h3 className="text-base font-black tracking-tight capitalize">{vo.activeChat} <span className="text-[10px] opacity-70 font-normal ml-1">직접 제보 본부</span></h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-80">Synchronized</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-80">데이터 동기화 중</span>
                   </div>
                 </div>
               </div>
@@ -1073,7 +1087,7 @@ export default function VirtualOfficeBright() {
                {vo.activePreviews[vo.activeChat] && <LivePreviewBubble preview={vo.activePreviews[vo.activeChat]!} getAgentColor={getAgentColor} />}
                {vo.messages.filter(m => m.sender === vo.activeChat || (m.sender === 'User' && m.content.includes(`@${vo.activeChat}`))).length === 0 ? (
                  <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 italic text-sm">
-                    No private records found.
+                    아직 기록된 대화가 없습니다.
                  </div>
                ) : (
                  vo.messages.filter(m => m.sender === vo.activeChat || (m.sender === 'User' && m.content.includes(`@${vo.activeChat}`))).map((msg, i) => (
@@ -1093,7 +1107,7 @@ export default function VirtualOfficeBright() {
                     <Command size={14} className="text-slate-400 group-focus-within:text-indigo-500" />
                     <input 
                       type="text" 
-                      placeholder={`Message ${vo.activeChat}...`}
+                      placeholder={`${vo.activeChat}에게 직접 지시하기...`}
                       className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full placeholder:text-slate-400 uppercase tracking-tighter" 
                       value={vo.inputValue}
                       onChange={(e) => vo.setInputValue(e.target.value)}
@@ -1119,7 +1133,7 @@ export default function VirtualOfficeBright() {
         )}
       </div>
 
-      {/* Modals */}
+      {/* 모달 관리 영역 */}
       <AnimatePresence>
         {vo.isDeployModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-6">
@@ -1129,8 +1143,8 @@ export default function VirtualOfficeBright() {
                   <div className="flex items-center gap-4">
                      <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg"><Bot size={24} /></div>
                      <div>
-                        <h3 className="text-xl font-black italic tracking-tight uppercase">Agent Deployment</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">New Intelligence Registration</p>
+                        <h3 className="text-xl font-black italic tracking-tight uppercase">에이전트 신규 배포</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">새로운 자율 지능 개체 등록</p>
                      </div>
                   </div>
                   <button onClick={() => vo.setIsDeployModalOpen(false)} className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400"><X size={20} /></button>
@@ -1138,15 +1152,15 @@ export default function VirtualOfficeBright() {
                
                <div className="space-y-6 relative z-10">
                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identity Name</label>
-                     <input type="text" placeholder="E.g. Analyst, Coder..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-100 transition-all uppercase" value={vo.newAgent.name} onChange={e => vo.setNewAgent({...vo.newAgent, name: e.target.value})} />
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">식별 이름</label>
+                     <input type="text" placeholder="예: 분석기, 코더..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-100 transition-all uppercase" value={vo.newAgent.name} onChange={e => vo.setNewAgent({...vo.newAgent, name: e.target.value})} />
                   </div>
                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">System Role</label>
-                     <input type="text" placeholder="Describe agent responsibility..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-100 transition-all" value={vo.newAgent.role} onChange={e => vo.setNewAgent({...vo.newAgent, role: e.target.value})} />
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">시스템 역할</label>
+                     <input type="text" placeholder="에이전트의 책임 영역을 기술하세요..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-100 transition-all" value={vo.newAgent.role} onChange={e => vo.setNewAgent({...vo.newAgent, role: e.target.value})} />
                   </div>
                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assigned Skills</label>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">할당된 기술 (Skills)</label>
                      <div className="flex gap-2 flex-wrap bg-slate-50 p-4 rounded-2xl border border-slate-100 min-h-[60px]">
                         {vo.skills.map((skill: any) => (
                            <button 
@@ -1165,7 +1179,7 @@ export default function VirtualOfficeBright() {
                   </div>
                   <button onClick={handleCreateAgent} disabled={vo.isDeploying} className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-3xl text-xs font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2">
                      {vo.isDeploying ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
-                     {vo.editingAgentId ? 'Update Identity' : 'Initiate Deployment'}
+                     {vo.editingAgentId ? '에이전트 정보 업데이트' : '배포 프로세스 강제 시작'}
                   </button>
                </div>
             </motion.div>
@@ -1178,18 +1192,18 @@ export default function VirtualOfficeBright() {
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg"><Calendar size={24} /></div>
-                    <div><h3 className="text-xl font-black tracking-tight uppercase">Automated Routine</h3></div>
+                    <div><h3 className="text-xl font-black tracking-tight uppercase">스케줄러 예약</h3></div>
                   </div>
                   <button onClick={() => vo.setIsSchedulerModalOpen(false)} className="p-2"><X size={20} /></button>
                 </div>
                 <div className="space-y-6">
-                   <input placeholder="Task Description" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold" value={vo.newScheduledTask.description} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, description: e.target.value})} />
+                   <input placeholder="작업 설명" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold" value={vo.newScheduledTask.description} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, description: e.target.value})} />
                    <select className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold" value={vo.newScheduledTask.agentId} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, agentId: Number(e.target.value)})}>
                       {vo.agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                    </select>
-                   <input placeholder="Command (e.g. check logs)" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold font-mono" value={vo.newScheduledTask.command} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, command: e.target.value})} />
-                   <input placeholder="Cron (e.g. 0 0/1 * * * ?)" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold font-mono" value={vo.newScheduledTask.cronExpression} onChange={e => vo.setNewScheduledTask({...vo.setNewScheduledTask, cronExpression: e.target.value})} />
-                   <button onClick={handleCreateScheduledTask} className="w-full py-5 bg-indigo-600 text-white rounded-3xl text-xs font-black uppercase tracking-widest shadow-xl">Activate Schedule</button>
+                   <input placeholder="실행 명령어 (예: 로그 확인)" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold font-mono" value={vo.newScheduledTask.command} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, command: e.target.value})} />
+                   <input placeholder="Cron 표현식 (예: 0 0/1 * * * ?)" className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-xs font-bold font-mono" value={vo.newScheduledTask.cronExpression} onChange={e => vo.setNewScheduledTask({...vo.newScheduledTask, cronExpression: e.target.value})} />
+                   <button onClick={handleCreateScheduledTask} className="w-full py-5 bg-indigo-600 text-white rounded-3xl text-xs font-black uppercase tracking-widest shadow-xl">스케줄 활성화</button>
                 </div>
               </motion.div>
            </div>
@@ -1201,7 +1215,7 @@ export default function VirtualOfficeBright() {
                <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg"><Presentation size={24} /></div>
-                    <div><h3 className="text-xl font-black tracking-tight uppercase">Agent Collaborative Canvas</h3><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Global Memory Visualizer</p></div>
+                    <div><h3 className="text-xl font-black tracking-tight uppercase">에이전트 공동 캔버스</h3><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">전역 메모리 시각화</p></div>
                   </div>
                   <div className="flex gap-3">
                      <button onClick={() => vo.setIsFullscreenWhiteboard(!vo.isFullscreenWhiteboard)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500"><Maximize2 size={18} /></button>
@@ -1228,30 +1242,7 @@ export default function VirtualOfficeBright() {
                   <button onClick={() => vo.setIsBrowserOpen(false)} className="p-2"><X size={20} /></button>
                </div>
                <div className="flex-1 overflow-auto bg-slate-100/30 p-10 flex items-center justify-center">
-                  {vo.browserScreenshot ? <img src={`data:image/png;base64,${vo.browserScreenshot}`} className="shadow-2xl rounded-xl border border-slate-200 bg-white" alt="Browser view" /> : <div className="flex flex-col items-center gap-4 text-slate-400"><Loader2 size={40} className="animate-spin" /><p className="text-xs font-black uppercase tracking-widest">Streaming interface...</p></div>}
-               </div>
-            </motion.div>
-          </div>
-        )}
-
-        {vo.isShadowPreviewOpen && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[300] flex items-center justify-center p-6">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-white/20">
-               <div className="px-10 py-8 bg-indigo-600 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-4 text-white">
-                    <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30"><ShieldAlert size={24} /></div>
-                    <div><h3 className="text-xl font-black tracking-tight uppercase">Shadow Coding Preview</h3><p className="text-[10px] text-indigo-100 font-bold uppercase tracking-widest">Isolated Sandbox Verification</p></div>
-                  </div>
-                  <button onClick={() => vo.setIsShadowPreviewOpen(false)} className="p-2 text-white/50"><X size={24} /></button>
-               </div>
-               <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-slate-900 font-mono text-xs">
-                  <pre className={`p-6 rounded-2xl bg-black/50 border border-slate-800 text-slate-300 leading-relaxed whitespace-pre-wrap`}>
-                    {vo.shadowDiff || "No changes detected in sandbox."}
-                  </pre>
-               </div>
-               <div className="p-10 border-t border-slate-100 bg-white flex justify-end gap-4 shadow-inner">
-                  <button onClick={handleDiscardShadow} className="px-8 py-3 bg-slate-100 hover:bg-rose-50 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Discard Sandbox</button>
-                  <button onClick={handleCommitShadow} className="px-10 py-3 bg-indigo-600 hover:bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-100">Commit Changes to Main</button>
+                  {vo.browserScreenshot ? <img src={`data:image/png;base64,${vo.browserScreenshot}`} className="shadow-2xl rounded-xl border border-slate-200 bg-white" alt="Browser view" /> : <div className="flex flex-col items-center gap-4 text-slate-400"><Loader2 size={40} className="animate-spin" /><p className="text-xs font-black uppercase tracking-widest">브라우저 인터페이스 동기화 중...</p></div>}
                </div>
             </motion.div>
           </div>

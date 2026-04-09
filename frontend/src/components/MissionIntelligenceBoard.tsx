@@ -1,7 +1,10 @@
 import { motion } from "framer-motion";
 import { Brain, Loader2, Target, History } from "lucide-react";
-import { MissionContext } from "../apiService";
+import { MissionContext } from "../app/apiService";
 
+/**
+ * 에이전트 간 공유되는 미션 지식과 맥락(Context)을 표시하는 보드
+ */
 export const MissionIntelligenceBoard = ({ 
   intelligence, 
   isLoading 
@@ -17,14 +20,14 @@ export const MissionIntelligenceBoard = ({
             <Brain size={20} />
           </div>
           <div>
-             <h4 className="text-[12px] font-black text-white tracking-widest uppercase">Collective Mission Intelligence</h4>
-             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">실시간 세션 지능 & 미션 동기화 보드</p>
+             <h4 className="text-[12px] font-black text-white tracking-widest uppercase">집단 미션 인텔리전스</h4>
+             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">실시간 상호 정보 공유 및 미션 동기화 보드</p>
           </div>
         </div>
         <div className="flex gap-2">
             <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest uppercase flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Syncing
+              동기화 완료
             </span>
         </div>
       </div>
@@ -53,7 +56,7 @@ export const MissionIntelligenceBoard = ({
               >
                 {intel.importance >= 4 && (
                     <div className="absolute top-0 right-0 px-2.5 py-1 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest rounded-bl-xl shadow-lg">
-                        Critical Intel
+                        중요 정보
                     </div>
                 )}
                 <div className="flex items-center gap-2 mb-3 text-left">

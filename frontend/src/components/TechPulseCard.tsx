@@ -1,98 +1,78 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Code2, Leaf, Layout, Activity, Sparkles, Database, Bot, ChevronRight, Search } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
-import { TechPulse } from "../apiService";
+import { motion } from "framer-motion";
+import { Zap, TrendingUp, ShieldAlert, BarChart3, Activity } from "lucide-react";
+import { TechPulse } from "../app/apiService";
 
+/**
+ * 개별 기술 트렌드 및 영향도를 표시하는 카드 컴포넌트
+ */
 export const TechPulseCard = ({ pulse }: { pulse: TechPulse }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  const categoryColors: Record<string, { bg: string, text: string, border: string, icon: any }> = {
-    "KOTLIN": { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20", icon: Code2 },
-    "SPRING": { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20", icon: Leaf },
-    "REACT": { bg: "bg-cyan-500/10", text: "text-cyan-400", border: "border-cyan-500/20", icon: Layout },
-    "NEXTJS": { bg: "bg-slate-700/30", text: "text-slate-300", border: "border-slate-600/30", icon: Activity },
-    "AI": { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/20", icon: Sparkles },
-    "SECURITY": { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20", icon: Database },
-    "GENERAL": { bg: "bg-slate-700/20", text: "text-slate-400", border: "border-slate-700/50", icon: Bot }
-  };
+    const getCategoryIcon = (category: string) => {
+      switch (category) {
+        case 'FRAMEWORK': return <BarChart3 size={14} />;
+        case 'LIBRARY': return <Activity size={14} />;
+        case 'SECURITY': return <ShieldAlert size={14} />;
+        case 'PERFORMANCE': return <Zap size={14} />;
+        default: return <TrendingUp size={14} />;
+      }
+    };
 
-  const status = categoryColors[pulse.category.toUpperCase()] || categoryColors["GENERAL"];
-  const Icon = status.icon;
+    const getImpactColor = (score: number) => {
+        if (score >= 80) return "text-rose-500 bg-rose-50 border-rose-100";
+        if (score >= 50) return "text-amber-500 bg-amber-50 border-amber-100";
+        return "text-emerald-500 bg-emerald-50 border-emerald-100";
+    };
 
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-slate-800/40 border ${status.border} rounded-2xl overflow-hidden shadow-lg transition-all group hover:bg-slate-800/60`}
-    >
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl ${status.bg} ${status.text} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform`}>
-              <Icon size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-black uppercase tracking-widest ${status.text}`}>{pulse.category}</span>
-                <span className="text-slate-700 font-black">/</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Impact Score:</span>
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className={`w-3 h-1 rounded-full ${i < (pulse.impactScore / 2) ? status.bg.replace('/10', '').replace('/30', '').replace('700', '400') : 'bg-slate-800'}`} />
-                    ))}
-                  </div>
-                </div>
+    // 카테고리 표시용 한글 매핑
+    const categoryLabels: Record<string, string> = {
+        'FRAMEWORK': '프레임워크',
+        'LIBRARY': '라이브러리',
+        'SECURITY': '보안',
+        'PERFORMANCE': '성능/최적화',
+        'GENERAL': '일반'
+    };
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
+      >
+        <div className="flex justify-between items-start mb-4">
+           <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-inner">
+                {getCategoryIcon(pulse.category)}
               </div>
-              <h4 className="text-[13px] font-black text-white leading-tight mt-1 tracking-tight">{pulse.title}</h4>
-            </div>
-          </div>
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 hover:bg-white/5 rounded-lg text-slate-500 transition-colors"
-          >
-            <ChevronRight size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
-          </button>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{categoryLabels[pulse.category] || pulse.category}</span>
+           </div>
+           <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getImpactColor(pulse.impactScore)}`}>
+              영향도 {pulse.impactScore}
+           </div>
         </div>
         
-        <p className="text-[11px] text-slate-400 leading-relaxed font-medium line-clamp-2">{pulse.description}</p>
+        <h4 className="text-sm font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors uppercase">{pulse.techName}</h4>
+        <p className="text-[11px] text-slate-500 font-medium leading-relaxed mb-6 line-clamp-2">{pulse.description}</p>
         
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="pt-4 mt-3 border-t border-slate-700/50 space-y-3">
-                <div className="bg-indigo-500/5 rounded-xl p-3 border border-indigo-500/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles size={12} className="text-indigo-400 animate-pulse" />
-                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Project Impact Analysis</span>
-                  </div>
-                  <div className="text-[11px] text-slate-300 leading-relaxed font-medium prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown>{pulse.projectImpact}</ReactMarkdown>
-                  </div>
-                </div>
-                
-                {pulse.sourceUrl && (
-                  <a 
-                    href={pulse.sourceUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-[9px] font-black text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20"
-                  >
-                   <Search size={10} />
-                   View Detailed Source
-                  </a>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
-  );
+        <div className="space-y-3 pt-4 border-t border-slate-50">
+           <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
+              <span>트렌드 성장률</span>
+              <span className="text-indigo-500">+{pulse.trendGrowth}%</span>
+           </div>
+           <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100 shadow-inner">
+              <motion.div 
+                initial={{ width: 0 }} 
+                animate={{ width: `${pulse.trendGrowth}%` }} 
+                className="h-full bg-gradient-to-r from-indigo-500 to-violet-400" 
+              />
+           </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
+            <div className="flex items-center gap-1">
+                <TrendingUp size={10} className="text-emerald-500" />
+                <span>관심도 점수: {pulse.interestScore}</span>
+            </div>
+            <span>{new Date(pulse.updatedAt).toLocaleDateString()}</span>
+        </div>
+      </motion.div>
+    );
 };

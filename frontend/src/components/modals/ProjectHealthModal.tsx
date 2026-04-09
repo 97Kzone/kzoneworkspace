@@ -1,8 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Heart, Loader2, TrendingUp, ShieldAlert, Zap, Activity, Users, ChevronRight } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
-import { ProjectHealth, ActionableStrategy } from "../apiService";
+import { Heart, X, ShieldAlert, Zap, TrendingUp, Target, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
+import { ProjectHealth, ActionableStrategy } from "../../app/apiService";
 
+/**
+ * 인공지능 기반 프로젝트 건강진단 및 전략 분석 모달
+ */
 export const ProjectHealthModal = ({ 
   isOpen, 
   onClose, 
@@ -12,7 +14,7 @@ export const ProjectHealthModal = ({
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
-  report: ProjectHealth | null; 
+  report: ProjectHealth | null;
   isLoading: boolean;
   onAdopt: (strategy: ActionableStrategy) => void;
 }) => {
@@ -23,210 +25,142 @@ export const ProjectHealthModal = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6"
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-white rounded-[2.5rem] shadow-[0_30px_90px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col w-full max-w-4xl h-[85vh] border border-white/20"
+            initial={{ scale: 0.9, y: 30, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: 30, opacity: 0 }}
+            className="bg-white rounded-[2.5rem] shadow-[0_25px_70px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col w-full max-w-5xl h-[85vh] border border-white/40"
           >
-            <div className="px-10 py-8 bg-gradient-to-br from-rose-500 via-pink-600 to-purple-600 flex items-center justify-between shadow-lg shrink-0 relative overflow-hidden">
-               {/* Background Decoration */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-              
-              <div className="flex items-center gap-5 text-white relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xl">
-                  <Heart size={28} className="text-white fill-white/20" />
+            <div className="px-8 py-6 bg-gradient-to-r from-rose-500 to-indigo-600 flex items-center justify-between shadow-lg shrink-0">
+              <div className="flex items-center gap-4 text-white">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                  <Heart size={24} className="text-white fill-white/20" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black tracking-tight uppercase">프로젝트 지능형 헬스 보드</h3>
-                  <p className="text-[11px] text-rose-100 font-bold uppercase tracking-[0.25em] opacity-90">AI 에이전트 종합 상태 및 전략 분석</p>
+                  <h3 className="text-xl font-black tracking-tight uppercase">AI 프로젝트 전략 분석 및 진단</h3>
+                  <p className="text-[10px] text-rose-100 font-bold uppercase tracking-[0.2em] opacity-80">전체 에이전트 활동 및 코드베이스 상태 기반 건강진단</p>
                 </div>
               </div>
               <button 
                 onClick={onClose} 
-                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10 z-10"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-slate-50/30">
-              {isLoading ? (
+            <div className="flex-1 overflow-y-auto p-10 space-y-12 custom-scrollbar bg-slate-50/50">
+              {isLoading || !report ? (
                 <div className="h-full flex flex-col items-center justify-center space-y-6">
-                  <div className="relative w-24 h-24">
-                    <Loader2 size={64} className="animate-spin text-rose-500" />
-                    <motion.div 
-                      className="absolute inset-0 bg-rose-500 rounded-full blur-2xl opacity-10"
-                      animate={{ scale: [1, 2, 1] }} 
-                      transition={{ repeat: Infinity, duration: 2 }}
-                    />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-black text-slate-800 tracking-tight">전체 프로젝트 데이터 분석 중</p>
-                    <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">업무 효율 및 팀 시너지를 측정하고 있습니다...</p>
-                  </div>
+                   <div className="relative">
+                      <Loader2 size={64} className="animate-spin text-rose-500 opacity-20" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                         <Heart size={32} className="text-rose-500 animate-pulse" />
+                      </div>
+                   </div>
+                   <div className="text-center">
+                      <p className="text-lg font-black uppercase tracking-widest text-slate-500">심층 진단 보고서 생성 중...</p>
+                      <p className="text-xs font-bold text-slate-400 mt-2 italic">에이전트들이 미션 로그와 코드 메트릭을 분석하고 있습니다.</p>
+                   </div>
                 </div>
-              ) : report && (
-                <div className="space-y-10">
-                  {/* Score & Core Metrics */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center relative overflow-hidden group">
-                       <div className="absolute inset-0 bg-gradient-to-b from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 relative z-10">Health Score</span>
-                       <div className="relative w-40 h-40 flex items-center justify-center mb-4 z-10">
-                          <svg className="w-full h-full -rotate-90">
-                            <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100" />
-                            <motion.circle 
-                              cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" 
-                              strokeDasharray={440} 
-                              initial={{ strokeDashoffset: 440 }}
-                              animate={{ strokeDashoffset: 440 - (440 * report.score / 100) }}
-                              transition={{ duration: 1.5, ease: "easeOut" }}
-                              className="text-rose-500" 
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-5xl font-black text-slate-900">{report.score}</span>
-                            <span className="text-xs font-bold text-rose-500 uppercase">Points</span>
-                          </div>
+              ) : (
+                <>
+                  <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* 건강 점수 */}
+                    <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-rose-100/50 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+                       <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-50 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                       <div className="relative z-10 w-24 h-24 rounded-full border-4 border-rose-500 flex items-center justify-center mb-4 shadow-lg shadow-rose-100">
+                          <span className="text-4xl font-black text-rose-500">{report.healthScore}</span>
                        </div>
-                       <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                         report.status === 'EXCELLENT' ? 'bg-emerald-500 text-white' : 
-                         report.status === 'GOOD' ? 'bg-indigo-500 text-white' : 
-                         report.status === 'WARNING' ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'
-                       }`}>
-                         {report.status}
+                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative z-10">종합 건강 점수</h4>
+                       <div className="mt-4 px-4 py-1.5 rounded-full bg-rose-50 text-rose-500 text-[10px] font-black uppercase relative z-10">
+                          {report.healthScore >= 80 ? '최상' : report.healthScore >= 50 ? '주의' : '위험'}
                        </div>
                     </div>
 
-                    <div className="lg:col-span-2 space-y-6">
-                       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 h-full">
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
-                              <TrendingUp size={20} />
-                            </div>
-                            <h4 className="text-lg font-black text-slate-800 tracking-tight">지능형 상태 요약</h4>
-                          </div>
-                          <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-p:font-medium prose-p:leading-relaxed prose-strong:text-indigo-600">
-                             <ReactMarkdown>{report.analysisReasoning}</ReactMarkdown>
-                          </div>
+                    {/* 위험 요소 */}
+                    <div className="md:col-span-2 bg-slate-900 p-8 rounded-[3rem] shadow-2xl overflow-hidden relative group">
+                       <div className="absolute top-0 right-0 p-8 opacity-10"><ShieldAlert size={120} className="text-rose-500" /></div>
+                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                          <ShieldAlert size={14} className="text-rose-500" /> 감지된 주요 리스트 요소
+                       </h4>
+                       <div className="space-y-3 relative z-10">
+                          {report.risks.map((risk, i) => (
+                             <motion.div 
+                               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
+                               key={i} className="flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl"
+                             >
+                                <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"></div>
+                                <span className="text-xs font-bold text-slate-200">{risk}</span>
+                             </motion.div>
+                          ))}
                        </div>
                     </div>
-                  </div>
+                  </section>
 
-                  {/* Risks & Recommendations */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-amber-50/50 border border-amber-100 rounded-[2rem] p-8">
-                       <div className="flex items-center gap-3 mb-6 font-black text-amber-700 uppercase tracking-tight">
-                         <ShieldAlert size={20} />
-                         감지된 잠재적 위험
-                       </div>
-                       <ul className="space-y-4">
-                         {report.risks.map((risk, i) => (
-                           <motion.li 
-                            initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                            key={i} className="flex items-start gap-3 text-sm text-amber-900/80 font-bold"
-                           >
-                             <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
-                             {risk}
-                           </motion.li>
-                         ))}
-                       </ul>
-                    </div>
-
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-[2rem] p-8">
-                       <div className="flex items-center gap-3 mb-6 font-black text-indigo-700 uppercase tracking-tight">
-                         <Zap size={20} />
-                         AI 자율 전략 로드맵
-                       </div>
-                       <div className="space-y-4">
-                         {report.recommendations.map((strategy, i) => (
-                           <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }} 
-                            animate={{ opacity: 1, scale: 1 }} 
-                            transition={{ delay: i * 0.1 }}
-                            key={i} 
-                            className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group"
-                           >
-                              <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
-                                    strategy.priority === 'HIGH' ? 'bg-rose-500 text-white' : 
-                                    strategy.priority === 'MEDIUM' ? 'bg-amber-500 text-white' : 'bg-slate-400 text-white'
-                                  }`}>
-                                    {strategy.priority}
-                                  </span>
-                                  <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border border-indigo-100">
-                                    {strategy.category}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-400">
-                                  <Activity size={10} /> {strategy.estimatedEffort} Effort
-                                </div>
-                              </div>
-                              <h5 className="font-bold text-slate-800 text-sm mb-2 group-hover:text-indigo-600 transition-colors uppercase leading-tight">{strategy.title}</h5>
-                              <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4">{strategy.description}</p>
-                              <div className="flex items-center justify-end pt-1">
-                                <button
-                                  onClick={() => {
-                                    onAdopt(strategy);
-                                    onClose();
-                                  }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-indigo-500/20 transition-transform active:scale-95"
-                                >
-                                  ADOPT STRATEGY <ChevronRight size={10} />
-                                </button>
-                              </div>
-                           </motion.div>
-                         ))}
-                       </div>
-                    </div>
-                  </div>
-                  
-                  {report.synergyLevel && (
-                    <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
-                       <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center">
-                                <Users size={20} />
-                             </div>
-                             <h4 className="text-lg font-black text-slate-800 tracking-tight">팀 시너지 레벨</h4>
-                          </div>
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${
-                            report.synergyLevel === 'HIGH' ? 'bg-emerald-500 text-white' : 
-                            report.synergyLevel === 'MEDIUM' ? 'bg-indigo-500 text-white' : 'bg-rose-500 text-white'
-                          }`}>{report.synergyLevel} SYNERGY</span>
-                       </div>
-                       <div className="flex items-center gap-2 h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  {/* 전략적 권장사항 */}
+                  <section>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-3">
+                       <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div> AI 기반 실행 전략 (Actionable Strategies)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       {report.strategies.map((strat, i) => (
                           <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: report.synergyLevel === 'HIGH' ? '100%' : report.synergyLevel === 'MEDIUM' ? '60%' : '30%' }}
-                            transition={{ duration: 1, ease: "easeOut" }}
-                            className={`h-full bg-gradient-to-r ${
-                              report.synergyLevel === 'HIGH' ? 'from-emerald-400 to-teal-500' : 
-                              report.synergyLevel === 'MEDIUM' ? 'from-indigo-400 to-violet-500' : 'from-rose-400 to-pink-500'
-                            }`}
-                          />
-                       </div>
+                             key={i} 
+                             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+                             className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl hover:shadow-2xl transition-all group overflow-hidden relative"
+                          >
+                             {strat.implemented && (
+                                <div className="absolute top-0 right-0 px-4 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-2xl shadow-lg flex items-center gap-1.5">
+                                   <CheckCircle2 size={12} /> 적용 완료
+                                </div>
+                             )}
+                             <div className="flex items-center gap-4 mb-6">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${strat.impact === 'HIGH' ? 'bg-indigo-600' : 'bg-slate-400'}`}>
+                                   <Zap size={24} />
+                                </div>
+                                <div>
+                                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Impact: {strat.impact}</label>
+                                   <h5 className="text-sm font-black text-slate-800 uppercase tracking-tight line-clamp-1">{strat.title}</h5>
+                                </div>
+                             </div>
+                             <p className="text-[11px] text-slate-500 font-medium leading-relaxed mb-8">{strat.description}</p>
+                             <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">권장 행동: {strat.action}</span>
+                                </div>
+                                {!strat.implemented && (
+                                    <button 
+                                        onClick={() => onAdopt(strat)}
+                                        className="px-6 py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                                    >
+                                        전략 채택
+                                    </button>
+                                )}
+                             </div>
+                          </motion.div>
+                       ))}
                     </div>
-                  )}
-                </div>
+                  </section>
+
+                  {/* 한 마디 요약 */}
+                  <div className="bg-indigo-600 p-10 rounded-[3rem] flex items-center gap-8 shadow-2xl relative overflow-hidden group">
+                     <div className="absolute -left-10 -bottom-10 opacity-20 group-hover:rotate-12 transition-transform duration-1000 rotate-0">
+                        <Sparkles size={200} className="text-white" />
+                     </div>
+                     <div className="w-20 h-20 rounded-[2rem] bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shrink-0">
+                        <TrendingUp size={40} className="text-white" />
+                     </div>
+                     <div className="relative z-10 flex-1">
+                        <h4 className="text-white text-lg font-black italic tracking-tight uppercase mb-2">총동원 전략 요약</h4>
+                        <p className="text-indigo-100 text-sm font-bold leading-relaxed opacity-90">{report.summary}</p>
+                     </div>
+                  </div>
+                </>
               )}
-            </div>
-            
-            <div className="px-10 py-8 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                분석 일시: {report ? new Date(report.generatedAt).toLocaleString() : '대기 중'}
-              </div>
-              <button 
-                onClick={onClose}
-                className="px-10 py-4 bg-slate-900 hover:bg-rose-600 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-slate-200 hover:shadow-rose-200"
-              >
-                대시보드 닫기
-              </button>
             </div>
           </motion.div>
         </motion.div>

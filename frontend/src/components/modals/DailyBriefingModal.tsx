@@ -2,6 +2,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Loader2 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
+/**
+ * 프로젝트의 지난 24시간 활동과 결과를 요약하여 보고하는 모달
+ */
 export const DailyBriefingModal = ({ 
   isOpen, 
   onClose, 
@@ -35,7 +38,7 @@ export const DailyBriefingModal = ({
                 </div>
                 <div>
                   <h3 className="text-xl font-black tracking-tight uppercase">에이전트 데일리 브리핑</h3>
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-[0.2em] opacity-80">지난 24시간 활동 및 지식 요약</p>
+                  <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-[0.2em] opacity-80">지난 24시간 활동 및 지능 요약 보고서</p>
                 </div>
               </div>
               <button 
@@ -69,7 +72,7 @@ export const DailyBriefingModal = ({
             <div className="px-10 py-6 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                 <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                Gemini 2.0 Flash 분석 완료
+                분석 완료 (Gemini 2.0 Flash 사용)
               </div>
               <button 
                 onClick={onClose}

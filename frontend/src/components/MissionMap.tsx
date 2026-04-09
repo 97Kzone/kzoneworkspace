@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Target } from "lucide-react";
 import mermaid from 'mermaid';
-import { Task } from "../apiService";
+import { Task } from "../app/apiService";
 
+/**
+ * 프로젝트 내의 태스크 간 의존성 및 진행 상태를 Mermaid.js 기반의 그래프로 시각화
+ */
 export const MissionMap = ({ parentTask, subTasks, getAgentColor }: { parentTask: Task, subTasks: Task[], getAgentColor: (name: string) => any }) => {
   const [chart, setChart] = useState<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -13,18 +16,18 @@ export const MissionMap = ({ parentTask, subTasks, getAgentColor }: { parentTask
     let mermaidGraph = "graph TD\n";
     mermaidGraph += `  P[${parentTask.command.substring(0, 30)}...]:::parent\n`;
     
-    // Define nodes
+    // 노드 정의
     subTasks.forEach(task => {
       const statusClass = task.status === 'COMPLETED' ? 'done' : 
                           task.status === 'RUNNING' ? 'active' : 
                           task.status === 'HEALING' ? 'healing' :
                           task.status === 'FAILED' ? 'error' : 'pending';
-      const agentName = task.agent?.name || "Unknown";
+      const agentName = task.agent?.name || "미지정";
       const cmdShort = task.command.substring(0, 25).replace(/"/g, "'");
       mermaidGraph += `  T${task.id}["${agentName}<br/>${cmdShort}..."]:::${statusClass}\n`;
     });
 
-    // Define edges
+    // 엣지(연결선) 정의
     subTasks.forEach(task => {
       if (task.dependsOnIds) {
           const deps = task.dependsOnIds.split(',');
@@ -32,12 +35,12 @@ export const MissionMap = ({ parentTask, subTasks, getAgentColor }: { parentTask
               mermaidGraph += `  T${depId} --> T${task.id}\n`;
           });
       } else {
-          // If no dependency, it stems from parent (for visual clarity)
+          // 의존성이 없는 경우 시각적 명확성을 위해 최상위 부모에서 연결
           mermaidGraph += `  P --> T${task.id}\n`;
       }
     });
 
-    // Define Styles
+    // 스타일 정의
     mermaidGraph += "  classDef parent fill:#f1f5f9,stroke:#64748b,stroke-width:2px,color:#334155,font-weight:bold\n";
     mermaidGraph += "  classDef done fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#065f46\n";
     mermaidGraph += "  classDef active fill:#eef2ff,stroke:#6366f1,stroke-width:3px,color:#312e81,font-weight:bold\n";
@@ -57,7 +60,7 @@ export const MissionMap = ({ parentTask, subTasks, getAgentColor }: { parentTask
                 }
             });
         } catch (err) {
-            console.error("Mermaid Render Error (Mission):", err);
+            console.error("Mermaid 렌더링 오류 (미션 맵):", err);
         }
     }
   }, [chart, parentTask.id]);
@@ -70,10 +73,10 @@ export const MissionMap = ({ parentTask, subTasks, getAgentColor }: { parentTask
              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">실시간 미션 의존 관계도</span>
           </div>
           <div className="flex gap-3">
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-slate-400"></div><span className="text-[8px] text-slate-500 uppercase font-bold">Pending</span></div>
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-indigo-500"></div><span className="text-[8px] text-indigo-400 uppercase font-bold">Running</span></div>
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[8px] text-orange-400 uppercase font-bold">Healing</span></div>
-             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div><span className="text-[8px] text-emerald-400 uppercase font-bold">Done</span></div>
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-slate-400"></div><span className="text-[8px] text-slate-500 uppercase font-bold">대기 중</span></div>
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-indigo-500"></div><span className="text-[8px] text-indigo-400 uppercase font-bold">실행 중</span></div>
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[8px] text-orange-400 uppercase font-bold">자가 복구</span></div>
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div><span className="text-[8px] text-emerald-400 uppercase font-bold">완료</span></div>
           </div>
        </div>
        <div className="flex-1 overflow-auto bg-white/5 rounded-xl border border-white/5 flex items-center justify-center p-4">
