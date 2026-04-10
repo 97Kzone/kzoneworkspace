@@ -9,6 +9,7 @@ import com.kzoneworkspace.backend.claude.ClaudeClient
 import com.kzoneworkspace.backend.task.dto.DecompositionResponse
 import com.kzoneworkspace.backend.task.dto.WorkstreamRequest
 import com.kzoneworkspace.backend.task.entity.TaskStatus
+import com.kzoneworkspace.backend.agent.service.MissionIntelligenceService
 import kotlinx.coroutines.*
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -19,7 +20,8 @@ class WorkstreamService(
     private val agentService: AgentService,
     private val agentExecutor: AgentExecutor,
     private val claudeClient: ClaudeClient,
-    private val selfHealingService: SelfHealingService
+    private val selfHealingService: SelfHealingService,
+    private val missionIntelligenceService: MissionIntelligenceService
 ) {
     private val objectMapper = jacksonObjectMapper()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -29,6 +31,9 @@ class WorkstreamService(
         
         serviceScope.launch {
             try {
+                // 0. Clear previous session context
+                missionIntelligenceService.clearRoomContext(request.roomId)
+                
                 // 1. Goal Decomposition (using AI)
                 val decomposition = decomposeGoal(request.goal)
                 taskService.setDecomposed(parentTask.id, true)
