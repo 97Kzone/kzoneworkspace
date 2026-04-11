@@ -2,8 +2,13 @@ package com.kzoneworkspace.backend.agent.service
 
 import com.kzoneworkspace.backend.agent.entity.*
 import com.kzoneworkspace.backend.agent.repository.MaintenanceIssueRepository
-import com.kzoneworkspace.backend.claude.GeminiClient
+import com.kzoneworkspace.backend.tools.GitService
+import com.kzoneworkspace.backend.websocket.ChatMessage
+import com.kzoneworkspace.backend.websocket.ChatMessageRepository
+import com.kzoneworkspace.backend.websocket.MessageType
 import org.slf4j.LoggerFactory
+import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.io.File
@@ -12,7 +17,10 @@ import java.time.LocalDateTime
 @Service
 class JanitorService(
     private val maintenanceIssueRepository: MaintenanceIssueRepository,
-    private val geminiClient: GeminiClient
+    private val geminiClient: com.kzoneworkspace.backend.claude.GeminiClient,
+    private val gitService: GitService,
+    private val messagingTemplate: SimpMessagingTemplate,
+    private val chatMessageRepository: ChatMessageRepository
 ) {
     private val logger = LoggerFactory.getLogger(JanitorService::class.java)
 
@@ -24,16 +32,65 @@ class JanitorService(
             if (root.exists() && root.isDirectory) {
                 root.walkTopDown().forEach { file ->
                     if (file.isFile && isSupportedExtension(file.extension)) {
-                        val issues = analyzeFile(file)
-                        if (issues.isNotEmpty()) {
-                            maintenanceIssueRepository.saveAll(issues)
-                            foundCount += issues.size
-                        }
+                        foundCount += scanSingleFile(file)
                     }
                 }
+            } else if (root.exists() && root.isFile) {
+                foundCount += scanSingleFile(root)
             }
         }
         return foundCount
+    }
+
+    private fun scanSingleFile(file: File): Int {
+        val issues = analyzeFile(file)
+        if (issues.isNotEmpty()) {
+            maintenanceIssueRepository.saveAll(issues)
+            return issues.size
+        }
+        return 0
+    }
+
+    /**
+     * 자율 주행 모드: 최근 변경된 파일들만 골라 스캔합니다.
+     * 매 1시간마다 실행 (cron: 0 0 * * * *)
+     */
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    fun performRoutineScan() {
+        logger.info("🚀 [Janitor Autopilot] Starting routine codebase scan...")
+        val changedFiles = gitService.getChangedFiles()
+        
+        if (changedFiles.isEmpty()) {
+            logger.info("✅ [Janitor Autopilot] No changed files detected. Skipping scan.")
+            return
+        }
+
+        var newIssueCount = 0
+        changedFiles.forEach { filePath ->
+            val file = File(filePath)
+            if (file.exists() && file.isFile && isSupportedExtension(file.extension)) {
+                newIssueCount += scanSingleFile(file)
+            }
+        }
+
+        if (newIssueCount > 0) {
+            val reportMessage = "🛠️ [Janitor 자율 스캔 완료]\n최근 변경된 파일에서 **${newIssueCount}개**의 잠재적 관리 이슈가 발견되었습니다. 'Intelligence > AI Janitor' 탭에서 확인하세요."
+            sendSystemNotification(reportMessage)
+        }
+        logger.info("✅ [Janitor Autopilot] Routine scan finished. Found $newIssueCount issues.")
+    }
+
+    private fun sendSystemNotification(content: String) {
+        val systemMessage = ChatMessage(
+            roomId = "default",
+            senderId = "janitor_autopilot",
+            senderName = "Janitor Autopilot",
+            content = content,
+            type = MessageType.SYSTEM
+        )
+        val saved = chatMessageRepository.save(systemMessage)
+        messagingTemplate.convertAndSend("/topic/public", saved)
     }
 
     private fun isSupportedExtension(ext: String): Boolean {

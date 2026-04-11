@@ -42,4 +42,13 @@ class GitService {
     fun commit(message: String): String = executeGitCommand("commit", "-m", message)
 
     fun log(limit: Int = 5): String = executeGitCommand("log", "-n", limit.toString(), "--oneline")
+
+    fun getChangedFiles(): List<String> {
+        // Collect unstaged, staged, and untracked files
+        val unstaged = executeGitCommand("diff", "--name-only").lines().filter { it.isNotBlank() }
+        val staged = executeGitCommand("diff", "--cached", "--name-only").lines().filter { it.isNotBlank() }
+        val untracked = executeGitCommand("ls-files", "--others", "--exclude-standard").lines().filter { it.isNotBlank() }
+        
+        return (unstaged + staged + untracked).distinct()
+    }
 }
