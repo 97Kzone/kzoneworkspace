@@ -281,6 +281,30 @@ export const missionIntelligenceService = {
     get: (roomId: string) => api.get<MissionContext[]>(`/mission-intelligence/${roomId}`),
 };
 
+export interface BrainstormingContribution {
+    id: number;
+    agentName: string;
+    agentRole: string;
+    content: string;
+    timestamp: string;
+}
+
+export interface BrainstormingSession {
+    id: number;
+    roomId: string;
+    goal: string;
+    status: 'PROPOSING' | 'SYNTHESIZING' | 'COMPLETED' | 'FAILED';
+    finalBlueprint: string | null;
+    contributions: BrainstormingContribution[];
+    createdAt: string;
+}
+
+export const brainstormingService = {
+    getAll: (roomId: string) => api.get<BrainstormingSession[]>(`/brainstorming?roomId=${roomId}`),
+    start: (data: { roomId: string, goal: string, agentIds: number[] }) => 
+        api.post<BrainstormingSession>('/brainstorming/start', data),
+};
+
 export const projectHealthService = {
     get: () => api.get<ProjectHealth>('/project-health'),
 };

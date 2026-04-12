@@ -42,6 +42,7 @@ import { CommandPalette } from "../components/CommandPalette";
 import { LivePreviewBubble } from "../components/LivePreviewBubble";
 import { JanitorDashboard } from "../components/JanitorDashboard";
 import { CodeReviewDashboard } from "../components/CodeReviewDashboard";
+import { BrainstormingBoard } from "../components/BrainstormingBoard";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -235,9 +236,9 @@ export default function VirtualOfficeBright() {
     vo.setIsCommanderOpen(false);
     if (id.startsWith('NAV_')) {
       vo.setActiveTab(id.replace('NAV_', '') as any);
-      if (['STATS', 'ANALYTICS'].includes(id.replace('NAV_', ''))) {
+      if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL', 'BRAINSTORMING'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -260,6 +261,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_STATS', label: '워크스테이션 통계', icon: BarChart2, category: 'NAVIGATION' },
     { id: 'NAV_ANALYTICS', label: '팀 생산성 분석', icon: BarChart3, category: 'NAVIGATION' },
     { id: 'NAV_TECH_PULSE', label: '기술 트렌드 레이더', icon: Activity, category: 'NAVIGATION' },
+    { id: 'NAV_BRAINSTORMING', label: '집단 브레인스토밍', icon: Brain, category: 'NAVIGATION' },
     { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
     { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
     { id: 'TOOL_SEARCH', label: '시맨틱 코드 검색', icon: Search, category: 'TOOLS' },
@@ -556,7 +558,7 @@ export default function VirtualOfficeBright() {
                )}
                {vo.activeCategory === 'INTELLIGENCE' && (
                   <div className="flex gap-1">
-                    {[{id:'REASONING', label:'추론 타임라인'}, {id:'CODE_REVIEW', label:'QA 리뷰'}, {id:'JANITOR', label:'AI 자니터'}, {id:'MISSION_CONTROL', label:'미션 컨트롤'}].map(tab => (
+                    {[{id:'REASONING', label:'추론 타임라인'}, {id:'CODE_REVIEW', label:'QA 리뷰'}, {id:'JANITOR', label:'AI 자니터'}, {id:'MISSION_CONTROL', label:'미션 컨트롤'}, {id:'BRAINSTORMING', label:'브레인스토밍'}].map(tab => (
                       <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
                         {tab.label}
                       </button>
@@ -832,6 +834,17 @@ export default function VirtualOfficeBright() {
                       <MissionIntelligenceBoard intelligence={vo.missionIntelligence} isLoading={vo.isMissionIntelligenceLoading} />
                   </div>
               </div>
+          )}
+
+          {vo.activeTab === 'BRAINSTORMING' && vo.activeCategory === 'INTELLIGENCE' && (
+            <div className="flex-1 overflow-hidden">
+              <BrainstormingBoard 
+                agents={vo.agents}
+                sessions={vo.brainstormingSessions}
+                getAgentColor={getAgentColor}
+                onSessionStarted={() => vo.fetchBrainstormingSessions()}
+              />
+            </div>
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (
