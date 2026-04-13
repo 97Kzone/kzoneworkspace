@@ -3,11 +3,11 @@ import {
   Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, 
   CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, 
   ActionableStrategy, TeamPerformance, AgentLesson, CognitiveTrace, 
-  MaintenanceIssue, MissionContext, BrainstormingSession, agentService, taskService, chatService, 
+  MaintenanceIssue, MissionContext, BrainstormingSession, ScenarioSimulation, agentService, taskService, chatService, 
   skillService, activityService, schedulingService, codeReviewService, 
   memoryService, officeService, codebaseService, briefingService, 
   techPulseService, projectHealthService, lessonService, shadowService, 
-  cognitiveService, janitorService, missionIntelligenceService, brainstormingService 
+  cognitiveService, janitorService, missionIntelligenceService, brainstormingService, scenarioService 
 } from "../app/apiService";
 
 /**
@@ -114,6 +114,10 @@ export const useVirtualOffice = () => {
   // 브레인스토밍 관련 상태
   const [brainstormingSessions, setBrainstormingSessions] = useState<BrainstormingSession[]>([]);
   const [isBrainstormingLoading, setIsBrainstormingLoading] = useState(false);
+  
+  // 시나리오 랩 관련 상태
+  const [scenarioSimulations, setScenarioSimulations] = useState<ScenarioSimulation[]>([]);
+  const [isScenarioLoading, setIsScenarioLoading] = useState(false);
 
   // 오피스 아이템 관련 상태
   const [officeItems, setOfficeItems] = useState<OfficeItem[]>([]);
@@ -124,7 +128,7 @@ export const useVirtualOffice = () => {
    */
   const fetchInitialData = useCallback(async () => {
     try {
-      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes, brainRes] = await Promise.all([
+      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes, brainRes, scenarioRes] = await Promise.all([
         agentService.getAll(),
         taskService.getByRoom("default"),
         chatService.getHistory("default"),
@@ -132,7 +136,8 @@ export const useVirtualOffice = () => {
         activityService.getAll(),
         schedulingService.getAll(),
         techPulseService.getAll(),
-        brainstormingService.getAll("default")
+        brainstormingService.getAll("default"),
+        scenarioService.getAll("default")
       ]);
       setAgents(agentRes.data);
       setTasks(taskRes.data);
@@ -142,6 +147,7 @@ export const useVirtualOffice = () => {
       setScheduledTasks(scheduledRes.data);
       setTechPulses(pulseRes.data);
       setBrainstormingSessions(brainRes.data);
+      setScenarioSimulations(scenarioRes.data);
       
       try {
         const perfRes = await agentService.getPerformance();
@@ -260,6 +266,8 @@ export const useVirtualOffice = () => {
     brainstormingSessions, setBrainstormingSessions,
     isBrainstormingLoading, setIsBrainstormingLoading,
     fetchBrainstormingSessions,
+    scenarioSimulations, setScenarioSimulations,
+    isScenarioLoading, setIsScenarioLoading,
     activeChat, setActiveChat
   };
 };

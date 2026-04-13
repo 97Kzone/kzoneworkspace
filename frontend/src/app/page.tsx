@@ -16,7 +16,7 @@ import {
   schedulingService, codeReviewService, memoryService, officeService, 
   codebaseService, briefingService, techPulseService, projectHealthService, 
   lessonService, shadowService, cognitiveService, janitorService, 
-  missionIntelligenceService, ActionableStrategy 
+  missionIntelligenceService, scenarioService, ActionableStrategy 
 } from "./apiService";
 
 // 유틸리티
@@ -43,6 +43,7 @@ import { LivePreviewBubble } from "../components/LivePreviewBubble";
 import { JanitorDashboard } from "../components/JanitorDashboard";
 import { CodeReviewDashboard } from "../components/CodeReviewDashboard";
 import { BrainstormingBoard } from "../components/BrainstormingBoard";
+import { ScenarioLabDashboard } from "../components/ScenarioLabDashboard";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -181,6 +182,19 @@ export default function VirtualOfficeBright() {
     }
   };
 
+  const handleRunScenario = async (title: string, description: string) => {
+    vo.setIsScenarioLoading(true);
+    try {
+      await scenarioService.run({ roomId: "default", title, description });
+      const res = await scenarioService.getAll("default");
+      vo.setScenarioSimulations(res.data);
+    } catch (e) {
+      console.error("시나리오 실행 실패:", e);
+    } finally {
+      vo.setIsScenarioLoading(false);
+    }
+  };
+
   const handleCreateScheduledTask = async () => {
     try {
       await schedulingService.create(vo.newScheduledTask);
@@ -238,7 +252,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL', 'BRAINSTORMING'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -262,6 +276,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_ANALYTICS', label: '팀 생산성 분석', icon: BarChart3, category: 'NAVIGATION' },
     { id: 'NAV_TECH_PULSE', label: '기술 트렌드 레이더', icon: Activity, category: 'NAVIGATION' },
     { id: 'NAV_BRAINSTORMING', label: '집단 브레인스토밍', icon: Brain, category: 'NAVIGATION' },
+    { id: 'NAV_SCENARIO_LAB', label: '시나리오 인텔리전스 랩', icon: Zap, category: 'NAVIGATION' },
     { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
     { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
     { id: 'TOOL_SEARCH', label: '시맨틱 코드 검색', icon: Search, category: 'TOOLS' },
@@ -558,7 +573,14 @@ export default function VirtualOfficeBright() {
                )}
                {vo.activeCategory === 'INTELLIGENCE' && (
                   <div className="flex gap-1">
-                    {[{id:'REASONING', label:'추론 타임라인'}, {id:'CODE_REVIEW', label:'QA 리뷰'}, {id:'JANITOR', label:'AI 자니터'}, {id:'MISSION_CONTROL', label:'미션 컨트롤'}, {id:'BRAINSTORMING', label:'브레인스토밍'}].map(tab => (
+                    {[
+                      {id:'REASONING', label:'추론 타임라인'}, 
+                      {id:'CODE_REVIEW', label:'QA 리뷰'}, 
+                      {id:'JANITOR', label:'AI 자니터'}, 
+                      {id:'MISSION_CONTROL', label:'미션 컨트롤'}, 
+                      {id:'BRAINSTORMING', label:'브레인스토밍'},
+                      {id:'SCENARIO_LAB', label:'시나리오 랩'}
+                    ].map(tab => (
                       <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
                         {tab.label}
                       </button>
@@ -845,6 +867,14 @@ export default function VirtualOfficeBright() {
                 onSessionStarted={() => vo.fetchBrainstormingSessions()}
               />
             </div>
+          )}
+
+          {vo.activeTab === 'SCENARIO_LAB' && vo.activeCategory === 'INTELLIGENCE' && (
+             <ScenarioLabDashboard 
+               simulations={vo.scenarioSimulations}
+               isLoading={vo.isScenarioLoading}
+               onRunSimulation={handleRunScenario}
+             />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (

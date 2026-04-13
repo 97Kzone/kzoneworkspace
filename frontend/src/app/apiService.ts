@@ -166,6 +166,25 @@ export interface MaintenanceIssue {
     createdAt: string;
 }
 
+export interface ScenarioSimulation {
+    id: number;
+    roomId: string;
+    title: string;
+    description: string;
+    status: 'DESIGNING' | 'SIMULATING' | 'COMPLETED' | 'FAILED';
+    finalReport: string | null;
+    impacts: ScenarioImpact[];
+    createdAt: string;
+}
+
+export interface ScenarioImpact {
+    id: number;
+    area: string;
+    score: number;
+    observation: string;
+    createdAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -336,6 +355,12 @@ export const janitorService = {
     triggerScan: () => api.post<{success: boolean, foundCount: number}>('/janitor/scan'),
     applyFix: (id: number) => api.post<{success: boolean, message: string}>(`/janitor/fix/${id}`),
     ignoreIssue: (id: number) => api.post<{success: boolean}>(`/janitor/ignore/${id}`),
+};
+
+export const scenarioService = {
+    getAll: (roomId: string) => api.get<ScenarioSimulation[]>(`/scenarios?roomId=${roomId}`),
+    run: (data: { roomId: string, title: string, description: string }) => 
+        api.post<ScenarioSimulation>('/scenarios/run', data),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
