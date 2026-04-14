@@ -1,22 +1,21 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { 
-  Bot, User, MessageSquare, Plus, X, Users, Terminal, Code2, Layout, Database, 
-  Send, Command, Loader2, Sparkles, Coffee, GripVertical, Presentation, Maximize2, 
-  BarChart3, BarChart2, Brain, Calendar, Activity, ChevronRight, Pause, Play, 
-  Trash2, Search, Leaf, ShoppingBag, Zap, Target, Heart, ShieldAlert, TrendingUp, History 
+  Plus as PlusIcon, Calendar, Activity, Zap, Target, Loader2, Presentation,
+  Bot, User, MessageSquare, X, Users, Terminal, Code2, Layout, Database, 
+  Send, Command, Sparkles, Coffee, GripVertical, Maximize2, 
+  BarChart3, BarChart2, Brain, ChevronRight, Pause, Play, 
+  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History 
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
 // API 서비스 및 타입
 import { 
-  agentService, taskService, chatService, skillService, activityService, 
-  schedulingService, codeReviewService, memoryService, officeService, 
-  codebaseService, briefingService, techPulseService, projectHealthService, 
-  lessonService, shadowService, cognitiveService, janitorService, 
-  missionIntelligenceService, scenarioService, ActionableStrategy 
+  agentService, taskService, chatService, schedulingService, codeReviewService, 
+  memoryService, codebaseService, briefingService, projectHealthService, 
+  scenarioService, ActionableStrategy 
 } from "./apiService";
 
 // 유틸리티
@@ -26,8 +25,12 @@ import { getAgentColor } from "../utils/agentColors";
 import { useVirtualOffice } from "../hooks/useVirtualOffice";
 import { useStompWS } from "../hooks/useStompWS";
 
-// 컴포넌트
-import { EmotionBubble } from "../components/EmotionBubble";
+// 레이아웃 및 대시보드 컴포넌트
+import { Sidebar } from "../components/layout/Sidebar";
+import { Header } from "../components/layout/Header";
+import { WorkspaceDashboard } from "../components/dashboards/WorkspaceDashboard";
+
+// 공통 컴포넌트
 import { KnowledgeExplorer } from "../components/KnowledgeExplorer";
 import { WisdomVault } from "../components/WisdomVault";
 import { CodebaseExplorer } from "../components/CodebaseExplorer";
@@ -44,6 +47,7 @@ import { JanitorDashboard } from "../components/JanitorDashboard";
 import { CodeReviewDashboard } from "../components/CodeReviewDashboard";
 import { BrainstormingBoard } from "../components/BrainstormingBoard";
 import { ScenarioLabDashboard } from "../components/ScenarioLabDashboard";
+import { EmotionBubble } from "../components/EmotionBubble";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -216,33 +220,29 @@ export default function VirtualOfficeBright() {
     }
   };
 
-  const handleOpenWhiteboard = async (agentName: string) => {
+  const handleOpenProjectHealth = async () => {
+    vo.setIsHealthLoading(true);
+    vo.setIsHealthModalOpen(true);
     try {
-      const res = await agentService.getWhiteboard(agentName);
-      vo.setWhiteboardContent(res.data);
-      vo.setIsWhiteboardOpen(true);
-    } catch (err) {
-      console.error("화이트보드 로드 실패:", err);
+      const res = await projectHealthService.getReport();
+      vo.setHealthReport(res.data);
+    } catch (e) {
+      console.error("건강 리포트 로드 실패:", e);
+    } finally {
+      vo.setIsHealthLoading(false);
     }
   };
 
-  const handleBrowse = async (url: string) => {
+  const handleOpenBriefing = async () => {
+    vo.setIsBriefingLoading(true);
+    vo.setIsBriefingOpen(true);
     try {
-      vo.setIsBrowserOpen(true);
-      vo.setBrowserUrl(url);
-      const res = await agentService.browse(url);
-      vo.setBrowserScreenshot(res.data);
-    } catch (err) {
-      console.error("브라우징 실패:", err);
-    }
-  };
-
-  const handleAdoptStrategy = async (strategy: ActionableStrategy) => {
-    try {
-      await projectHealthService.adopt(strategy);
-      vo.fetchInitialData();
-    } catch (err) {
-      console.error("전략 채택 실패:", err);
+      const res = await briefingService.get();
+      vo.setBriefingContent(res.data.content);
+    } catch (e) {
+      console.error("브리핑 로드 실패:", e);
+    } finally {
+      vo.setIsBriefingLoading(false);
     }
   };
 
@@ -259,10 +259,10 @@ export default function VirtualOfficeBright() {
       }
     }
     if (id === 'ACTION_DAILY_BRIEFING') {
-      vo.setIsBriefingOpen(true);
+      handleOpenBriefing();
     }
     if (id === 'ACTION_PROJECT_HEALTH') {
-      vo.setIsHealthModalOpen(true);
+      handleOpenProjectHealth();
     }
   };
 
@@ -282,16 +282,6 @@ export default function VirtualOfficeBright() {
     { id: 'TOOL_SEARCH', label: '시맨틱 코드 검색', icon: Search, category: 'TOOLS' },
     { id: 'TOOL_KNOWLEDGE', label: '전역 지식 탐색', icon: Database, category: 'TOOLS' },
   ];
-
-  const handleStartShadow = (taskId: number) => {
-    // 섀도우 코딩 로직 (필요 시 구현)
-  };
-
-  const handleDiscardShadow = () => vo.setIsShadowPreviewOpen(false);
-  const handleCommitShadow = () => {
-    alert("변경 사항이 메인 브랜치에 반영되었습니다.");
-    vo.setIsShadowPreviewOpen(false);
-  };
 
   return (
     <main className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-[family-name:var(--font-geist-sans)] selection:bg-indigo-100 selection:text-indigo-900">
@@ -371,377 +361,27 @@ export default function VirtualOfficeBright() {
         isLoading={vo.isBriefingLoading}
       />
 
-      {/* 사이드바 */}
-      <div className="w-96 bg-white border-r border-slate-100 flex flex-col shadow-[10px_0_40px_rgba(0,0,0,0.02)] z-10">
-        <div className="p-8 pb-6 bg-gradient-to-b from-slate-50/50 to-transparent">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100 rotate-3 transform hover:rotate-0 transition-transform cursor-pointer group">
-                <Layout size={20} className="group-hover:scale-110 transition-transform" />
-              </div>
-              <h1 className="text-xl font-black italic tracking-tighter text-slate-800">K-ZONE <span className="text-indigo-600">AI</span></h1>
-            </div>
-            <button 
-              onClick={async () => {
-                vo.setIsHealthLoading(true);
-                vo.setIsHealthModalOpen(true);
-                const res = await projectHealthService.getReport();
-                vo.setHealthReport(res.data);
-                vo.setIsHealthLoading(false);
-              }}
-              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-all flex items-center justify-center border border-slate-100 hover:border-rose-100 overflow-hidden relative group"
-            >
-              <Heart size={20} className="group-hover:scale-110 transition-transform" />
-              <motion.div className="absolute inset-0 bg-rose-500/10 scale-0 group-hover:scale-100 transition-transform origin-center" />
-            </button>
-          </div>
+      <Sidebar 
+        vo={vo} 
+        onDeleteAgent={handleDeleteAgent} 
+        onOpenProjectHealth={handleOpenProjectHealth} 
+      />
 
-          <div className="flex items-center gap-4 mb-4">
-             <div className="flex-1 px-4 py-2 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-2 group focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 transition-all">
-                <Search size={14} className="text-slate-400 group-focus-within:text-indigo-500" />
-                <input 
-                  type="text" 
-                  placeholder="빠른 명령어 찾기 (Ctrl+K)..." 
-                  className="bg-transparent border-none outline-none text-xs font-bold text-slate-600 w-full placeholder:text-slate-400"
-                  onFocus={() => vo.setIsCommanderOpen(true)}
-                  readOnly
-                />
-             </div>
-          </div>
-          
-          <div className="flex items-center justify-between px-1">
-             <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">실시간 워크스페이스 가동 중</span>
-             </div>
-             <div className="flex items-center gap-2">
-                <button 
-                   onClick={() => vo.setIsKnowledgeExplorerOpen(true)}
-                   className="p-1.5 hover:bg-indigo-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
-                   title="전역 지식 탐색"
-                >
-                   <Database size={14} />
-                </button>
-             </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-2 custom-scrollbar space-y-8">
-          <section>
-            <div className="flex items-center justify-between mb-6 px-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">활성 에이전트</h2>
-              <button 
-                onClick={() => vo.setIsDeployModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-[10px] font-black transition-all border border-indigo-100 shadow-sm"
-              >
-                <Plus size={12} strokeWidth={3} /> 배포하기
-              </button>
-            </div>
-            <div className="space-y-3">
-              {vo.agents.map((agent) => (
-                <motion.div 
-                  key={agent.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className={`group relative p-4 rounded-3xl border transition-all cursor-pointer ${vo.activeChat === agent.name ? 'bg-white border-indigo-100 shadow-xl shadow-indigo-500/5 ring-1 ring-indigo-50' : 'bg-white border-slate-100 hover:border-indigo-100 hover:shadow-lg'}`}
-                  onClick={() => vo.setActiveChat(agent.name)}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className={`w-12 h-12 rounded-2xl ${getAgentColor(agent.name).bg} flex items-center justify-center text-white shadow-lg relative z-10 overflow-hidden`}>
-                        <Bot size={24} />
-                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      </div>
-                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center z-20 ${agent.status === 'IDLE' ? 'bg-emerald-500' : 'bg-indigo-500 animate-pulse'}`}>
-                        {agent.status !== 'IDLE' && <Activity size={8} className="text-white" />}
-                      </div>
-                      {vo.activeCollaborations[agent.name] && (
-                        <motion.div 
-                          className="absolute -right-8 top-1/2 -translate-y-1/2 z-30 bg-white shadow-md border border-indigo-100 rounded-full p-1"
-                          initial={{ scale: 0 }} animate={{ scale: 1 }}
-                        >
-                          <Users size={12} className="text-indigo-500" />
-                        </motion.div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-black text-slate-800 truncate text-sm tracking-tight capitalize">{agent.name}</h3>
-                        {vo.activePreviews[agent.name] && (
-                          <span className="flex h-1.5 w-1.5 rounded-full bg-indigo-500 animate-ping" title="추론 진행 중"></span>
-                        )}
-                      </div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{agent.role}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 flex gap-1.5 flex-wrap">
-                    {agent.assignedSkills?.map((skillId : any) => (
-                      <span key={skillId} className="px-2 py-0.5 bg-slate-50 text-slate-400 text-[8px] font-black rounded-lg border border-slate-100 truncate max-w-[60px]">
-                        {skillId}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        vo.setEditingAgentId(agent.id);
-                        vo.setNewAgent({ name: agent.name, role: agent.role, model: agent.model, systemPrompt: agent.systemPrompt || "", assignedSkills: agent.assignedSkills || [] });
-                        vo.setIsDeployModalOpen(true);
-                      }}
-                      className="p-1.5 hover:bg-slate-50 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors"
-                      title="에이전트 수정"
-                    >
-                      <Code2 size={12} />
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAgent(agent.id);
-                      }}
-                      className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
-                      title="에이전트 해제"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center justify-between mb-4 px-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">진행 중인 태스크</h2>
-              <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg">{(vo.tasks.filter(t => t.status === 'RUNNING').length)}개 활성</span>
-            </div>
-            <div className="space-y-2">
-              {vo.tasks.filter(t => t.status !== 'COMPLETED').slice(0, 5).map((task) => (
-                <div key={task.id} className="p-3 bg-slate-50/50 border border-slate-100 rounded-2xl flex items-center gap-3 group hover:bg-white hover:shadow-md transition-all">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${task.status === 'RUNNING' ? 'bg-indigo-50 text-indigo-500' : task.status === 'HEALING' ? 'bg-orange-50 text-orange-500' : task.status === 'FAILED' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-400'}`}>
-                    {task.status === 'RUNNING' ? <Activity size={14} className="animate-pulse" /> : <Terminal size={14} />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">{task.command}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                       <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{task.agent?.name}</span>
-                       <span className="text-[8px] text-slate-300">•</span>
-                       <span className={`text-[8px] font-black uppercase ${task.status === 'RUNNING' ? 'text-indigo-500' : task.status === 'HEALING' ? 'text-orange-500' : 'text-slate-500'}`}>
-                          {task.status === 'RUNNING' ? '실행 중' : task.status === 'HEALING' ? '자가 복구 중' : task.status === 'FAILED' ? '실패' : '대기'}
-                       </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      </div>
-
-      {/* 메인 컨텐츠 영역 */}
       <div className="flex-1 flex flex-col relative bg-white">
-        <header className="h-20 border-b border-slate-100 flex items-center justify-between px-10 shrink-0">
-          <div className="flex items-center gap-6">
-            <nav className="flex gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-100">
-              {[
-                { id: 'PROCESS', label: '워크스테이션', icon: Terminal },
-                { id: 'INTELLIGENCE', label: '인텔리전스', icon: Brain },
-                { id: 'METRICS', label: '분석 및 통계', icon: BarChart3 },
-              ].map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => vo.setActiveCategory(cat.id as any)}
-                  className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black transition-all tracking-widest ${vo.activeCategory === cat.id ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 ring-1 ring-slate-100' : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'}`}
-                >
-                  <cat.icon size={13} strokeWidth={vo.activeCategory === cat.id ? 3 : 2} />
-                  {cat.label}
-                </button>
-              ))}
-            </nav>
-            <div className="h-4 w-px bg-slate-200"></div>
-            <div className="flex gap-4">
-               {vo.activeCategory === 'PROCESS' && (
-                  <div className="flex gap-1">
-                    {[{id:'LOGS', label:'활동 로그'}, {id:'SCHEDULER', label:'스케줄러'}, {id:'KANBAN', label:'칸반 보드'}, {id:'MISSION', label:'미션 맵'}].map(tab => (
-                      <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-               )}
-               {vo.activeCategory === 'INTELLIGENCE' && (
-                  <div className="flex gap-1">
-                    {[
-                      {id:'REASONING', label:'추론 타임라인'}, 
-                      {id:'CODE_REVIEW', label:'QA 리뷰'}, 
-                      {id:'JANITOR', label:'AI 자니터'}, 
-                      {id:'MISSION_CONTROL', label:'미션 컨트롤'}, 
-                      {id:'BRAINSTORMING', label:'브레인스토밍'},
-                      {id:'SCENARIO_LAB', label:'시나리오 랩'}
-                    ].map(tab => (
-                      <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-               )}
-               {vo.activeCategory === 'METRICS' && (
-                  <div className="flex gap-1">
-                    {[{id:'STATS', label:'핵심 지표'}, {id:'ANALYTICS', label:'생산성 분석'}, {id:'TECH_PULSE', label:'기술 트렌드'}].map(tab => (
-                      <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-               )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-             <div className="flex -space-x-3 mr-4">
-                {vo.agents.slice(0, 4).map(agent => (
-                   <div key={agent.id} className={`w-8 h-8 rounded-full border-2 border-white ${getAgentColor(agent.name).bg} flex items-center justify-center text-white text-[10px] font-bold shadow-sm relative group cursor-pointer tooltip`}>
-                      <span className="uppercase">{agent.name[0]}</span>
-                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                        {agent.name}
-                      </div>
-                   </div>
-                ))}
-             </div>
-             
-             <button 
-                onClick={async () => {
-                  vo.setIsBriefingLoading(true);
-                  vo.setIsBriefingOpen(true);
-                  const res = await briefingService.get();
-                  vo.setBriefingContent(res.data.content);
-                  vo.setIsBriefingLoading(false);
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-200 active:scale-95"
-             >
-                <Sparkles size={14} /> 데일리 브리핑
-             </button>
-          </div>
-        </header>
+        <Header 
+          vo={vo} 
+          onOpenBriefing={handleOpenBriefing} 
+        />
 
         <div className="flex-1 overflow-hidden flex flex-col p-8 gap-8 bg-slate-50/30">
           {vo.activeCategory === 'PROCESS' && vo.activeTab === 'LOGS' && (
-             <div className="flex-1 flex gap-8">
-                <div className="flex-1 flex flex-col rounded-[2.5rem] bg-white border border-slate-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.03)] overflow-hidden">
-                   <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md">
-                          <MessageSquare size={16} />
-                        </div>
-                        <h3 className="font-black text-slate-800 tracking-tight text-sm uppercase">워크스페이스</h3>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">실시간 동기화 중</span>
-                        <div className="flex gap-1">
-                          <div className="w-1 h-1 rounded-full bg-emerald-400"></div>
-                          <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
-                        </div>
-                   </div>
-                   </div>
-                   
-                   <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar scroll-smooth" ref={scrollRef}>
-                      {vo.messages.map((msg, i) => (
-                        <motion.div 
-                          key={i} 
-                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                          className={`flex items-start gap-5 ${msg.sender === 'User' ? 'flex-row-reverse' : ''}`}
-                        >
-                          <div className={`w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center text-white shadow-lg ${msg.sender === 'User' ? 'bg-slate-800' : getAgentColor(msg.sender).bg}`}>
-                            {msg.sender === 'User' ? <User size={24} /> : <Bot size={24} />}
-                          </div>
-                          <div className={`max-w-[80%] flex flex-col ${msg.sender === 'User' ? 'items-end' : ''}`}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{msg.sender === 'User' ? '마스터' : msg.sender}</span>
-                              <span className="text-[9px] text-slate-300 font-mono">{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                            </div>
-                            <div className={`px-6 py-4 rounded-[1.5rem] text-[13px] font-medium leading-relaxed ${msg.sender === 'User' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100' : 'bg-slate-50 border border-slate-100/50 text-slate-700'}`}>
-                              <ReactMarkdown 
-                                 components={{
-                                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                  code: ({ node, ...props }) => <code className="bg-black/5 px-1 rounded font-mono text-[11px]" {...props} />,
-                                  pre: ({ children }) => <pre className="bg-slate-900 text-slate-50 p-4 rounded-xl my-3 overflow-x-auto text-[11px] font-mono leading-relaxed">{children}</pre>
-                                 }}
-                              >
-                                {msg.content}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                   </div>
-
-                   <div className="p-8 border-t border-slate-50 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.012)]">
-                      <div className="relative group">
-                         <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform"></div>
-                         <div className="flex gap-4">
-                            <input
-                              type="text"
-                              placeholder="전역 메시지 또는 명령어를 입력하세요..."
-                              className="w-full bg-slate-50 border border-slate-100/50 rounded-2xl px-6 py-4 text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-100/30 transition-all font-mono"
-                              value={vo.inputValue}
-                              onChange={(e) => vo.setInputValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  if (vo.inputValue.startsWith('/')) handleExecuteCommand(vo.inputValue.substring(1));
-                                  else handleSendMessage();
-                                }
-                              }}
-                            />
-                            <button 
-                              onClick={handleSendMessage}
-                              disabled={!vo.inputValue.trim()}
-                              className="px-8 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:bg-slate-400 text-white rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 flex items-center justify-center group"
-                            > 
-                              <Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                            </button>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-
-                <div className="w-96 flex flex-col gap-8">
-                   <div className="flex-1 flex flex-col rounded-[2rem] bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden">
-                      <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-black/20">
-                         <div className="flex items-center gap-2.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
-                            <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                         </div>
-                         <div className="flex items-center gap-2">
-                           <Terminal size={14} className="text-slate-500" />
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내부 활동 로그</span>
-                         </div>
-                      </div>
-                      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar-dark font-mono text-[11px]" ref={consoleScrollRef}>
-                         {vo.activities.map((act, i) => (
-                           <motion.div initial={{ opacity: 0, x: 5 }} animate={{ opacity: 1, x: 0 }} key={act.id}>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-slate-500">[{new Date(act.timestamp).toLocaleTimeString()}]</span>
-                                <span className={`${getAgentColor(act.agentName).soft} font-bold`}>{act.agentName}</span>
-                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-white ${act.type === 'PLANNING' ? 'bg-indigo-500' : act.type === 'TOOL' ? 'bg-emerald-600' : 'bg-slate-600'}`}>
-                                   {act.type === 'PLANNING' ? '전략수립' : act.type === 'TOOL' ? '도구사용' : '사고과정'}
-                                </span>
-                              </div>
-                              <div className="pl-4 border-l border-slate-800 py-1 text-slate-300 leading-relaxed break-all">
-                                {act.content}
-                              </div>
-                           </motion.div>
-                         ))}
-                      </div>
-                   </div>
-                   
-                   <div className="h-64 rounded-[2rem] bg-white border border-slate-100 shadow-xl p-6 flex flex-col items-center justify-center text-center group cursor-pointer relative overflow-hidden overflow-y-auto custom-scrollbar">
-                      <TeamProductivityChart performance={vo.performanceData} />
-                   </div>
-                </div>
-             </div>
+             <WorkspaceDashboard 
+                vo={vo} 
+                scrollRef={scrollRef} 
+                consoleScrollRef={consoleScrollRef} 
+                onSendMessage={handleSendMessage} 
+                onExecuteCommand={handleExecuteCommand} 
+             />
           )}
 
           {vo.activeTab === 'SCHEDULER' && vo.activeCategory === 'PROCESS' && (
@@ -752,7 +392,7 @@ export default function VirtualOfficeBright() {
                   className="rounded-3xl border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/20 transition-all cursor-pointer group"
                 >
                    <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-indigo-500 group-hover:text-white flex items-center justify-center mb-4 transition-all shadow-sm">
-                      <Plus size={32} />
+                      <PlusIcon size={32} />
                    </div>
                    <p className="text-sm font-black uppercase tracking-widest">자동화 태스크 예약하기</p>
                 </motion.div>
@@ -796,7 +436,7 @@ export default function VirtualOfficeBright() {
                ))}
                {vo.tasks.filter(t => t.status === 'RUNNING' || t.status === 'HEALING').length === 0 && (
                   <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 opacity-50 py-20">
-                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center"><Target size={40} /></div>
+                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center"><TargetIcon size={40} /></div>
                     <p className="text-sm font-black uppercase tracking-widest">현재 진행 중인 미션이 없습니다</p>
                   </div>
                )}
@@ -851,8 +491,7 @@ export default function VirtualOfficeBright() {
                          </div>
                      </div>
                   </div>
-
-                  <div className="flex-1 overflow-hidden">
+                  <div className="flex-1 overflow-y-auto p-10 custom-scrollbar-dark">
                       <MissionIntelligenceBoard intelligence={vo.missionIntelligence} isLoading={vo.isMissionIntelligenceLoading} />
                   </div>
               </div>
@@ -860,12 +499,12 @@ export default function VirtualOfficeBright() {
 
           {vo.activeTab === 'BRAINSTORMING' && vo.activeCategory === 'INTELLIGENCE' && (
             <div className="flex-1 overflow-hidden">
-              <BrainstormingBoard 
-                agents={vo.agents}
-                sessions={vo.brainstormingSessions}
-                getAgentColor={getAgentColor}
-                onSessionStarted={() => vo.fetchBrainstormingSessions()}
-              />
+               <BrainstormingBoard 
+                  agents={vo.agents}
+                  sessions={vo.brainstormingSessions}
+                  getAgentColor={getAgentColor}
+                  onSessionStarted={() => vo.fetchBrainstormingSessions()}
+               />
             </div>
           )}
 
@@ -961,84 +600,11 @@ export default function VirtualOfficeBright() {
             </div>
           )}
         </div>
-
-        {vo.activeChat && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`fixed bottom-10 right-10 w-[420px] bg-white rounded-[2.5rem] shadow-[0_20px_80px_rgba(0,0,0,0.15)] ring-1 ring-slate-100 overflow-hidden flex flex-col z-[50] border border-slate-100`}
-          >
-            <div className={`px-8 py-6 ${getAgentColor(vo.activeChat).bg} flex items-center justify-between shadow-lg relative overflow-hidden`}>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-16 -mt-16"></div>
-              
-              <div className="flex items-center gap-4 text-white relative z-10">
-                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                  <Bot size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-black tracking-tight capitalize">{vo.activeChat} <span className="text-[10px] opacity-70 font-normal ml-1">직접 제보 본부</span></h3>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-80">데이터 동기화 중</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 relative z-10">
-                 <button onClick={() => vo.setActiveChat(null)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10">
-                   <X size={18} />
-                 </button>
-              </div>
-            </div>
-            
-            <div className="flex-1 h-[450px] overflow-y-auto p-8 space-y-6 custom-scrollbar bg-slate-50/20 relative">
-               {vo.activePreviews[vo.activeChat] && <LivePreviewBubble preview={vo.activePreviews[vo.activeChat]!} getAgentColor={getAgentColor} />}
-               {vo.messages.filter(m => m.sender === vo.activeChat || (m.sender === 'User' && m.content.includes(`@${vo.activeChat}`))).length === 0 ? (
-                 <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 italic text-sm">
-                    아직 기록된 대화가 없습니다.
-                 </div>
-               ) : (
-                 vo.messages.filter(m => m.sender === vo.activeChat || (m.sender === 'User' && m.content.includes(`@${vo.activeChat}`))).map((msg, i) => (
-                    <motion.div key={i} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className={`flex flex-col ${msg.sender === 'User' ? 'items-end' : 'items-start'}`}>
-                      <div className={`px-5 py-3.5 rounded-2xl text-[12px] font-medium leading-relaxed ${msg.sender === 'User' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'}`}>
-                        {msg.content}
-                      </div>
-                      <span className="text-[8px] font-black text-slate-400 mt-2 uppercase tracking-widest">{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                    </motion.div>
-                 ))
-               )}
-            </div>
-            
-            <div className="p-8 bg-white border-t border-slate-100">
-               <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 flex items-center gap-3 group focus-within:ring-2 focus-within:ring-indigo-100 focus-within:bg-white transition-all">
-                    <Command size={14} className="text-slate-400 group-focus-within:text-indigo-500" />
-                    <input 
-                      type="text" 
-                      placeholder={`${vo.activeChat}에게 직접 지시하기...`}
-                      className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full placeholder:text-slate-400 uppercase tracking-tighter" 
-                      value={vo.inputValue}
-                      onChange={(e) => vo.setInputValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          chatService.send("default", "User", `@${vo.activeChat} ${vo.inputValue}`);
-                          vo.setInputValue("");
-                        }
-                      }}
-                    />
-                  </div>
-                  <button 
-                  onClick={() => {
-                     chatService.send("default", "User", `@${vo.activeChat} ${vo.inputValue}`);
-                     vo.setInputValue("");
-                  }}
-                  className={`w-12 h-12 flex items-center justify-center rounded-2xl ${getAgentColor(vo.activeChat).bg} text-white shadow-lg shadow-indigo-100 active:scale-90 transition-all`}>
-                    <Send size={18} />
-                  </button>
-               </div>
-            </div>
-          </motion.div>
-        )}
       </div>
+
+      {/* 실시간 플로팅 레이어 */}
+      <EmotionBubble />
+      <LivePreviewBubble previews={vo.activePreviews} getAgentColor={getAgentColor} />
 
       {/* 모달 관리 영역 */}
       <AnimatePresence>
