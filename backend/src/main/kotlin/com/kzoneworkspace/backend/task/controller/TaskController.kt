@@ -25,6 +25,10 @@ class TaskController(
     fun getTaskById(@PathVariable id: Long): ResponseEntity<Task> =
         ResponseEntity.ok(taskService.getTaskById(id))
 
+    @GetMapping("/mission/{missionId}")
+    fun getTasksByMission(@PathVariable missionId: Long): ResponseEntity<List<Task>> =
+        ResponseEntity.ok(taskService.getTasksByMission(missionId))
+
     @PatchMapping("/{id}/status")
     fun updateStatus(
         @PathVariable id: Long,

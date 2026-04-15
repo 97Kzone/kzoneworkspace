@@ -45,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({ vo, onOpenBriefing }) => {
                   {id:'REASONING', label:'추론 타임라인'}, 
                   {id:'CODE_REVIEW', label:'QA 리뷰'}, 
                   {id:'JANITOR', label:'AI 자니터'}, 
+                  {id:'MISSION_HIVE', label:'미션 하이브'},
                   {id:'MISSION_CONTROL', label:'미션 컨트롤'}, 
                   {id:'BRAINSTORMING', label:'브레인스토밍'},
                   {id:'SCENARIO_LAB', label:'시나리오 랩'}

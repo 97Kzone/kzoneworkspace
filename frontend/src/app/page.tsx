@@ -45,7 +45,7 @@ import { CommandPalette } from "../components/CommandPalette";
 import { LivePreviewBubble } from "../components/LivePreviewBubble";
 import { JanitorDashboard } from "../components/JanitorDashboard";
 import { CodeReviewDashboard } from "../components/CodeReviewDashboard";
-import { BrainstormingBoard } from "../components/BrainstormingBoard";
+import { MissionHiveDashboard } from "../components/MissionHiveDashboard";
 import { ScenarioLabDashboard } from "../components/ScenarioLabDashboard";
 import { EmotionBubble } from "../components/EmotionBubble";
 
@@ -252,7 +252,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -270,6 +270,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_LOGS', label: '활동 로그 보기', icon: Terminal, category: 'NAVIGATION' },
     { id: 'NAV_REASONING', label: '추론 기록 보기', icon: Brain, category: 'NAVIGATION' },
     { id: 'NAV_MISSION_CONTROL', label: '미션 컨트롤 본부', icon: Target, category: 'NAVIGATION' },
+    { id: 'NAV_MISSION_HIVE', label: '자율 미션 하이브', icon: Zap, category: 'NAVIGATION' },
     { id: 'NAV_JANITOR', label: '기술 부채 관리 (AI Janitor)', icon: Trash2, category: 'NAVIGATION' },
     { id: 'NAV_CODE_REVIEW', label: '코드 리뷰 센터', icon: ShieldAlert, category: 'NAVIGATION' },
     { id: 'NAV_STATS', label: '워크스테이션 통계', icon: BarChart2, category: 'NAVIGATION' },
@@ -495,6 +496,10 @@ export default function VirtualOfficeBright() {
                       <MissionIntelligenceBoard intelligence={vo.missionIntelligence} isLoading={vo.isMissionIntelligenceLoading} />
                   </div>
               </div>
+          )}
+
+          {vo.activeTab === 'MISSION_HIVE' && vo.activeCategory === 'INTELLIGENCE' && (
+             <MissionHiveDashboard activeRoom="default" />
           )}
 
           {vo.activeTab === 'BRAINSTORMING' && vo.activeCategory === 'INTELLIGENCE' && (

@@ -13,6 +13,9 @@ import com.kzoneworkspace.backend.agent.service.MissionIntelligenceService
 import kotlinx.coroutines.*
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import com.kzoneworkspace.backend.task.entity.MissionSession
+import com.kzoneworkspace.backend.task.entity.MissionStatus
+import com.kzoneworkspace.backend.task.repository.MissionSessionRepository
 
 @Service
 class WorkstreamService(
@@ -21,13 +24,24 @@ class WorkstreamService(
     private val agentExecutor: AgentExecutor,
     private val claudeClient: ClaudeClient,
     private val selfHealingService: SelfHealingService,
-    private val missionIntelligenceService: MissionIntelligenceService
+    private val missionIntelligenceService: MissionIntelligenceService,
+    private val missionSessionRepository: MissionSessionRepository
 ) {
     private val objectMapper = jacksonObjectMapper()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun startWorkstream(request: WorkstreamRequest) {
         val parentTask = taskService.createTask(request.roomId, request.goal, null)
+        
+        // Create Persistent Mission Session
+        val missionSession = missionSessionRepository.save(
+            MissionSession(
+                roomId = request.roomId,
+                goal = request.goal,
+                status = MissionStatus.ACTIVE
+            )
+        )
+        parentTask.missionId = missionSession.id
         
         serviceScope.launch {
             try {
@@ -37,6 +51,11 @@ class WorkstreamService(
                 // 1. Goal Decomposition (using AI)
                 val decomposition = decomposeGoal(request.goal)
                 taskService.setDecomposed(parentTask.id, true)
+                
+                // Save decomposition structure to mission session
+                missionSession.decompositionStructure = objectMapper.writeValueAsString(decomposition)
+                missionSession.totalTasks = decomposition.subTasks.size
+                missionSessionRepository.save(missionSession)
                 
                 // 2. Task Graph Execution
                 val agents = agentService.getAllAgents()
@@ -48,7 +67,7 @@ class WorkstreamService(
                                 ?: agents.find { it.role.contains("개발") } 
                                 ?: agents[0]
                     
-                    val subTask = taskService.createSubTask(parentTask.id, request.roomId, subTaskDef.command, agent)
+                    val subTask = taskService.createSubTask(parentTask.id, request.roomId, subTaskDef.command, agent, missionId = missionSession.id)
                     taskIdMap[subTaskDef.id] = subTask.id
                 }
 
@@ -99,6 +118,15 @@ class WorkstreamService(
                                 agentExecutor.executeWithException(agent, request.roomId, currentCommand, dbId)
                                 
                                 taskService.updateStatus(dbId, TaskStatus.COMPLETED, if (retryCount > 0) "자가 치유 성공: 작업 완료" else "지능형 병렬 작업 완료")
+                                
+                                // Update Mission Progress
+                                synchronized(missionSession) {
+                                    missionSession.completedTasks += 1
+                                    if (missionSession.completedTasks >= missionSession.totalTasks) {
+                                        missionSession.status = MissionStatus.COMPLETED
+                                    }
+                                    missionSessionRepository.save(missionSession)
+                                }
                                 break //성공 시 루프 탈출
                             } catch (e: Exception) {
                                 retryCount++
@@ -130,6 +158,12 @@ class WorkstreamService(
             }
         }
     }
+
+    fun getMissionsByRoom(roomId: String): List<MissionSession> =
+        missionSessionRepository.findByRoomIdOrderByCreatedAtDesc(roomId)
+
+    fun getMissionById(id: Long): MissionSession =
+        missionSessionRepository.findById(id).orElseThrow { RuntimeException("Mission not found: $id") }
 
     private fun decomposeGoal(goal: String): DecompositionResponse {
         val systemPrompt = """

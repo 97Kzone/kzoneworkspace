@@ -65,6 +65,7 @@ export interface Task {
     status: 'PENDING' | 'RUNNING' | 'HEALING' | 'COMPLETED' | 'FAILED';
     agent: Agent | null;
     parentId: number | null;
+    missionId: number | null;
     dependsOnIds: string | null;
 }
 
@@ -185,6 +186,18 @@ export interface ScenarioImpact {
     createdAt: string;
 }
 
+export interface MissionSession {
+    id: number;
+    roomId: string;
+    goal: string;
+    decompositionStructure: string | null;
+    status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'FAILED';
+    totalTasks: number;
+    completedTasks: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -194,6 +207,7 @@ export const agentService = {
 
 export const taskService = {
     getByRoom: (roomId: String) => api.get<Task[]>(`/tasks?roomId=${roomId}`),
+    getByMission: (missionId: number) => api.get<Task[]>(`/tasks/mission/${missionId}`),
 };
 
 export const chatService = {
@@ -284,6 +298,8 @@ export const briefingService = {
 
 export const workstreamService = {
     start: (data: { roomId: string, goal: string }) => api.post<string>('/workstreams/start', data),
+    getMissions: (roomId: string) => api.get<MissionSession[]>(`/workstreams/missions?roomId=${roomId}`),
+    getMission: (id: number) => api.get<MissionSession>(`/workstreams/missions/${id}`),
 };
 
 export interface MissionContext {

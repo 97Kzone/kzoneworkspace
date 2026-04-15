@@ -14,4 +14,10 @@ class WorkstreamController(
         workstreamService.startWorkstream(request)
         return "워크스트림이 병합 실행을 시작했습니다."
     }
+
+    @GetMapping("/missions")
+    fun getMissions(@RequestParam roomId: String) = workstreamService.getMissionsByRoom(roomId)
+
+    @GetMapping("/missions/{id}")
+    fun getMission(@PathVariable id: Long) = workstreamService.getMissionById(id)
 }
