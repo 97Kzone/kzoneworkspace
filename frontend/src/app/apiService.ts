@@ -191,6 +191,8 @@ export interface MissionSession {
     roomId: string;
     goal: string;
     decompositionStructure: string | null;
+    postMortemReport: string | null;
+    isSynthesized: boolean;
     status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'FAILED';
     totalTasks: number;
     completedTasks: number;

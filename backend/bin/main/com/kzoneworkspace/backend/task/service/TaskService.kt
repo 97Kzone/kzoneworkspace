@@ -20,14 +20,16 @@ class TaskService (
         taskRepository.findById(id).orElseThrow { RuntimeException("Task not found: $id") }
 
     @Transactional
-    fun createTask(roomId: String, command: String, agent: Agent?, parentId: Long? = null, dependsOnIds: String? = null): Task =
-        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds))
+    fun createTask(roomId: String, command: String, agent: Agent?, parentId: Long? = null, dependsOnIds: String? = null, missionId: Long? = null): Task =
+        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds, missionId = missionId))
 
     @Transactional
-    fun createSubTask(parentId: Long, roomId: String, command: String, agent: Agent?, dependsOnIds: String? = null): Task =
-        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds))
+    fun createSubTask(parentId: Long, roomId: String, command: String, agent: Agent?, dependsOnIds: String? = null, missionId: Long? = null): Task =
+        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds, missionId = missionId))
 
     fun getSubTasks(parentId: Long): List<Task> = taskRepository.findByParentId(parentId)
+
+    fun getTasksByMission(missionId: Long): List<Task> = taskRepository.findByMissionId(missionId)
 
     @Transactional
     fun setDecomposed(id: Long, decomposed: Boolean) {

@@ -37,6 +37,9 @@ class Task(
     @Column(nullable = true)
     var parentId: Long? = null,             // 상위 태스크 ID (병렬 실행 시 부모/자식 관계)
 
+    @Column(nullable = true)
+    var missionId: Long? = null,            // 연결된 미션 세션 ID
+
     @Column(nullable = false)
     var isDecomposed: Boolean = false,      // 하위 태스크로 분해되었는지 여부
 

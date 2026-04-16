@@ -25,7 +25,8 @@ class WorkstreamService(
     private val claudeClient: ClaudeClient,
     private val selfHealingService: SelfHealingService,
     private val missionIntelligenceService: MissionIntelligenceService,
-    private val missionSessionRepository: MissionSessionRepository
+    private val missionSessionRepository: MissionSessionRepository,
+    private val missionPostMortemService: MissionPostMortemService
 ) {
     private val objectMapper = jacksonObjectMapper()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -152,6 +153,11 @@ class WorkstreamService(
                 }
                 
                 jobs.joinAll()
+                
+                // 4. Mission Analysis Synthesis (Post-Mortem)
+                if (missionSession.status == MissionStatus.COMPLETED) {
+                    missionPostMortemService.generateReport(missionSession.id)
+                }
                 
             } catch (e: Exception) {
                 taskService.updateStatus(parentTask.id, TaskStatus.FAILED, "스케줄링 중 치명적 오류: ${e.message}")

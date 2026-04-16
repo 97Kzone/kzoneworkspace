@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Target, Zap, CheckCircle2, Circle, Loader2, 
   ChevronRight, Brain, Boxes, Play, ArrowRight,
-  ShieldCheck, AlertCircle, Info, Activity
+  ShieldCheck, AlertCircle, Info, Activity, FileText
 } from "lucide-react";
 import { MissionSession, Task, workstreamService, taskService } from "../app/apiService";
+import { MissionPostMortem } from "./MissionPostMortem";
 
 interface MissionHiveDashboardProps {
   activeRoom: string;
@@ -18,6 +19,12 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
   const [isLoading, setIsLoading] = useState(false);
   const [goalInput, setGoalInput] = useState("");
   const [isStarting, setIsStarting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'FLOW' | 'POST_MORTEM'>('FLOW');
+  
+  // Reset tab when mission changes
+  useEffect(() => {
+    setActiveTab('FLOW');
+  }, [selectedMission?.id]);
 
   useEffect(() => {
     fetchMissions();
@@ -180,7 +187,23 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">지능형 다중 에이전트 협업 분석 및 실행 뷰</p>
                      </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-4 items-center">
+                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 mr-4">
+                        <button 
+                          onClick={() => setActiveTab('FLOW')}
+                          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'FLOW' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                           오퍼레이션 맵
+                        </button>
+                        <button 
+                          onClick={() => setActiveTab('POST_MORTEM')}
+                          disabled={!selectedMission.isSynthesized}
+                          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'POST_MORTEM' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300 disabled:opacity-30'}`}
+                        >
+                           사후 분석 보고서
+                           {selectedMission.isSynthesized && <Sparkles size={10} className="text-amber-400" />}
+                        </button>
+                     </div>
                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">자율 최적화 경로 가동 중</span>
                   </div>
                </div>
@@ -190,73 +213,77 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                   <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
                   <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
-                  {/* Task Flow Visualization - Simplistic implementation for now */}
-                  <div className="flex flex-col gap-10 items-center relative z-10 py-10">
-                     <div className="bg-white/10 backdrop-blur-md border border-white/20 px-8 py-5 rounded-3xl shadow-2xl">
-                        <p className="text-indigo-400 text-[9px] font-black uppercase tracking-[0.3em] mb-1 text-center">Root Goal</p>
-                        <h3 className="text-white text-xs font-black uppercase tracking-tight text-center italic">{selectedMission.goal}</h3>
-                     </div>
+                  {activeTab === 'FLOW' ? (
+                    /* Task Flow Visualization */
+                    <div className="flex flex-col gap-10 items-center relative z-10 py-10">
+                       <div className="bg-white/10 backdrop-blur-md border border-white/20 px-8 py-5 rounded-3xl shadow-2xl">
+                          <p className="text-indigo-400 text-[9px] font-black uppercase tracking-[0.3em] mb-1 text-center">Root Goal</p>
+                          <h3 className="text-white text-xs font-black uppercase tracking-tight text-center italic">{selectedMission.goal}</h3>
+                       </div>
 
-                     <div className="w-px h-12 bg-gradient-to-b from-indigo-500/50 to-transparent"></div>
+                       <div className="w-px h-12 bg-gradient-to-b from-indigo-500/50 to-transparent"></div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
-                        {selectedMission.decompositionStructure ? (
-                          JSON.parse(selectedMission.decompositionStructure).subTasks.map((st: any, idx: number) => {
-                            // Find corresponding real task by index or some other heuristic
-                            // For simplicity, let's assume Order is preserved, or we match by description
-                            const realTask = missionTasks[idx]; 
-                            const status = realTask?.status || 'PENDING';
-                            
-                            return (
-                            <motion.div 
-                              key={st.id}
-                              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + idx * 0.1 }}
-                              className={`bg-white/5 border p-6 rounded-[2rem] hover:bg-white/[0.08] transition-all relative group ${
-                                status === 'COMPLETED' ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : 
-                                status === 'RUNNING' ? 'border-indigo-500/50 bg-indigo-500/[0.05] ring-1 ring-indigo-500/20' :
-                                status === 'HEALING' ? 'border-orange-500/50 bg-orange-500/[0.05] animate-pulse' :
-                                'border-white/10'
-                              }`}
-                            >
-                               <div className="flex items-center justify-between mb-4">
-                                  <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded-md border uppercase ${
-                                    status === 'COMPLETED' ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' :
-                                    status === 'RUNNING' ? 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30' :
-                                    'text-slate-400 bg-slate-500/10 border-white/10'
-                                  }`}>{st.id}</span>
-                                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white/50 border border-white/10 group-hover:border-indigo-500/50 transition-all ${
-                                    status === 'RUNNING' ? 'text-indigo-400 border-indigo-500/50' : ''
-                                  }`}>
-                                     {status === 'COMPLETED' ? <CheckCircle2 size={14} className="text-emerald-500" /> : 
-                                      status === 'RUNNING' ? <Loader2 size={14} className="animate-spin" /> : 
-                                      status === 'HEALING' ? <Zap size={14} className="text-orange-500" /> :
-                                      <Boxes size={14} />}
-                                  </div>
-                               </div>
-                               <h5 className="text-slate-300 text-[10px] font-black uppercase tracking-widest mb-2 truncate group-hover:text-white transition-colors">{st.description}</h5>
-                               <p className="text-slate-500 text-[9px] font-bold line-clamp-2 leading-relaxed mb-4">{st.command}</p>
-                               <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                  <div className="flex items-center gap-2">
-                                     <div className="w-5 h-5 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[8px] font-black text-slate-400">
-                                        {realTask?.agent?.name?.[0] || st.agentName[0]}
-                                     </div>
-                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{realTask?.agent?.name || st.agentName}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                     {st.dependsOn.length > 0 && <span className="text-[8px] font-black text-slate-600 bg-slate-900 px-1.5 py-0.5 rounded uppercase">Deps: {st.dependsOn.join(',')}</span>}
-                                  </div>
-                               </div>
-                            </motion.div>
-                            );
-                          })
-                        ) : (
-                          <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-500 gap-4 opacity-50">
-                             <Loader2 size={40} className="animate-spin" />
-                             <p className="text-xs font-black uppercase tracking-widest">하이브 지능이 목표를 공식화하는 중...</p>
-                          </div>
-                        )}
-                     </div>
-                  </div>
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
+                          {selectedMission.decompositionStructure ? (
+                            JSON.parse(selectedMission.decompositionStructure).subTasks.map((st: any, idx: number) => {
+                              const realTask = missionTasks[idx]; 
+                              const status = realTask?.status || 'PENDING';
+                              
+                              return (
+                              <motion.div 
+                                key={st.id}
+                                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + idx * 0.1 }}
+                                className={`bg-white/5 border p-6 rounded-[2rem] hover:bg-white/[0.08] transition-all relative group ${
+                                  status === 'COMPLETED' ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : 
+                                  status === 'RUNNING' ? 'border-indigo-500/50 bg-indigo-500/[0.05] ring-1 ring-indigo-500/20' :
+                                  status === 'HEALING' ? 'border-orange-500/50 bg-orange-500/[0.05] animate-pulse' :
+                                  'border-white/10'
+                                }`}
+                              >
+                                 <div className="flex items-center justify-between mb-4">
+                                    <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded-md border uppercase ${
+                                      status === 'COMPLETED' ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' :
+                                      status === 'RUNNING' ? 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30' :
+                                      'text-slate-400 bg-slate-500/10 border-white/10'
+                                    }`}>{st.id}</span>
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white/50 border border-white/10 group-hover:border-indigo-500/50 transition-all ${
+                                      status === 'RUNNING' ? 'text-indigo-400 border-indigo-500/50' : ''
+                                    }`}>
+                                       {status === 'COMPLETED' ? <CheckCircle2 size={14} className="text-emerald-500" /> : 
+                                        status === 'RUNNING' ? <Loader2 size={14} className="animate-spin" /> : 
+                                        status === 'HEALING' ? <Zap size={14} className="text-orange-500" /> :
+                                        <Boxes size={14} />}
+                                    </div>
+                                 </div>
+                                 <h5 className="text-slate-300 text-[10px] font-black uppercase tracking-widest mb-2 truncate group-hover:text-white transition-colors">{st.description}</h5>
+                                 <p className="text-slate-500 text-[9px] font-bold line-clamp-2 leading-relaxed mb-4">{st.command}</p>
+                                 <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                    <div className="flex items-center gap-2">
+                                       <div className="w-5 h-5 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[8px] font-black text-slate-400">
+                                          {realTask?.agent?.name?.[0] || st.agentName[0]}
+                                       </div>
+                                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{realTask?.agent?.name || st.agentName}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                       {st.dependsOn.length > 0 && <span className="text-[8px] font-black text-slate-600 bg-slate-900 px-1.5 py-0.5 rounded uppercase">Deps: {st.dependsOn.join(',')}</span>}
+                                    </div>
+                                 </div>
+                              </motion.div>
+                              );
+                            })
+                          ) : (
+                            <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-500 gap-4 opacity-50">
+                               <Loader2 size={40} className="animate-spin" />
+                               <p className="text-xs font-black uppercase tracking-widest">하이브 지능이 목표를 공식화하는 중...</p>
+                            </div>
+                          )}
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="relative z-10">
+                       <MissionPostMortem report={selectedMission.postMortemReport || ""} />
+                    </div>
+                  )}
                </div>
             </div>
           </>
