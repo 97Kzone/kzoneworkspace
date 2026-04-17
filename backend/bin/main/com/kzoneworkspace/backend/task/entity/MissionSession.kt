@@ -33,6 +33,9 @@ class MissionSession(
     @Column(nullable = false)
     var completedTasks: Int = 0,
 
+    @Column(columnDefinition = "TEXT")
+    var recalibrationLog: String? = null,
+
     val createdAt: LocalDateTime = LocalDateTime.now(),
     var updatedAt: LocalDateTime = LocalDateTime.now()
 )

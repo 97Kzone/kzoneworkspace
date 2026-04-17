@@ -26,7 +26,8 @@ class WorkstreamService(
     private val selfHealingService: SelfHealingService,
     private val missionIntelligenceService: MissionIntelligenceService,
     private val missionSessionRepository: MissionSessionRepository,
-    private val missionPostMortemService: MissionPostMortemService
+    private val missionPostMortemService: MissionPostMortemService,
+    private val missionEvolutionService: MissionEvolutionService
 ) {
     private val objectMapper = jacksonObjectMapper()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -105,7 +106,10 @@ class WorkstreamService(
                         }
                         
                         // Execute current task with Self-Healing
-                        var currentCommand = subTaskDef.command
+                        val latestMission = missionSessionRepository.findById(missionSession.id).get()
+                        val latestDecomposition = objectMapper.readValue<DecompositionResponse>(latestMission.decompositionStructure!!)
+                        var currentCommand = latestDecomposition.subTasks.find { it.id == subTaskDef.id }?.command ?: subTaskDef.command
+                        
                         var retryCount = 0
                         val maxRetries = 2
 
@@ -128,6 +132,12 @@ class WorkstreamService(
                                     }
                                     missionSessionRepository.save(missionSession)
                                 }
+
+                                // 4. Check for Reflection/Recalibration (Trigger every 2 completed tasks)
+                                if (missionSession.completedTasks > 0 && missionSession.completedTasks % 2 == 0 && missionSession.status == MissionStatus.ACTIVE) {
+                                    missionEvolutionService.recalibrate(missionSession.id)
+                                }
+                                
                                 break //성공 시 루프 탈출
                             } catch (e: Exception) {
                                 retryCount++

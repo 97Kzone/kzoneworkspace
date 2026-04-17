@@ -196,6 +196,7 @@ export interface MissionSession {
     status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'FAILED';
     totalTasks: number;
     completedTasks: number;
+    recalibrationLog: string | null;
     createdAt: string;
     updatedAt: string;
 }

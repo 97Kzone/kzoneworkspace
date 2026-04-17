@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Target, Zap, CheckCircle2, Circle, Loader2, 
   ChevronRight, Brain, Boxes, Play, ArrowRight,
-  ShieldCheck, AlertCircle, Info, Activity, FileText
+  ShieldCheck, AlertCircle, Info, Activity, FileText,
+  History, Sparkles, RefreshCw
 } from "lucide-react";
 import { MissionSession, Task, workstreamService, taskService } from "../app/apiService";
 import { MissionPostMortem } from "./MissionPostMortem";
@@ -214,9 +215,38 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                   <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
                   {activeTab === 'FLOW' ? (
-                    /* Task Flow Visualization */
                     <div className="flex flex-col gap-10 items-center relative z-10 py-10">
-                       <div className="bg-white/10 backdrop-blur-md border border-white/20 px-8 py-5 rounded-3xl shadow-2xl">
+                       {/* Evolution Timeline (New) */}
+                       {selectedMission.recalibrationLog && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+                            className="w-full max-w-4xl bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 p-6 mb-8"
+                          >
+                             <div className="flex items-center gap-3 mb-4">
+                                <History size={16} className="text-amber-400" />
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">전략 진화 히스토리 (Evolution Log)</h4>
+                             </div>
+                             <div className="space-y-3">
+                                {selectedMission.recalibrationLog.trim().split('\n').map((entry, idx) => (
+                                   <div key={idx} className="flex gap-4 items-start group">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0"></div>
+                                      <div className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors">
+                                         <span className="text-slate-500 mr-2 font-mono">[{entry.substring(1, 20)}]</span>
+                                         {entry.substring(21)}
+                                      </div>
+                                   </div>
+                                ))}
+                             </div>
+                          </motion.div>
+                       )}
+
+                       {/* Root Goal Display */}
+                       <div className="bg-white/10 backdrop-blur-md border border-white/20 px-8 py-5 rounded-3xl shadow-2xl relative group">
+                          {selectedMission.recalibrationLog && (
+                             <div className="absolute -top-3 -right-3 bg-amber-500 text-white p-2 rounded-full shadow-lg animate-bounce">
+                                <RefreshCw size={12} />
+                             </div>
+                          )}
                           <p className="text-indigo-400 text-[9px] font-black uppercase tracking-[0.3em] mb-1 text-center">Root Goal</p>
                           <h3 className="text-white text-xs font-black uppercase tracking-tight text-center italic">{selectedMission.goal}</h3>
                        </div>
