@@ -58,6 +58,24 @@ class AgentExecutor(
     private val objectMapper = jacksonObjectMapper()
     private val httpClient = java.net.http.HttpClient.newHttpClient()
 
+    private fun getPersonaPrompt(agent: Agent): String {
+        val traits = agent.personalityTraits
+        val analytical = traits["ANALYTICAL"] ?: 50
+        val creative = traits["CREATIVE"] ?: 50
+        val bold = traits["BOLD"] ?: 50
+        val cautious = traits["CAUTIOUS"] ?: 50
+        
+        val style = when {
+            analytical > 70 -> "매우 분석적이고 데이터 중심적으로 사고하며,"
+            creative > 70 -> "혁신적이고 창의적인 해결책을 선호하며,"
+            bold > 70 -> "자신감 넘치고 과감하게 결정을 내리며,"
+            cautious > 70 -> "매우 신중하고 리스크를 최소화하는 방향으로 움직이며,"
+            else -> "균형 잡힌 시각으로 업무에 임하며,"
+        }
+        
+        return "\n\n[Persona Context: 당신은 현재 ${agent.name}으로서, $style 경험치 레벨은 ${agent.experienceLevel}입니다. 당신의 성격적 특성(Analytical: $analytical, Creative: $creative, Bold: $bold, Cautious: $cautious)을 반영하여 말투와 해결 방식을 조정하세요.]"
+    }
+
     fun execute(agent: Agent, roomId: String, userMessage: String) {
         println("📝 AgentExecutor.execute called for agent: ${agent.name}, roomId: $roomId")
         val task = taskService.createTask(roomId, userMessage, agent)
@@ -108,7 +126,20 @@ class AgentExecutor(
             ))
 
             sendMessage(roomId, agent.name, "최적의 해결 방법을 계획하고 있습니다...", MessageType.THINKING)
-            val lastResponse = runReasoningLoop(agent, roomId, messages)
+            
+            val personaPrompt = getPersonaPrompt(agent)
+            val enhancedSystemPrompt = agent.systemPrompt + personaPrompt
+            
+            // 기존 runReasoningLoop 호출 시 enhancedSystemPrompt 사용 (이 메서드가 systemPrompt 인자를 받도록 수정 필요하거나 내부에서 agent.systemPrompt 대신 사용)
+            // 여기서는 runReasoningLoop 내부에서 agent.systemPrompt를 직접 사용하므로, 임시로 변경했다가 복구하는 방식을 취함
+            val originalPrompt = agent.systemPrompt
+            agent.systemPrompt = enhancedSystemPrompt
+            
+            val lastResponse = try {
+                runReasoningLoop(agent, roomId, messages)
+            } finally {
+                agent.systemPrompt = originalPrompt
+            }
 
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
@@ -148,6 +179,9 @@ class AgentExecutor(
             // 실패 시 감정 업데이트
             agent.lastEmotion = "SAD"
             agentService.save(agent)
+            
+            // 성격 진화 트리거 (실패)
+            agentService.evolvePersonality(agent.id, false, 2)
             
             val statusPayload = objectMapper.writeValueAsString(mapOf(
                 "agentId" to agent.id,

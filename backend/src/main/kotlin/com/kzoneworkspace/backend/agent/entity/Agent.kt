@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.MapKeyColumn
 import jakarta.persistence.Table
 import java.time.LocalDateTime
 
@@ -53,7 +54,25 @@ class Agent(
     var points: Int = 0,
 
     @Column
-    var lastEmotion: String? = null
+    var lastEmotion: String? = null,
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "agent_personality_traits", joinColumns = [JoinColumn(name = "agent_id")])
+    @MapKeyColumn(name = "trait_name")
+    @Column(name = "trait_value")
+    var personalityTraits: MutableMap<String, Int> = mutableMapOf(
+        "ANALYTICAL" to 50,
+        "CREATIVE" to 50,
+        "CAUTIOUS" to 50,
+        "BOLD" to 50,
+        "EMPATHETIC" to 50
+    ),
+
+    @Column(nullable = false)
+    var experienceLevel: Int = 1,
+
+    @Column(nullable = false)
+    var missionCount: Int = 0
 ) {
     fun addSkill(skill: String) {
         if (!assignedSkills.contains(skill)) {

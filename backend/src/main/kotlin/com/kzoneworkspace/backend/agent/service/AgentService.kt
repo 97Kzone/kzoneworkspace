@@ -76,8 +76,46 @@ class AgentService(
         agent.assignedSkills = updated.assignedSkills
         agent.points = updated.points
         agent.lastEmotion = updated.lastEmotion
+        agent.personalityTraits = updated.personalityTraits
+        agent.experienceLevel = updated.experienceLevel
+        agent.missionCount = updated.missionCount
         agent.updatedAt = LocalDateTime.now()
         return agentRepository.save(agent)
+    }
+
+    @Transactional
+    fun evolvePersonality(agentId: Long, missionSuccess: Boolean, complexity: Int) {
+        val agent = getAgentById(agentId)
+        agent.missionCount += 1
+        
+        // 경험치 및 레벨업 로직
+        val expGain = if (missionSuccess) complexity * 10 else complexity * 2
+        val totalExp = agent.experienceLevel * 100 + agent.points + expGain
+        agent.experienceLevel = totalExp / 100
+        agent.points = totalExp % 100
+
+        // 성격 진화 로직 (간단한 규칙)
+        val traits = agent.personalityTraits
+        if (missionSuccess) {
+            // 성공 시 성격 변화: 분석력과 자신감(Bold) 상승
+            traits["ANALYTICAL"] = (traits["ANALYTICAL"] ?: 50) + 2
+            traits["BOLD"] = (traits["BOLD"] ?: 50) + 1
+            traits["CAUTIOUS"] = (traits["CAUTIOUS"] ?: 50) - 1
+        } else {
+            // 실패 시 성격 변화: 신중함 상승, 자신감 하락
+            traits["CAUTIOUS"] = (traits["CAUTIOUS"] ?: 50) + 3
+            traits["BOLD"] = (traits["BOLD"] ?: 50) - 2
+            traits["ANALYTICAL"] = (traits["ANALYTICAL"] ?: 50) + 1
+        }
+
+        // 창의성 및 공감 능력은 특정 활동 로그나 추론 과정에 따라 변화하도록 나중에 확장 가능
+        // 값 범위 제한 (0-100)
+        traits.keys.forEach { key ->
+            traits[key] = (traits[key] ?: 50).coerceIn(0, 100)
+        }
+        
+        agent.updatedAt = LocalDateTime.now()
+        agentRepository.save(agent)
     }
 
     @Transactional
