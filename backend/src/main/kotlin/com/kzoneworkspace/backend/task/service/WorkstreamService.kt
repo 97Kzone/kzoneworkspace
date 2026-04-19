@@ -124,6 +124,16 @@ class WorkstreamService(
                                 
                                 taskService.updateStatus(dbId, TaskStatus.COMPLETED, if (retryCount > 0) "자가 치유 성공: 작업 완료" else "지능형 병렬 작업 완료")
                                 
+                                // 시너지 업데이트: 선행 작업 에이전트들과의 협업 성공 기록
+                                val currentTask = taskService.getTaskById(dbId)
+                                currentTask.dependsOnIds?.split(",")?.filter { it.isNotBlank() }?.forEach { depIdStr ->
+                                    val depDbId = depIdStr.toLong()
+                                    val depTask = taskService.getTaskById(depDbId)
+                                    if (depTask.agent != null && currentTask.agent != null && depTask.agent?.id != currentTask.agent?.id) {
+                                        agentService.updateSynergy(currentTask.agent!!.name, depTask.agent!!.name, true)
+                                    }
+                                }
+
                                 // Update Mission Progress
                                 synchronized(missionSession) {
                                     missionSession.completedTasks += 1
@@ -143,6 +153,16 @@ class WorkstreamService(
                                 retryCount++
                                 if (retryCount > maxRetries) {
                                     taskService.updateStatus(dbId, TaskStatus.FAILED, "최대 재시도 횟수 초과: ${e.message}")
+                                    
+                                    // 시너지 하락: 협업 실패 기록
+                                    val currentTask = taskService.getTaskById(dbId)
+                                    currentTask.dependsOnIds?.split(",")?.filter { it.isNotBlank() }?.forEach { depIdStr ->
+                                        val depDbId = depIdStr.toLong()
+                                        val depTask = taskService.getTaskById(depDbId)
+                                        if (depTask.agent != null && currentTask.agent != null && depTask.agent?.id != currentTask.agent?.id) {
+                                            agentService.updateSynergy(currentTask.agent!!.name, depTask.agent!!.name, false)
+                                        }
+                                    }
                                     break
                                 }
                                 

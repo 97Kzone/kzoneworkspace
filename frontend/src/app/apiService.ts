@@ -201,6 +201,16 @@ export interface MissionSession {
     updatedAt: string;
 }
 
+export interface AgentSynergy {
+    id: number;
+    agent1Name: string;
+    agent2Name: string;
+    synergyScore: number;
+    collaborationCount: number;
+    synergyNote: string | null;
+    lastCollaboratedAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -380,6 +390,10 @@ export const scenarioService = {
     getAll: (roomId: string) => api.get<ScenarioSimulation[]>(`/scenarios?roomId=${roomId}`),
     run: (data: { roomId: string, title: string, description: string }) => 
         api.post<ScenarioSimulation>('/scenarios/run', data),
+};
+
+export const synergyService = {
+    getAll: () => api.get<AgentSynergy[]>('/synergy'),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {

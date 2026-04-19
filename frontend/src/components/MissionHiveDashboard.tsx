@@ -4,10 +4,11 @@ import {
   Target, Zap, CheckCircle2, Circle, Loader2, 
   ChevronRight, Brain, Boxes, Play, ArrowRight,
   ShieldCheck, AlertCircle, Info, Activity, FileText,
-  History, Sparkles, RefreshCw
+  History, Sparkles, RefreshCw, Users
 } from "lucide-react";
 import { MissionSession, Task, workstreamService, taskService } from "../app/apiService";
 import { MissionPostMortem } from "./MissionPostMortem";
+import { SwarmSynergyMap } from "./SwarmSynergyMap";
 
 interface MissionHiveDashboardProps {
   activeRoom: string;
@@ -20,7 +21,7 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
   const [isLoading, setIsLoading] = useState(false);
   const [goalInput, setGoalInput] = useState("");
   const [isStarting, setIsStarting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'FLOW' | 'POST_MORTEM'>('FLOW');
+  const [activeTab, setActiveTab] = useState<'FLOW' | 'POST_MORTEM' | 'SYNERGY'>('FLOW');
   
   // Reset tab when mission changes
   useEffect(() => {
@@ -204,6 +205,13 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                            사후 분석 보고서
                            {selectedMission.isSynthesized && <Sparkles size={10} className="text-amber-400" />}
                         </button>
+                        <button 
+                          onClick={() => setActiveTab('SYNERGY')}
+                          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'SYNERGY' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                           스웜 시너지
+                           <Users size={10} className="text-indigo-400" />
+                        </button>
                      </div>
                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">자율 최적화 경로 가동 중</span>
                   </div>
@@ -312,6 +320,10 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                   ) : (
                     <div className="relative z-10">
                        <MissionPostMortem report={selectedMission.postMortemReport || ""} />
+                    </div>
+                  ) : (
+                    <div className="h-full">
+                       <SwarmSynergyMap />
                     </div>
                   )}
                </div>

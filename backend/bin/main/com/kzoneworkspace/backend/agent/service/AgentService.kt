@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import com.kzoneworkspace.backend.agent.entity.AiProvider
 
+import com.kzoneworkspace.backend.agent.entity.AgentSynergy
+import com.kzoneworkspace.backend.agent.repository.AgentSynergyRepository
 import com.kzoneworkspace.backend.agent.repository.ActivityLogRepository
 import com.kzoneworkspace.backend.task.repository.TaskRepository
 import com.kzoneworkspace.backend.agent.dto.TeamPerformanceDto
@@ -22,7 +24,8 @@ import java.time.LocalDate
 class AgentService(
     private val agentRepository: AgentRepository,
     private val activityLogRepository: ActivityLogRepository,
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val synergyRepository: AgentSynergyRepository
 ) {
 
     @PostConstruct
@@ -194,4 +197,44 @@ class AgentService(
             averageSuccessRate = avgSuccessRate * 100
         )
     }
+
+    @Transactional
+    fun updateSynergy(agent1Name: String, agent2Name: String, success: Boolean) {
+        val names = listOf(agent1Name, agent2Name).sorted()
+        val n1 = names[0]
+        val n2 = names[1]
+        
+        val synergy = synergyRepository.findByAgent1NameAndAgent2Name(n1, n2) 
+            ?: AgentSynergy(agent1Name = n1, agent2Name = n2)
+            
+        synergy.collaborationCount += 1
+        
+        // 성격 기반 가중치 계산 (최초 협업 시 또는 지속 반영)
+        val agent1 = agentRepository.findAll().find { it.name == n1 }
+        val agent2 = agentRepository.findAll().find { it.name == n2 }
+        
+        var bonus = 0
+        if (agent1 != null && agent2 != null) {
+            val t1 = agent1.personalityTraits
+            val t2 = agent2.personalityTraits
+            
+            // 단순 시너지 계산 공식: 서로 다른 강점이 조화를 이룰 때 보너스
+            if ((t1["ANALYTICAL"] ?: 50) > 70 && (t2["CREATIVE"] ?: 50) > 70) bonus += 5
+            if ((t1["BOLD"] ?: 50) > 70 && (t2["CAUTIOUS"] ?: 50) > 70) bonus += 5
+            if ((t1["EMPATHETIC"] ?: 50) > 60 || (t2["EMPATHETIC"] ?: 50) > 60) bonus += 2
+        }
+
+        if (success) {
+            synergy.synergyScore = (synergy.synergyScore + 5 + bonus).coerceAtMost(100)
+            synergy.synergyNote = "성공적인 협업을 통해 신뢰가 쌓였습니다. (Bonus: +$bonus)"
+        } else {
+            synergy.synergyScore = (synergy.synergyScore - 3).coerceAtLeast(0)
+            synergy.synergyNote = "작업 실패로 인해 프로세스 조정이 필요합니다."
+        }
+        
+        synergy.lastCollaboratedAt = LocalDateTime.now()
+        synergyRepository.save(synergy)
+    }
+
+    fun getAllSynergies(): List<AgentSynergy> = synergyRepository.findAll()
 }
