@@ -1,5 +1,7 @@
 package com.kzoneworkspace.backend.agent.service
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.kzoneworkspace.backend.claude.GeminiClient
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -10,14 +12,19 @@ class MemoryExtractionService(
     private val memoryService: MemoryService
 ) {
     private val log = LoggerFactory.getLogger(MemoryExtractionService::class.java)
+    private val gson = Gson()
 
     private val extractionPrompt = """
         당신은 기억 추출 전문가입니다. 사용자와 AI 에이전트 간의 대화 내용을 분석하여, 나중에 기억해야 할 '중요한 사실'이나 '사용자의 선호도'를 추출하세요.
         
+        각 기억 항목에 대해 다음 정보를 JSON 형식으로 제공하세요:
+        - content: 추출된 기억 내용 (짧고 명확한 단정적 문장)
+        - importance: 이 정보의 중요도 (1~10 점수. 10이 가장 중요)
+        - tags: 관련 태그 (쉼표로 구분된 문자열, 예: "선호도, 색상")
+        
         규칙:
-        1. 새로운 정보가 없다면 아무것도 출력하지 마세요.
-        2. 추출된 정보는 짧고 명확한 문장으로 작성하세요. (예: "사용자는 남색을 좋아함", "사용자의 직업은 소프트웨어 엔지니어임")
-        3. 문답 형식이 아닌 단정적인 문장으로 작성하세요.
+        1. 새로운 정보가 없다면 빈 리스트 `[]`를 반환하세요.
+        2. 응답은 오직 JSON 리스트 형식이어야 합니다.
         
         대화 내용:
         {{CONTENT}}
@@ -43,14 +50,26 @@ class MemoryExtractionService(
             val part = contentObj?.parts()?.orElse(emptyList())?.firstOrNull()
             val extractedText = part?.text()?.orElse("") ?: ""
             
-            if (extractedText.isNotBlank()) {
-                val facts = extractedText.lines()
-                    .filter { it.isNotBlank() }
-                    .map { it.trim().removePrefix("-").trim() }
+            var cleanJson = extractedText.trim()
+            if (cleanJson.contains("```json")) {
+                cleanJson = cleanJson.substringAfter("```json").substringBefore("```").trim()
+            } else if (cleanJson.contains("```")) {
+                cleanJson = cleanJson.substringAfter("```").substringBefore("```").trim()
+            }
+
+            if (cleanJson.isNotBlank() && cleanJson != "[]") {
+                val listType = object : TypeToken<List<Map<String, Any>>>() {}.type
+                val facts: List<Map<String, Any>> = gson.fromJson(cleanJson, listType)
                 
-                facts.forEach { fact ->
-                    log.info("Extracted fact: {}", fact)
-                    memoryService.saveMemory(agentId, roomId, fact)
+                facts.forEach { factMap ->
+                    val factContent = factMap["content"] as? String ?: ""
+                    val importance = (factMap["importance"] as? Double)?.toInt() ?: 3
+                    val tags = factMap["tags"] as? String
+                    
+                    if (factContent.isNotBlank()) {
+                        log.info("Extracted fact: {} (Importance: {}, Tags: {})", factContent, importance, tags)
+                        memoryService.saveMemory(agentId, roomId, factContent, importance, tags)
+                    }
                 }
             }
         } catch (e: Exception) {

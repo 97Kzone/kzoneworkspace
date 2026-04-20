@@ -30,5 +30,11 @@ class Memory(
     val agentId: Long,
 
     @Column(nullable = false)
+    val importance: Int = 3,
+
+    @Column(nullable = true)
+    val tags: String? = null,
+
+    @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
 )

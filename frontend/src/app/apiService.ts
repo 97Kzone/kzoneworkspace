@@ -120,6 +120,8 @@ export interface Memory {
     agentId: number;
     agentName: string;
     roomId: string;
+    importance: number;
+    tags: string | null;
     createdAt: string;
 }
 

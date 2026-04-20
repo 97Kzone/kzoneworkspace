@@ -8,5 +8,7 @@ data class MemoryResponse(
     val agentId: Long,
     val agentName: String?,
     val roomId: String,
+    val importance: Int,
+    val tags: String?,
     val createdAt: LocalDateTime
 )

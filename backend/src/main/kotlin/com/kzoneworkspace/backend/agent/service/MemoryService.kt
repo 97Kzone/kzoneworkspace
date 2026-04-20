@@ -18,7 +18,7 @@ class MemoryService(
     private val logger = LoggerFactory.getLogger(MemoryService::class.java)
 
     @Transactional
-    fun saveMemory(agentId: Long, roomId: String, content: String) {
+    fun saveMemory(agentId: Long, roomId: String, content: String, importance: Int = 3, tags: String? = null) {
         logger.info("Starting saveMemory operation for agentId: {}, roomId: {}", agentId, roomId)
         if (content.isBlank()) {
             logger.debug("Empty content received for agentId: {}, roomId: {}. Skipping save.", agentId, roomId)
@@ -35,7 +35,9 @@ class MemoryService(
                 content = content,
                 embedding = embeddingStr,
                 roomId = roomId,
-                agentId = agentId
+                agentId = agentId,
+                importance = importance,
+                tags = tags
             )
             memoryRepository.save(memory)
             logger.debug("Memory saved successfully for agentId: {}", agentId)
@@ -89,6 +91,8 @@ class MemoryService(
             agentId = memory.agentId,
             agentName = agentName,
             roomId = memory.roomId,
+            importance = memory.importance,
+            tags = memory.tags,
             createdAt = memory.createdAt
         )
     }

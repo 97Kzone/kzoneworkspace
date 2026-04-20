@@ -48,7 +48,8 @@ export const Header: React.FC<HeaderProps> = ({ vo, onOpenBriefing }) => {
                   {id:'MISSION_HIVE', label:'미션 하이브'},
                   {id:'MISSION_CONTROL', label:'미션 컨트롤'}, 
                   {id:'BRAINSTORMING', label:'브레인스토밍'},
-                  {id:'SCENARIO_LAB', label:'시나리오 랩'}
+                  {id:'SCENARIO_LAB', label:'시나리오 랩'},
+                  {id:'KNOWLEDGE', label:'지식 인사이트'}
                 ].map(tab => (
                   <button key={tab.id} onClick={() => vo.setActiveTab(tab.id as any)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${vo.activeTab === tab.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
                     {tab.label}

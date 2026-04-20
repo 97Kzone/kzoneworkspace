@@ -48,6 +48,7 @@ import { CodeReviewDashboard } from "../components/CodeReviewDashboard";
 import { MissionHiveDashboard } from "../components/MissionHiveDashboard";
 import { ScenarioLabDashboard } from "../components/ScenarioLabDashboard";
 import { EmotionBubble } from "../components/EmotionBubble";
+import { MemoryInsights } from "../components/MemoryInsights";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -519,6 +520,10 @@ export default function VirtualOfficeBright() {
                isLoading={vo.isScenarioLoading}
                onRunSimulation={handleRunScenario}
              />
+          )}
+
+          {vo.activeTab === 'KNOWLEDGE' && vo.activeCategory === 'INTELLIGENCE' && (
+             <MemoryInsights memories={vo.memories} getAgentColor={getAgentColor} />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (

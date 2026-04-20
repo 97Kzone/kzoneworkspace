@@ -35,7 +35,7 @@ export const useVirtualOffice = () => {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR' | 'MISSION_CONTROL'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR' | 'MISSION_CONTROL' | 'KNOWLEDGE'>('LOGS');
   const [activeCategory, setActiveCategory] = useState<'PROCESS' | 'INTELLIGENCE' | 'METRICS'>('PROCESS');
   const [openNavMenu, setOpenNavMenu] = useState<'INSIGHT' | 'ANALYSIS' | 'TOOLS' | null>(null);
 
@@ -128,7 +128,7 @@ export const useVirtualOffice = () => {
    */
   const fetchInitialData = useCallback(async () => {
     try {
-      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes, brainRes, scenarioRes] = await Promise.all([
+      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes, brainRes, scenarioRes, memoryRes] = await Promise.all([
         agentService.getAll(),
         taskService.getByRoom("default"),
         chatService.getHistory("default"),
@@ -137,7 +137,8 @@ export const useVirtualOffice = () => {
         schedulingService.getAll(),
         techPulseService.getAll(),
         brainstormingService.getAll("default"),
-        scenarioService.getAll("default")
+        scenarioService.getAll("default"),
+        memoryService.getAll(100)
       ]);
       setAgents(agentRes.data);
       setTasks(taskRes.data);
@@ -148,6 +149,7 @@ export const useVirtualOffice = () => {
       setTechPulses(pulseRes.data);
       setBrainstormingSessions(brainRes.data);
       setScenarioSimulations(scenarioRes.data);
+      setMemories(memoryRes.data);
       
       try {
         const perfRes = await agentService.getPerformance();
