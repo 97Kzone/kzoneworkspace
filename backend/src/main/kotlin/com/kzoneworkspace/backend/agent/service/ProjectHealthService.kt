@@ -4,6 +4,8 @@ import com.google.common.reflect.TypeToken
 import com.google.gson.Gson
 import com.kzoneworkspace.backend.agent.repository.ActivityLogRepository
 import com.kzoneworkspace.backend.agent.repository.AgentRepository
+import com.kzoneworkspace.backend.agent.repository.StrategicRecommendationRepository
+import com.kzoneworkspace.backend.agent.entity.StrategicRecommendation
 import com.kzoneworkspace.backend.agent.repository.TechPulseRepository
 import com.kzoneworkspace.backend.claude.GeminiClient
 import com.kzoneworkspace.backend.task.repository.TaskRepository
@@ -147,7 +149,7 @@ class ProjectHealthService(
             report.recommendations.forEach { strategy ->
                 if (strategicRecommendationRepository.findByTitle(strategy.title) == null) {
                     strategicRecommendationRepository.save(
-                        com.kzoneworkspace.backend.agent.entity.StrategicRecommendation(
+                        StrategicRecommendation(
                             title = strategy.title,
                             description = strategy.description,
                             category = strategy.category,
