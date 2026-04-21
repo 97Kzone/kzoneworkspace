@@ -35,6 +35,7 @@ class ProjectHealthService(
     private val activityLogRepository: ActivityLogRepository,
     private val techPulseRepository: TechPulseRepository,
     private val agentRepository: AgentRepository,
+    private val strategicRecommendationRepository: StrategicRecommendationRepository,
     private val geminiClient: GeminiClient
 ) {
     private val log = LoggerFactory.getLogger(ProjectHealthService::class.java)
@@ -122,7 +123,7 @@ class ProjectHealthService(
             val resultType = object : TypeToken<Map<String, Any>>() {}.type
             val data: Map<String, Any> = gson.fromJson(jsonText, resultType)
 
-            ProjectHealthReport(
+            val report = ProjectHealthReport(
                 score = (data["score"] as? Double)?.toInt() ?: 70,
                 status = data["status"] as? String ?: "STABLE",
                 synergyLevel = data["synergyLevel"] as? String ?: "MEDIUM",
@@ -141,6 +142,24 @@ class ProjectHealthService(
                 } ?: emptyList(),
                 analysisReasoning = data["analysisReasoning"] as? String ?: "데이터 분석 결과가 정상적으로 생성되었습니다."
             )
+
+            // Persistence logic: Save new high-priority recommendations
+            report.recommendations.forEach { strategy ->
+                if (strategicRecommendationRepository.findByTitle(strategy.title) == null) {
+                    strategicRecommendationRepository.save(
+                        com.kzoneworkspace.backend.agent.entity.StrategicRecommendation(
+                            title = strategy.title,
+                            description = strategy.description,
+                            category = strategy.category,
+                            priority = strategy.priority,
+                            estimatedEffort = strategy.estimatedEffort,
+                            analysisReasoning = report.analysisReasoning
+                        )
+                    )
+                }
+            }
+
+            return report
         } catch (e: Exception) {
             log.error("Failed to generate health report", e)
             ProjectHealthReport(
