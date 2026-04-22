@@ -7,7 +7,7 @@ import {
   Bot, User, MessageSquare, X, Users, Terminal, Code2, Layout, Database, 
   Send, Command, Sparkles, Coffee, GripVertical, Maximize2, 
   BarChart3, BarChart2, Brain, ChevronRight, Pause, Play, 
-  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History 
+  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History, Shield, Cpu 
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
@@ -49,6 +49,8 @@ import { MissionHiveDashboard } from "../components/MissionHiveDashboard";
 import { ScenarioLabDashboard } from "../components/ScenarioLabDashboard";
 import { EmotionBubble } from "../components/EmotionBubble";
 import { MemoryInsights } from "../components/MemoryInsights";
+import { StrategicCouncilDashboard } from "../components/StrategicCouncilDashboard";
+import { ResourceEfficiencyDashboard } from "../components/ResourceEfficiencyDashboard";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -234,6 +236,14 @@ export default function VirtualOfficeBright() {
     }
   };
 
+  const handleAdoptStrategy = async (strategy: ActionableStrategy) => {
+    vo.setIsHealthModalOpen(false);
+    vo.setActiveTab('STRATEGIC_COUNCIL');
+    vo.setActiveCategory('INTELLIGENCE');
+    // 여기서 추천 사항이 이미 DB에 저장되어 있으므로, 
+    // 대시보드가 로드될 때 자연스럽게 보일 것입니다.
+  };
+
   const handleOpenBriefing = async () => {
     vo.setIsBriefingLoading(true);
     vo.setIsBriefingOpen(true);
@@ -253,7 +263,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -279,6 +289,8 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_TECH_PULSE', label: '기술 트렌드 레이더', icon: Activity, category: 'NAVIGATION' },
     { id: 'NAV_BRAINSTORMING', label: '집단 브레인스토밍', icon: Brain, category: 'NAVIGATION' },
     { id: 'NAV_SCENARIO_LAB', label: '시나리오 인텔리전스 랩', icon: Zap, category: 'NAVIGATION' },
+    { id: 'NAV_STRATEGIC_COUNCIL', label: '하이브 전략 위원회', icon: Shield, category: 'NAVIGATION' },
+    { id: 'NAV_EFFICIENCY', label: '군집 효율성 분석기', icon: Cpu, category: 'NAVIGATION' },
     { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
     { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
     { id: 'TOOL_SEARCH', label: '시맨틱 코드 검색', icon: Search, category: 'TOOLS' },
@@ -524,6 +536,14 @@ export default function VirtualOfficeBright() {
 
           {vo.activeTab === 'KNOWLEDGE' && vo.activeCategory === 'INTELLIGENCE' && (
              <MemoryInsights memories={vo.memories} getAgentColor={getAgentColor} />
+          )}
+
+          {vo.activeTab === 'STRATEGIC_COUNCIL' && vo.activeCategory === 'INTELLIGENCE' && (
+             <StrategicCouncilDashboard />
+          )}
+
+          {vo.activeTab === 'EFFICIENCY' && vo.activeCategory === 'INTELLIGENCE' && (
+             <ResourceEfficiencyDashboard />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (

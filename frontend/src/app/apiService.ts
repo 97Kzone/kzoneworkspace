@@ -394,8 +394,57 @@ export const scenarioService = {
         api.post<ScenarioSimulation>('/scenarios/run', data),
 };
 
-export const synergyService = {
-    getAll: () => api.get<AgentSynergy[]>('/synergy'),
+export interface StrategicRecommendation {
+    id: number;
+    title: string;
+    description: string;
+    category: string;
+    priority: string;
+    estimatedEffort: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXECUTED';
+    analysisReasoning: string | null;
+    createdAt: string;
+}
+
+export const strategicCouncilService = {
+    getRecommendations: () => api.get<StrategicRecommendation[]>('/strategic-council/recommendations'),
+    execute: (id: number) => api.post(`/strategic-council/execute/${id}`),
+    reject: (id: number) => api.post(`/strategic-council/reject/${id}`),
+};
+
+export interface AgentMetric {
+    agentId: number;
+    agentName: string;
+    role: string;
+    load: number;
+    efficiency: number;
+    status: 'ACTIVE' | 'IDLE' | 'OVERLOADED';
+}
+
+export interface RadarData {
+    velocity: number;
+    intelligence: number;
+    synergy: number;
+    stability: number;
+    innovation: number;
+}
+
+export interface OptimizationTip {
+    title: string;
+    description: string;
+    impact: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+export interface SwarmMetrics {
+    overallScore: number;
+    agentMetrics: AgentMetric[];
+    swarmRadar: RadarData;
+    optimizationTips: OptimizationTip[];
+    updatedAt: string;
+}
+
+export const resourceEfficiencyService = {
+    getMetrics: () => api.get<SwarmMetrics>('/agent/resource-efficiency'),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {

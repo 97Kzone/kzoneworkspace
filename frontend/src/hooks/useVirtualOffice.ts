@@ -35,7 +35,7 @@ export const useVirtualOffice = () => {
   const [showActivityPanel, setShowActivityPanel] = useState(true);
   const [activityPanelSize, setActivityPanelSize] = useState({ width: 680, height: 240 });
   const [activeConnections, setActiveConnections] = useState<{ from: string, to: string, timestamp: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR' | 'MISSION_CONTROL' | 'KNOWLEDGE'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'REASONING' | 'STATS' | 'SCHEDULER' | 'KANBAN' | 'TECH_PULSE' | 'ANALYTICS' | 'MISSION' | 'CODE_REVIEW' | 'JANITOR' | 'MISSION_CONTROL' | 'KNOWLEDGE' | 'STRATEGIC_COUNCIL'>('LOGS');
   const [activeCategory, setActiveCategory] = useState<'PROCESS' | 'INTELLIGENCE' | 'METRICS'>('PROCESS');
   const [openNavMenu, setOpenNavMenu] = useState<'INSIGHT' | 'ANALYSIS' | 'TOOLS' | null>(null);
 

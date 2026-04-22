@@ -72,11 +72,11 @@ export const ProjectHealthModal = ({
                     <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-rose-100/50 flex flex-col items-center justify-center text-center relative overflow-hidden group">
                        <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-50 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
                        <div className="relative z-10 w-24 h-24 rounded-full border-4 border-rose-500 flex items-center justify-center mb-4 shadow-lg shadow-rose-100">
-                          <span className="text-4xl font-black text-rose-500">{report.healthScore}</span>
+                          <span className="text-4xl font-black text-rose-500">{report.score}</span>
                        </div>
                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative z-10">종합 건강 점수</h4>
                        <div className="mt-4 px-4 py-1.5 rounded-full bg-rose-50 text-rose-500 text-[10px] font-black uppercase relative z-10">
-                          {report.healthScore >= 80 ? '최상' : report.healthScore >= 50 ? '주의' : '위험'}
+                          {report.score >= 80 ? '최상' : report.score >= 50 ? '주의' : '위험'}
                        </div>
                     </div>
 
@@ -84,7 +84,7 @@ export const ProjectHealthModal = ({
                     <div className="md:col-span-2 bg-slate-900 p-8 rounded-[3rem] shadow-2xl overflow-hidden relative group">
                        <div className="absolute top-0 right-0 p-8 opacity-10"><ShieldAlert size={120} className="text-rose-500" /></div>
                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                          <ShieldAlert size={14} className="text-rose-500" /> 감지된 주요 리스트 요소
+                          <ShieldAlert size={14} className="text-rose-500" /> 감지된 주요 리스크 요소
                        </h4>
                        <div className="space-y-3 relative z-10">
                           {report.risks.map((risk, i) => (
@@ -106,23 +106,18 @@ export const ProjectHealthModal = ({
                        <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div> AI 기반 실행 전략 (Actionable Strategies)
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                       {report.strategies.map((strat, i) => (
+                       {report.recommendations.map((strat, i) => (
                           <motion.div 
                              key={i} 
                              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
                              className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl hover:shadow-2xl transition-all group overflow-hidden relative"
                           >
-                             {strat.implemented && (
-                                <div className="absolute top-0 right-0 px-4 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-2xl shadow-lg flex items-center gap-1.5">
-                                   <CheckCircle2 size={12} /> 적용 완료
-                                </div>
-                             )}
                              <div className="flex items-center gap-4 mb-6">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${strat.impact === 'HIGH' ? 'bg-indigo-600' : 'bg-slate-400'}`}>
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${strat.priority === 'HIGH' ? 'bg-rose-500 shadow-rose-200' : strat.priority === 'MEDIUM' ? 'bg-amber-500 shadow-amber-200' : 'bg-emerald-500 shadow-emerald-200'}`}>
                                    <Zap size={24} />
                                 </div>
                                 <div>
-                                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Impact: {strat.impact}</label>
+                                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Priority: {strat.priority} | Effort: {strat.estimatedEffort}</label>
                                    <h5 className="text-sm font-black text-slate-800 uppercase tracking-tight line-clamp-1">{strat.title}</h5>
                                 </div>
                              </div>
@@ -130,16 +125,14 @@ export const ProjectHealthModal = ({
                              <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">권장 행동: {strat.action}</span>
+                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{strat.category}</span>
                                 </div>
-                                {!strat.implemented && (
-                                    <button 
-                                        onClick={() => onAdopt(strat)}
-                                        className="px-6 py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                                    >
-                                        전략 채택
-                                    </button>
-                                )}
+                                <button 
+                                    onClick={() => onAdopt(strat)}
+                                    className="px-6 py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                                >
+                                    전략 위원회로 이동
+                                </button>
                              </div>
                           </motion.div>
                        ))}
@@ -155,8 +148,8 @@ export const ProjectHealthModal = ({
                         <TrendingUp size={40} className="text-white" />
                      </div>
                      <div className="relative z-10 flex-1">
-                        <h4 className="text-white text-lg font-black italic tracking-tight uppercase mb-2">총동원 전략 요약</h4>
-                        <p className="text-indigo-100 text-sm font-bold leading-relaxed opacity-90">{report.summary}</p>
+                        <h4 className="text-white text-lg font-black italic tracking-tight uppercase mb-2">분석 근거 및 총평</h4>
+                        <p className="text-indigo-100 text-sm font-bold leading-relaxed opacity-90">{report.analysisReasoning}</p>
                      </div>
                   </div>
                 </>
