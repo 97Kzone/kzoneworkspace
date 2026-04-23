@@ -53,7 +53,7 @@ class ResourceEfficiencyService(
 
         // 1. 개별 에이전트 지표 계산
         val agentMetrics = agents.map { agent ->
-            val agentTasks = tasks.filter { it.assigneeId == agent.id }
+            val agentTasks = tasks.filter { it.agent?.id == agent.id }
             val completedTasks = agentTasks.count { it.status.name == "COMPLETED" }
             val failedTasks = agentTasks.count { it.status.name == "FAILED" }
             

@@ -213,6 +213,23 @@ export interface AgentSynergy {
     lastCollaboratedAt: string;
 }
 
+export interface CognitiveAlignmentReport {
+    id: number;
+    roomId: string;
+    alignmentScore: number;
+    conflicts: string; // JSON string
+    mediationStrategy: string;
+    analysisReasoning: string;
+    createdAt: string;
+}
+
+export interface ConflictPoint {
+    agents: string[];
+    topic: string;
+    description: string;
+    severity: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -445,6 +462,11 @@ export interface SwarmMetrics {
 
 export const resourceEfficiencyService = {
     getMetrics: () => api.get<SwarmMetrics>('/agent/resource-efficiency'),
+};
+
+export const alignmentService = {
+    getLatest: (roomId: string) => api.get<CognitiveAlignmentReport>(`/alignment/${roomId}`),
+    analyze: (roomId: string) => api.post<CognitiveAlignmentReport>(`/alignment/${roomId}/analyze`),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
