@@ -230,6 +230,20 @@ export interface ConflictPoint {
     severity: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
+export interface NeuralResonance {
+    id: number;
+    sourceId: number;
+    targetId: number;
+    sourceType: 'MEMORY' | 'LESSON';
+    targetType: 'MEMORY' | 'LESSON';
+    resonanceStrength: number;
+    sourceAgentName: string;
+    targetAgentName: string;
+    resonanceTheme: string | null;
+    synthesizedInsight: string | null;
+    createdAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -467,6 +481,11 @@ export const resourceEfficiencyService = {
 export const alignmentService = {
     getLatest: (roomId: string) => api.get<CognitiveAlignmentReport>(`/alignment/${roomId}`),
     analyze: (roomId: string) => api.post<CognitiveAlignmentReport>(`/alignment/${roomId}/analyze`),
+};
+
+export const resonanceService = {
+    getLatest: () => api.get<NeuralResonance[]>('/agent/resonance/latest'),
+    analyze: () => api.post('/agent/resonance/analyze'),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
