@@ -3,6 +3,8 @@ import { Terminal, Brain, BarChart3, Sparkles } from "lucide-react";
 import { getAgentColor } from "../../utils/agentColors";
 import { briefingService } from "../../app/apiService";
 
+import { motion } from "framer-motion";
+
 interface HeaderProps {
   vo: any;
   onOpenBriefing: () => Promise<void>;
@@ -21,10 +23,17 @@ export const Header: React.FC<HeaderProps> = ({ vo, onOpenBriefing }) => {
             <button
               key={cat.id}
               onClick={() => vo.setActiveCategory(cat.id as any)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black transition-all tracking-widest ${vo.activeCategory === cat.id ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 ring-1 ring-slate-100' : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'}`}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black transition-all tracking-widest relative ${vo.activeCategory === cat.id ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 ring-1 ring-slate-100' : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'}`}
             >
               <cat.icon size={13} strokeWidth={vo.activeCategory === cat.id ? 3 : 2} />
               {cat.label}
+              {cat.id === 'INTELLIGENCE' && (
+                <motion.div 
+                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.6)]"
+                />
+              )}
             </button>
           ))}
         </nav>

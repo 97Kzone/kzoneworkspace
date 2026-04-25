@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, Zap, Sparkles, Info, BrainCircuit, Globe, MessageSquare } from "lucide-react";
+import { Activity, Zap, Sparkles, Info, BrainCircuit, Globe, MessageSquare, Loader2 } from "lucide-react";
 import { NeuralResonance, resonanceService, Agent, agentService } from "../app/apiService";
 
 export const NeuralResonanceMap: React.FC = () => {
   const [resonances, setResonances] = useState<NeuralResonance[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [selectedResonance, setSelectedResonance] = useState<NeuralResonance | null>(null);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000);
+    const interval = setInterval(fetchData, 30000); // Polling every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -23,6 +25,7 @@ export const NeuralResonanceMap: React.FC = () => {
       ]);
       setResonances(resRes.data);
       setAgents(agentRes.data);
+      setLastSynced(new Date());
     } catch (e) {
       console.error("Failed to fetch resonance data:", e);
     } finally {
@@ -40,12 +43,24 @@ export const NeuralResonanceMap: React.FC = () => {
   };
 
   const triggerAnalysis = async () => {
+    if (isAnalyzing) return;
+    setIsAnalyzing(true);
     try {
       await resonanceService.analyze();
-      fetchData();
+      await fetchData();
     } catch (e) {
       console.error("Failed to trigger analysis:", e);
+    } finally {
+      setIsAnalyzing(false);
     }
+  };
+
+  const getRelativeTime = (date: Date | null) => {
+    if (!date) return "N/A";
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return "방금 전";
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}분 전`;
   };
 
   return (
@@ -57,19 +72,53 @@ export const NeuralResonanceMap: React.FC = () => {
       </div>
 
       <div className="flex items-center justify-between relative z-10">
-        <div>
-          <h3 className="text-white text-lg font-black uppercase tracking-tight italic flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-purple-600/20 flex items-center justify-center border border-purple-500/30">
             <BrainCircuit className="text-purple-400" size={24} />
-            Hive Neural Resonance
-          </h3>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">에이전트 간 암묵적 지식 패턴 및 신경 공명 분석</p>
+          </div>
+          <div>
+            <h3 className="text-white text-lg font-black uppercase tracking-tight italic flex items-center gap-2">
+              Hive Neural Resonance
+              {isAnalyzing && (
+                <motion.span 
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="text-[10px] text-purple-400 normal-case font-bold ml-2"
+                >
+                  ANALYZING...
+                </motion.span>
+              )}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em]">에이전트 간 암묵적 지식 패턴 및 신경 공명 분석</p>
+              <div className="w-1 h-1 rounded-full bg-slate-700" />
+              <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                <Activity size={10} className={isAnalyzing ? "animate-pulse text-purple-500" : ""} />
+                SYNC: {getRelativeTime(lastSynced)}
+              </span>
+            </div>
+          </div>
         </div>
         <button 
           onClick={triggerAnalysis}
-          className="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 px-4 py-2 rounded-xl flex items-center gap-2 transition-all group"
+          disabled={isAnalyzing}
+          className={`px-6 py-3 rounded-2xl flex items-center gap-3 transition-all group relative overflow-hidden ${
+            isAnalyzing 
+              ? 'bg-purple-500/10 border border-purple-500/10 cursor-not-allowed' 
+              : 'bg-purple-500 hover:bg-purple-400 border border-purple-400 shadow-lg shadow-purple-500/20 active:scale-95'
+          }`}
         >
-          <Zap size={14} className="text-purple-400 group-hover:scale-125 transition-transform" />
-          <span className="text-[10px] font-black text-white uppercase italic">정밀 분석 실행</span>
+          {isAnalyzing ? (
+            <Loader2 className="animate-spin text-purple-400" size={16} />
+          ) : (
+            <Zap size={16} className="text-white group-hover:scale-125 transition-transform" />
+          )}
+          <span className={`text-[11px] font-black uppercase italic ${isAnalyzing ? 'text-purple-400' : 'text-white'}`}>
+            {isAnalyzing ? '분석 처리 중' : '정밀 분석 실행'}
+          </span>
+          {!isAnalyzing && (
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+          )}
         </button>
       </div>
 
