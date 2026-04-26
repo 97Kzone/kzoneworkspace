@@ -108,6 +108,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ vo, onDeleteAgent, onOpenProje
                       )}
                     </div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{agent.role}</p>
+                    {agent.greeting && (
+                      <p className="text-[9px] font-bold text-indigo-500 mt-0.5 truncate italic">"{agent.greeting}"</p>
+                    )}
                   </div>
                 </div>
                 

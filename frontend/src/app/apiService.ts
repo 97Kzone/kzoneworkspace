@@ -19,6 +19,7 @@ export interface Agent {
     assignedSkills: string[];
     points: number;
     lastEmotion: string | null;
+    greeting: string | null;
 }
 
 export interface TeamPerformance {

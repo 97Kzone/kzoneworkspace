@@ -296,11 +296,21 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                                  <h5 className="text-slate-300 text-[10px] font-black uppercase tracking-widest mb-2 truncate group-hover:text-white transition-colors">{st.description}</h5>
                                  <p className="text-slate-500 text-[9px] font-bold line-clamp-2 leading-relaxed mb-4">{st.command}</p>
                                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 group/agent relative">
                                        <div className="w-5 h-5 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[8px] font-black text-slate-400">
                                           {realTask?.agent?.name?.[0] || st.agentName[0]}
                                        </div>
                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{realTask?.agent?.name || st.agentName}</span>
+                                       
+                                       {/* Persona Greeting Bubble */}
+                                       {realTask?.agent?.greeting && (
+                                          <div className="absolute bottom-full left-0 mb-2 opacity-0 group-hover/agent:opacity-100 transition-all duration-300 pointer-events-none z-50">
+                                             <div className="bg-indigo-500 text-white text-[8px] font-bold py-1 px-2 rounded-lg whitespace-nowrap shadow-xl relative">
+                                                {realTask.agent.greeting}
+                                                <div className="absolute top-full left-2 border-4 border-transparent border-t-indigo-500"></div>
+                                             </div>
+                                          </div>
+                                       )}
                                     </div>
                                     <div className="flex items-center gap-1">
                                        {st.dependsOn.length > 0 && <span className="text-[8px] font-black text-slate-600 bg-slate-900 px-1.5 py-0.5 rounded uppercase">Deps: {st.dependsOn.join(',')}</span>}

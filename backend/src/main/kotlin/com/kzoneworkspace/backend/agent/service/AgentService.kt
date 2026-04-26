@@ -60,10 +60,17 @@ class AgentService(
         }
     }
 
-    fun getAllAgents(): List<Agent> = agentRepository.findAll()
+    fun getAllAgents(): List<Agent> {
+        val agents = agentRepository.findAll()
+        agents.forEach { populateGreeting(it) }
+        return agents
+    }
 
-    fun getAgentById(id: Long): Agent =
-        agentRepository.findById(id).orElseThrow { RuntimeException("Agent not found: $id") }
+    fun getAgentById(id: Long): Agent {
+        val agent = agentRepository.findById(id).orElseThrow { RuntimeException("Agent not found: $id") }
+        populateGreeting(agent)
+        return agent
+    }
 
     @Transactional
     fun createAgent(agent: Agent): Agent = agentRepository.save(agent)
@@ -237,4 +244,34 @@ class AgentService(
     }
 
     fun getAllSynergies(): List<AgentSynergy> = synergyRepository.findAll()
+
+    private fun populateGreeting(agent: Agent) {
+        val traits = agent.personalityTraits
+        val emotion = agent.lastEmotion
+        
+        val primaryTrait = traits.maxByOrNull { it.value }?.key ?: "ANALYTICAL"
+        
+        val greetings = when (primaryTrait) {
+            "ANALYTICAL" -> listOf("데이터가 말해주는군요.", "지표를 면밀히 분석 중입니다.", "논리적으로 완벽한 계획입니다.", "효율성을 극대화하겠습니다.")
+            "CREATIVE" -> listOf("새로운 영감이 떠올랐어요!", "예상치 못한 방법이 있습니다.", "코드가 예술이 되는 순간이죠.", "창의적인 접근을 시도해볼까요?")
+            "CAUTIOUS" -> listOf("조심해서 나쁠 건 없죠.", "보안 문제를 다시 확인 중입니다.", "안정성을 최우선으로 고려합니다.", "리스크가 감지되었습니다.")
+            "BOLD" -> listOf("지금 바로 가동하겠습니다!", "실패를 두려워하지 마세요.", "거침없이 전진할 때입니다.", "최상의 성과를 약속하죠.")
+            "EMPATHETIC" -> listOf("도움이 필요하시면 말씀하세요.", "협업을 통해 더 나은 결과를!", "여러분의 수고를 덜어드릴게요.", "함께라면 무엇이든 가능합니다.")
+            else -> listOf("대기 중입니다.", "인사 드립니다.", "작업을 시작할까요?", "시스템 정상입니다.")
+        }
+        
+        var greeting = greetings.random()
+        
+        if (emotion != null) {
+            when (emotion) {
+                "🚀" -> greeting = "가속 준비 완료! $greeting"
+                "🛠️" -> greeting = "최적화 작업 중... $greeting"
+                "💡" -> greeting = "좋은 아이디어가 있습니다! $greeting"
+                "⚠️" -> greeting = "주의 깊게 살펴보세요. $greeting"
+                "✅" -> greeting = "완벽하게 처리되었습니다! $greeting"
+            }
+        }
+        
+        agent.greeting = greeting
+    }
 }

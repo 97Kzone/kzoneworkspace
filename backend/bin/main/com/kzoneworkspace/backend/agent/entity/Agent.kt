@@ -13,6 +13,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.MapKeyColumn
 import jakarta.persistence.Table
+import jakarta.persistence.Transient
 import java.time.LocalDateTime
 
 @Entity
@@ -72,7 +73,10 @@ class Agent(
     var experienceLevel: Int = 1,
 
     @Column(nullable = false)
-    var missionCount: Int = 0
+    var missionCount: Int = 0,
+
+    @Transient
+    var greeting: String? = null
 ) {
     fun addSkill(skill: String) {
         if (!assignedSkills.contains(skill)) {
