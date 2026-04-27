@@ -245,6 +245,19 @@ export interface NeuralResonance {
     createdAt: string;
 }
 
+export interface SwarmJournal {
+    id: number;
+    journalDate: string;
+    summary: string;
+    content: string;
+    sentiment: string;
+    taskCount: number;
+    memoryCount: number;
+    resonanceCount: number;
+    synergyScore: number;
+    createdAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -487,6 +500,12 @@ export const alignmentService = {
 export const resonanceService = {
     getLatest: () => api.get<NeuralResonance[]>('/agent/resonance/latest'),
     analyze: () => api.post('/agent/resonance/analyze'),
+};
+
+export const swarmJournalService = {
+    getAll: () => api.get<SwarmJournal[]>('/agents/journals'),
+    getByDate: (date: string) => api.get<SwarmJournal>(`/agents/journals/${date}`),
+    generate: () => api.post<SwarmJournal>('/agents/journals/generate'),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {

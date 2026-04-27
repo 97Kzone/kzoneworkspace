@@ -7,4 +7,5 @@ import org.springframework.stereotype.Repository
 @Repository
 interface NeuralResonanceRepository : JpaRepository<NeuralResonance, Long> {
     fun findTop10ByOrderByCreatedAtDesc(): List<NeuralResonance>
+    fun findByCreatedAtAfter(timestamp: java.time.LocalDateTime): List<NeuralResonance>
 }

@@ -9,4 +9,6 @@ interface AgentSynergyRepository : JpaRepository<AgentSynergy, Long> {
     fun findByAgent1NameAndAgent2Name(agent1Name: String, agent2Name: String): AgentSynergy?
     
     fun findByAgent1NameOrAgent2Name(agent1Name: String, agent2Name: String): List<AgentSynergy>
+    
+    fun findByLastCollaboratedAtAfter(timestamp: java.time.LocalDateTime): List<AgentSynergy>
 }
