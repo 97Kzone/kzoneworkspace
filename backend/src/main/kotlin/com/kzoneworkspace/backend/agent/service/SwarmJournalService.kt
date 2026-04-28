@@ -70,7 +70,7 @@ class SwarmJournalService(
         } + " 전반적인 군집의 분위기는 '$emotion' 상태입니다."
     }
 
-    private fun generateContent(tasks: List<any?>, memories: List<any?>, resonances: List<any?>, synergies: List<any?>): String {
+    private fun generateContent(tasks: List<Any?>, memories: List<Any?>, resonances: List<Any?>, synergies: List<Any?>): String {
         val sb = StringBuilder()
         sb.append("### 🚀 주요 성과\n")
         if (tasks.isEmpty()) sb.append("- 특별한 외부 활동은 없었으나 시스템 최적화에 집중했습니다.\n")

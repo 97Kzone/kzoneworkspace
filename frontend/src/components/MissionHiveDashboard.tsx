@@ -303,7 +303,12 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                                        <div className="w-5 h-5 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[8px] font-black text-slate-400">
                                           {realTask?.agent?.name?.[0] || st.agentName[0]}
                                        </div>
-                                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{realTask?.agent?.name || st.agentName}</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{realTask?.agent?.name || st.agentName}</span>
+                                        {realTask?.agent?.currentActivity && (
+                                           <span className="text-[8px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded ml-1 animate-pulse border border-indigo-500/20">
+                                              {realTask.agent.currentActivity}
+                                           </span>
+                                        )}
                                        
                                        {/* Persona Greeting Bubble */}
                                        {realTask?.agent?.greeting && (

@@ -20,6 +20,7 @@ export interface Agent {
     points: number;
     lastEmotion: string | null;
     greeting: string | null;
+    currentActivity: string | null;
 }
 
 export interface TeamPerformance {

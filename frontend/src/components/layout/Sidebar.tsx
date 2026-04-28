@@ -111,6 +111,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ vo, onDeleteAgent, onOpenProje
                     {agent.greeting && (
                       <p className="text-[9px] font-bold text-indigo-500 mt-0.5 truncate italic">"{agent.greeting}"</p>
                     )}
+                    {agent.currentActivity && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-md">
+                        <span className="flex h-1 w-1 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">{agent.currentActivity}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 

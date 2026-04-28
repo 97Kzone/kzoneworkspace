@@ -76,7 +76,10 @@ class Agent(
     var missionCount: Int = 0,
 
     @Transient
-    var greeting: String? = null
+    var greeting: String? = null,
+
+    @Transient
+    var currentActivity: String? = null
 ) {
     fun addSkill(skill: String) {
         if (!assignedSkills.contains(skill)) {

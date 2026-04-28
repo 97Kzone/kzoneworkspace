@@ -62,13 +62,17 @@ class AgentService(
 
     fun getAllAgents(): List<Agent> {
         val agents = agentRepository.findAll()
-        agents.forEach { populateGreeting(it) }
+        agents.forEach { 
+            populateGreeting(it)
+            populateCurrentActivity(it)
+        }
         return agents
     }
 
     fun getAgentById(id: Long): Agent {
         val agent = agentRepository.findById(id).orElseThrow { RuntimeException("Agent not found: $id") }
         populateGreeting(agent)
+        populateCurrentActivity(agent)
         return agent
     }
 
@@ -273,5 +277,30 @@ class AgentService(
         }
         
         agent.greeting = greeting
+    }
+
+    private fun populateCurrentActivity(agent: Agent) {
+        if (agent.status != AgentStatus.RUNNING) {
+            agent.currentActivity = null
+            return
+        }
+
+        val latestLog = activityLogRepository.findByAgentIdOrderByTimestampDesc(agent.id).firstOrNull()
+        if (latestLog == null) {
+            agent.currentActivity = "대기 중..."
+            return
+        }
+
+        val activity = when (latestLog.activityType) {
+            "TOOL_CALL" -> "🛠️ ${latestLog.toolName} 도구 사용 중"
+            "FILE_WRITE" -> "📁 파일 작성 중..."
+            "FILE_READ" -> "📄 파일 분석 중..."
+            "THINKING" -> "🧠 추론 프로세스 가동 중"
+            "PLANNING" -> "📋 다음 작업 계획 중"
+            "SEARCH" -> "🔍 코드베이스 검색 중"
+            else -> "🚀 작업 수행 중"
+        }
+        
+        agent.currentActivity = activity
     }
 }
