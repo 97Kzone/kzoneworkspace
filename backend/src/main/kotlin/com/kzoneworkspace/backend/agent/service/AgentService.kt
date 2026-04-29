@@ -10,7 +10,9 @@ import java.time.LocalDateTime
 import com.kzoneworkspace.backend.agent.entity.AiProvider
 
 import com.kzoneworkspace.backend.agent.entity.AgentSynergy
+import com.kzoneworkspace.backend.agent.entity.AgentEvolutionLog
 import com.kzoneworkspace.backend.agent.repository.AgentSynergyRepository
+import com.kzoneworkspace.backend.agent.repository.AgentEvolutionRepository
 import com.kzoneworkspace.backend.agent.repository.ActivityLogRepository
 import com.kzoneworkspace.backend.task.repository.TaskRepository
 import com.kzoneworkspace.backend.agent.dto.TeamPerformanceDto
@@ -25,7 +27,8 @@ class AgentService(
     private val agentRepository: AgentRepository,
     private val activityLogRepository: ActivityLogRepository,
     private val taskRepository: TaskRepository,
-    private val synergyRepository: AgentSynergyRepository
+    private val synergyRepository: AgentSynergyRepository,
+    private val evolutionRepository: AgentEvolutionRepository
 ) {
 
     @PostConstruct
@@ -129,8 +132,25 @@ class AgentService(
         }
         
         agent.updatedAt = LocalDateTime.now()
-        agentRepository.save(agent)
+        val savedAgent = agentRepository.save(agent)
+
+        // 진화 로그 기록
+        val achievement = if (missionSuccess) "미션 성공: 복잡도 $complexity 해결" else "미션 실패 분석 및 학습"
+        evolutionRepository.save(AgentEvolutionLog(
+            agentId = savedAgent.id,
+            agentName = savedAgent.name,
+            experienceLevel = savedAgent.experienceLevel,
+            missionCount = savedAgent.missionCount,
+            personalityTraits = savedAgent.personalityTraits.toMap(),
+            achievement = achievement
+        ))
     }
+
+    fun getEvolutionHistory(agentId: Long): List<AgentEvolutionLog> =
+        evolutionRepository.findByAgentIdOrderByCreatedAtDesc(agentId)
+
+    fun getRecentEvolutions(): List<AgentEvolutionLog> =
+        evolutionRepository.findTop10ByOrderByCreatedAtDesc()
 
     @Transactional
     fun save(agent: Agent): Agent {

@@ -259,6 +259,17 @@ export interface SwarmJournal {
     createdAt: string;
 }
 
+export interface AgentEvolutionLog {
+    id: number;
+    agentId: number;
+    agentName: string;
+    experienceLevel: number;
+    missionCount: number;
+    personalityTraits: Record<string, number>;
+    achievement: string | null;
+    createdAt: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -507,6 +518,11 @@ export const swarmJournalService = {
     getAll: () => api.get<SwarmJournal[]>('/agents/journals'),
     getByDate: (date: string) => api.get<SwarmJournal>(`/agents/journals/${date}`),
     generate: () => api.post<SwarmJournal>('/agents/journals/generate'),
+};
+
+export const evolutionService = {
+    getHistory: (agentId: number) => api.get<AgentEvolutionLog[]>(`/agents/evolution/${agentId}`),
+    getRecent: () => api.get<AgentEvolutionLog[]>('/agents/evolution/recent'),
 };
 
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
