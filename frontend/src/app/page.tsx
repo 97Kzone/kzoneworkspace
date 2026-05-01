@@ -53,6 +53,7 @@ import { StrategicCouncilDashboard } from "../components/StrategicCouncilDashboa
 import { ResourceEfficiencyDashboard } from "../components/ResourceEfficiencyDashboard";
 import { AlignmentPulseDashboard } from "../components/AlignmentPulseDashboard";
 import { NeuralResonanceMap } from "../components/NeuralResonanceMap";
+import { EvaluationLabDashboard } from "../components/EvaluationLabDashboard";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -265,7 +266,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -295,6 +296,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_EFFICIENCY', label: '군집 효율성 분석기', icon: Cpu, category: 'NAVIGATION' },
     { id: 'NAV_ALIGNMENT', label: '하이브 인지 정렬 펄스', icon: Activity, category: 'NAVIGATION' },
     { id: 'NAV_RESONANCE', label: '하이브 신경 공명 (HNR)', icon: BrainCircuit, category: 'NAVIGATION' },
+    { id: 'NAV_EVALUATION_LAB', label: '에이전트 벤치마킹 랩', icon: Target, category: 'NAVIGATION' },
     { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
     { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
     { id: 'TOOL_SEARCH', label: '시맨틱 코드 검색', icon: Search, category: 'TOOLS' },
@@ -554,8 +556,12 @@ export default function VirtualOfficeBright() {
              <AlignmentPulseDashboard roomId="default" />
           )}
 
-          {vo.activeTab === 'RESONANCE' && vo.activeCategory === 'INTELLIGENCE' && (
+          { vo.activeTab === 'RESONANCE' && vo.activeCategory === 'INTELLIGENCE' && (
              <NeuralResonanceMap />
+          )}
+
+          { vo.activeTab === 'EVALUATION_LAB' && vo.activeCategory === 'INTELLIGENCE' && (
+             <EvaluationLabDashboard agents={vo.agents} getAgentColor={getAgentColor} />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (

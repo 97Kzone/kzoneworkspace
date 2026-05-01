@@ -525,6 +525,41 @@ export const evolutionService = {
     getRecent: () => api.get<AgentEvolutionLog[]>('/agents/evolution/recent'),
 };
 
+export interface EvaluationRequest {
+    agentId: number;
+    targetModel?: string;
+}
+
+export interface EvaluationRunResponse {
+    id: number;
+    agentName: string;
+    modelName: string;
+    status: string;
+    overallScore: number;
+    totalTasks: number;
+    completedTasks: number;
+    startTime: string;
+    endTime: string | null;
+}
+
+export interface EvaluationDetailResponse {
+    taskId: number;
+    taskName: string;
+    inputPrompt: string;
+    expectedOutput: string | null;
+    actualOutput: string | null;
+    isSuccess: boolean;
+    score: number;
+    latencyMs: number;
+    errorLog: string | null;
+}
+
+export const evaluationService = {
+    run: (data: EvaluationRequest) => api.post<EvaluationRunResponse>('/evaluations/run', data),
+    getHistory: (agentId: number) => api.get<EvaluationRunResponse[]>(`/evaluations/history/${agentId}`),
+    getDetails: (runId: number) => api.get<EvaluationDetailResponse[]>(`/evaluations/${runId}/details`),
+};
+
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
         webSocketFactory: () => new SockJS(WS_URL),
