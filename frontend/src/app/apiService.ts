@@ -560,6 +560,20 @@ export const evaluationService = {
     getDetails: (runId: number) => api.get<EvaluationDetailResponse[]>(`/evaluations/${runId}/details`),
 };
 
+export interface AgentStandup {
+    agentId: number;
+    agentName: string;
+    agentRole: string;
+    pastAction: string;
+    todayFocus: string;
+    blocker: string | null;
+    timestamp: string;
+}
+
+export const standupService = {
+    getDailyStandup: () => api.get<AgentStandup[]>('/standup'),
+};
+
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
         webSocketFactory: () => new SockJS(WS_URL),
