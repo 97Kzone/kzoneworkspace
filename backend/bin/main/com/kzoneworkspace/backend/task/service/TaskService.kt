@@ -44,6 +44,13 @@ class TaskService (
         task.status = status
         task.result = result ?: task.result
         task.updatedAt = LocalDateTime.now()
+
+        // 타임스탬프 기록
+        if (status == TaskStatus.RUNNING || status == TaskStatus.HEALING) {
+            if (task.startedAt == null) task.startedAt = LocalDateTime.now()
+        } else if (status == TaskStatus.COMPLETED || status == TaskStatus.FAILED) {
+            task.completedAt = LocalDateTime.now()
+        }
         
         // 만약 모든 하위 태스크가 완료되었다면 부모 태스크도 완료 처리 (간단한 로직)
         task.parentId?.let { pId ->

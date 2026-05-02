@@ -49,6 +49,9 @@ class Task(
     @Column(name = "depends_on_ids", columnDefinition = "TEXT")
     var dependsOnIds: String? = null,        // 선행 태스크 ID 목록 (JSON or CSV)
 
+    var startedAt: LocalDateTime? = null,   // 작업 시작 시간
+    var completedAt: LocalDateTime? = null, // 작업 종료 시간
+
     val createdAt: LocalDateTime = LocalDateTime.now(),
     var updatedAt: LocalDateTime = LocalDateTime.now()
 )

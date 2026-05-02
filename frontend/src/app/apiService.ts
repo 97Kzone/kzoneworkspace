@@ -69,6 +69,10 @@ export interface Task {
     parentId: number | null;
     missionId: number | null;
     dependsOnIds: string | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface ChatMessage {
