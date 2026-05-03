@@ -281,6 +281,10 @@ export const agentService = {
     getPerformance: () => api.get<TeamPerformance>('/agents/performance'),
 };
 
+export const synergyService = {
+    getAll: () => api.get<AgentSynergy[]>('/synergy'),
+};
+
 export const taskService = {
     getByRoom: (roomId: String) => api.get<Task[]>(`/tasks?roomId=${roomId}`),
     getByMission: (missionId: number) => api.get<Task[]>(`/tasks/mission/${missionId}`),
