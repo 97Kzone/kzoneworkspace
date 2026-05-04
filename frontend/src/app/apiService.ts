@@ -21,6 +21,9 @@ export interface Agent {
     lastEmotion: string | null;
     greeting: string | null;
     currentActivity: string | null;
+    personalityTraits: Record<string, number>;
+    experienceLevel: number;
+    missionCount: number;
 }
 
 export interface TeamPerformance {
