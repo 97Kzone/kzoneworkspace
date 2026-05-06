@@ -59,6 +59,7 @@ import { WorkstreamGanttChart } from "../components/WorkstreamGanttChart";
 import { SwarmSynergyMap } from "../components/SwarmSynergyMap";
 import { AgentEvolutionDashboard } from "../components/AgentEvolutionDashboard";
 import { SwarmJournalDashboard } from "../components/SwarmJournalDashboard";
+import { ApiTrafficRadar } from "../components/ApiTrafficRadar";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -271,7 +272,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'EVOLUTION', 'JOURNAL'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'EVOLUTION', 'JOURNAL', 'TRAFFIC'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -307,6 +308,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_SYNERGY', label: '에이전트 시너지 매트릭스', icon: Users, category: 'NAVIGATION' },
     { id: 'NAV_EVOLUTION', label: '에이전트 진화 연대기', icon: TrendingUp, category: 'NAVIGATION' },
     { id: 'NAV_JOURNAL', label: '하이브 데일리 저널', icon: Book, category: 'NAVIGATION' },
+    { id: 'NAV_TRAFFIC', label: '군집 API 트래픽 레이더', icon: Activity, category: 'NAVIGATION' },
     { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
     { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
     { id: 'TOOL_SEARCH', label: '시맨틱 코드 검색', icon: Search, category: 'TOOLS' },
@@ -592,6 +594,10 @@ export default function VirtualOfficeBright() {
 
           {vo.activeTab === 'JOURNAL' && vo.activeCategory === 'INTELLIGENCE' && (
              <SwarmJournalDashboard />
+          )}
+
+          {vo.activeTab === 'TRAFFIC' && vo.activeCategory === 'INTELLIGENCE' && (
+             <ApiTrafficRadar />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (

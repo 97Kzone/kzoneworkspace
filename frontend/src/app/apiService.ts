@@ -585,6 +585,28 @@ export const standupService = {
     getDailyStandup: () => api.get<AgentStandup[]>('/standup'),
 };
 
+export interface ApiTrafficSummary {
+    id: number;
+    agentName: string;
+    provider: string;
+    model: string;
+    totalTokens: number;
+    estimatedCost: number;
+    timestamp: string;
+}
+
+export interface ApiTrafficStats {
+    totalCost: number;
+    totalTokens: number;
+    usageByProvider: Record<string, number>;
+    usageByModel: Record<string, number>;
+    recentLogs: ApiTrafficSummary[];
+}
+
+export const trafficService = {
+    getStats: () => api.get<ApiTrafficStats>('/traffic/stats'),
+};
+
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
         webSocketFactory: () => new SockJS(WS_URL),
