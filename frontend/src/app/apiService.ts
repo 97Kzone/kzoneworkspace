@@ -607,6 +607,24 @@ export const trafficService = {
     getStats: () => api.get<ApiTrafficStats>('/traffic/stats'),
 };
 
+export interface WarRoomIncident {
+    id: number;
+    title: string;
+    description: string;
+    severity: 'CRITICAL' | 'HIGH' | 'WARNING';
+    status: 'ACTIVE' | 'RESOLVED' | 'SUPPRESSED';
+    involvedAgents: string; // Comma separated string
+    relatedTaskId: number | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export const warRoomService = {
+    getActive: () => api.get<WarRoomIncident[]>('/war-room/active'),
+    resolve: (id: number) => api.post<WarRoomIncident>(`/war-room/resolve/${id}`),
+    pivot: (id: number, instruction: String) => api.post<WarRoomIncident>(`/war-room/pivot/${id}`, { instruction }),
+};
+
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
         webSocketFactory: () => new SockJS(WS_URL),

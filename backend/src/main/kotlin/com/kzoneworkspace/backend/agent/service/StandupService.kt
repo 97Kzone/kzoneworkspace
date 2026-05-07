@@ -10,12 +10,15 @@ import java.time.LocalDateTime
 @Transactional(readOnly = true)
 class StandupService(
     private val agentService: AgentService,
-    private val activityLogRepository: ActivityLogRepository
+    private val activityLogRepository: ActivityLogRepository,
+    private val warRoomService: WarRoomService
 ) {
+    @Transactional
     fun generateDailyStandup(): List<AgentStandup> {
         val agents = agentService.getAllAgents()
         
         return agents.map { agent ->
+
             val recentLogs = activityLogRepository.findByAgentIdOrderByTimestampDesc(agent.id)
             
             // "어제 한 일" 추론
@@ -48,6 +51,16 @@ class StandupService(
                 "플래너의 세부 요구사항 정의가 조금 더 명확했으면 좋겠습니다."
             } else {
                 null
+            }
+
+            // Blocker가 있으면 워룸으로 에스컬레이션
+            if (blocker != null) {
+                warRoomService.escalate(
+                    title = "${agent.name} 에이전트 병목 감지",
+                    description = blocker,
+                    severity = if (hasError) com.kzoneworkspace.backend.agent.entity.IncidentSeverity.CRITICAL else com.kzoneworkspace.backend.agent.entity.IncidentSeverity.HIGH,
+                    involvedAgents = listOf(agent.name)
+                )
             }
 
             AgentStandup(

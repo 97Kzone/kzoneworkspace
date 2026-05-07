@@ -60,6 +60,7 @@ import { SwarmSynergyMap } from "../components/SwarmSynergyMap";
 import { AgentEvolutionDashboard } from "../components/AgentEvolutionDashboard";
 import { SwarmJournalDashboard } from "../components/SwarmJournalDashboard";
 import { ApiTrafficRadar } from "../components/ApiTrafficRadar";
+import { HiveWarRoomDashboard } from "../components/HiveWarRoomDashboard";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
@@ -272,7 +273,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'EVOLUTION', 'JOURNAL', 'TRAFFIC'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -288,6 +289,7 @@ export default function VirtualOfficeBright() {
 
   const commanderActions = [
     { id: 'NAV_LOGS', label: '활동 로그 보기', icon: Terminal, category: 'NAVIGATION' },
+    { id: 'NAV_WAR_ROOM', label: '하이브 워룸 (CRITICAL)', icon: ShieldAlert, category: 'NAVIGATION' },
     { id: 'NAV_REASONING', label: '추론 기록 보기', icon: Brain, category: 'NAVIGATION' },
     { id: 'NAV_MISSION_CONTROL', label: '미션 컨트롤 본부', icon: Target, category: 'NAVIGATION' },
     { id: 'NAV_MISSION_HIVE', label: '자율 미션 하이브', icon: Zap, category: 'NAVIGATION' },
@@ -598,6 +600,10 @@ export default function VirtualOfficeBright() {
 
           {vo.activeTab === 'TRAFFIC' && vo.activeCategory === 'INTELLIGENCE' && (
              <ApiTrafficRadar />
+          )}
+          
+          {vo.activeTab === 'WAR_ROOM' && vo.activeCategory === 'INTELLIGENCE' && (
+             <HiveWarRoomDashboard />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (
