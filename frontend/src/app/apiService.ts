@@ -319,6 +319,7 @@ export const officeService = {
     buyItem: (data: { agentId: number, name: string, type: string, x: number, y: number, price: number }) => 
         api.post<OfficeItem>('/office/items/buy', data),
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),
+    moveItem: (id: number, x: number, y: number) => api.put<OfficeItem>(`/office/items/${id}/move`, { x, y }),
 };
 
 

@@ -35,4 +35,12 @@ class OfficeService(
 
     @Transactional
     fun deleteItem(id: Long) = officeItemRepository.deleteById(id)
+
+    @Transactional
+    fun moveItem(id: Long, x: Int, y: Int): OfficeItem {
+        val item = officeItemRepository.findById(id).orElseThrow { RuntimeException("Item not found") }
+        item.x = x
+        item.y = y
+        return officeItemRepository.save(item)
+    }
 }
