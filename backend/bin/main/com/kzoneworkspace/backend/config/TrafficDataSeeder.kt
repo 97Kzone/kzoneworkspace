@@ -4,7 +4,8 @@ import com.kzoneworkspace.backend.agent.entity.AiProvider
 import com.kzoneworkspace.backend.agent.entity.ApiTrafficLog
 import com.kzoneworkspace.backend.agent.repository.ApiTrafficRepository
 import com.kzoneworkspace.backend.agent.repository.AgentRepository
-import jakarta.annotation.PostConstruct
+import org.springframework.boot.context.event.ApplicationReadyEvent
+import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
 import kotlin.random.Random
@@ -15,7 +16,7 @@ class TrafficDataSeeder(
     private val agentRepository: AgentRepository
 ) {
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent::class)
     fun seedData() {
         if (apiTrafficRepository.count() > 0) return
 

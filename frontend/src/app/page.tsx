@@ -57,6 +57,7 @@ import { EvaluationLabDashboard } from "../components/EvaluationLabDashboard";
 import { StandupBoard } from "../components/StandupBoard";
 import { WorkstreamGanttChart } from "../components/WorkstreamGanttChart";
 import { SwarmSynergyMap } from "../components/SwarmSynergyMap";
+import { ConflictResolutionHub } from "../components/ConflictResolutionHub";
 import { AgentEvolutionDashboard } from "../components/AgentEvolutionDashboard";
 import { SwarmJournalDashboard } from "../components/SwarmJournalDashboard";
 import { ApiTrafficRadar } from "../components/ApiTrafficRadar";
@@ -273,7 +274,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'CONFLICT', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
       } else {
           vo.setActiveCategory('PROCESS');
@@ -308,6 +309,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_STANDUP', label: '군집 일일 스탠드업', icon: Users, category: 'NAVIGATION' },
     { id: 'NAV_WORKSTREAM_GANTT', label: '워크스트림 간트 차트', icon: Layout, category: 'NAVIGATION' },
     { id: 'NAV_SYNERGY', label: '에이전트 시너지 매트릭스', icon: Users, category: 'NAVIGATION' },
+    { id: 'NAV_CONFLICT', label: '군집 갈등 해결 허브', icon: Shield, category: 'NAVIGATION' },
     { id: 'NAV_EVOLUTION', label: '에이전트 진화 연대기', icon: TrendingUp, category: 'NAVIGATION' },
     { id: 'NAV_JOURNAL', label: '하이브 데일리 저널', icon: Book, category: 'NAVIGATION' },
     { id: 'NAV_TRAFFIC', label: '군집 API 트래픽 레이더', icon: Activity, category: 'NAVIGATION' },
@@ -588,6 +590,10 @@ export default function VirtualOfficeBright() {
 
           {vo.activeTab === 'SYNERGY' && vo.activeCategory === 'INTELLIGENCE' && (
              <SwarmSynergyMap />
+          )}
+
+          {vo.activeTab === 'CONFLICT' && vo.activeCategory === 'INTELLIGENCE' && (
+             <ConflictResolutionHub />
           )}
 
           {vo.activeTab === 'EVOLUTION' && vo.activeCategory === 'INTELLIGENCE' && (

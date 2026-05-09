@@ -22,6 +22,15 @@ class DatabaseInitializer(private val jdbcTemplate: JdbcTemplate) {
                 println("⚠️ Failed to update memories table schema: ${e.message}")
             }
 
+            // Schema Migrations for agents table
+            try {
+                jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS experience_level INTEGER DEFAULT 1")
+                jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS mission_count INTEGER DEFAULT 0")
+                println("✅ agents table schema updated successfully.")
+            } catch (e: Exception) {
+                println("⚠️ Failed to update agents table schema: ${e.message}")
+            }
+
             // Create neural_resonances table if not exists
             try {
                 jdbcTemplate.execute("""
