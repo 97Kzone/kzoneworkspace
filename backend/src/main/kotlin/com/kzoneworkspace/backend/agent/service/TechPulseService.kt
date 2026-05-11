@@ -9,12 +9,15 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import com.google.gson.reflect.TypeToken
 import com.google.gson.Gson
+import com.kzoneworkspace.backend.task.service.WorkstreamService
+import com.kzoneworkspace.backend.task.dto.WorkstreamRequest
 
 @Service
 class TechPulseService(
     private val techPulseRepository: TechPulseRepository,
     private val geminiClient: GeminiClient,
-    private val codebaseIndexingService: CodebaseIndexingService
+    private val codebaseIndexingService: CodebaseIndexingService,
+    private val workstreamService: WorkstreamService
 ) {
     private val log = LoggerFactory.getLogger(TechPulseService::class.java)
     private val gson = Gson()
@@ -99,5 +102,26 @@ class TechPulseService(
             log.error("Failed to refresh tech pulses: ${e.message}")
             emptyList()
         }
+    }
+
+    @Transactional
+    fun createTaskFromPulse(pulseId: Long): Long {
+        val pulse = techPulseRepository.findById(pulseId)
+            .orElseThrow { RuntimeException("TechPulse not found: $pulseId") }
+
+        if (pulse.missionId != null) {
+            throw IllegalStateException("Task already created for this pulse: ${pulse.missionId}")
+        }
+
+        val goal = "TechPulse 대응: ${pulse.title}\n\n분석 내용:\n${pulse.projectImpact}"
+        val roomId = "tech-pulse"
+        
+        val request = WorkstreamRequest(roomId = roomId, goal = goal)
+        val missionId = workstreamService.startWorkstream(request)
+        
+        pulse.missionId = missionId
+        techPulseRepository.save(pulse)
+        
+        return missionId
     }
 }

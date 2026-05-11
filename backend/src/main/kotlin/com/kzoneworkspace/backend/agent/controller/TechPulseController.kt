@@ -25,4 +25,15 @@ class TechPulseController(
         logger.info("POST /api/tech-pulses/refresh")
         return ResponseEntity.ok(techPulseService.refreshTechPulses())
     }
+
+    @PostMapping("/{id}/convert-to-task")
+    fun convertToTask(@PathVariable id: Long): ResponseEntity<Map<String, Any>> {
+        logger.info("POST /api/tech-pulses/$id/convert-to-task")
+        return try {
+            val missionId = techPulseService.createTaskFromPulse(id)
+            ResponseEntity.ok(mapOf("status" to "success", "missionId" to missionId))
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().body(mapOf("status" to "error", "message" to (e.message ?: "Unknown error")))
+        }
+    }
 }

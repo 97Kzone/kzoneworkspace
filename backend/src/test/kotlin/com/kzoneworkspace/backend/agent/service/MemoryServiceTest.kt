@@ -1,6 +1,7 @@
 package com.kzoneworkspace.backend.agent.service
 
 import com.kzoneworkspace.backend.agent.entity.Memory
+import com.kzoneworkspace.backend.agent.repository.AgentRepository
 import com.kzoneworkspace.backend.agent.repository.MemoryRepository
 import com.kzoneworkspace.backend.claude.GeminiClient
 import org.junit.jupiter.api.BeforeEach
@@ -23,6 +24,9 @@ class MemoryServiceTest {
     private lateinit var memoryRepository: MemoryRepository
 
     @Mock
+    private lateinit var agentRepository: AgentRepository
+
+    @Mock
     private lateinit var geminiClient: GeminiClient
 
     private lateinit var memoryService: MemoryService
@@ -30,7 +34,7 @@ class MemoryServiceTest {
     @BeforeEach
     fun setUp() {
         MockitoAnnotations.openMocks(this)
-        memoryService = MemoryService(memoryRepository, geminiClient)
+        memoryService = MemoryService(memoryRepository, agentRepository, geminiClient)
     }
 
     @Test

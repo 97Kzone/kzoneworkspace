@@ -28,6 +28,9 @@ class TechPulse(
     @Column
     val sourceUrl: String? = null,
 
+    @Column
+    var missionId: Long? = null,
+
     @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
 )

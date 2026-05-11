@@ -32,7 +32,7 @@ class WorkstreamService(
     private val objectMapper = jacksonObjectMapper()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    fun startWorkstream(request: WorkstreamRequest) {
+    fun startWorkstream(request: WorkstreamRequest): Long {
         val parentTask = taskService.createTask(request.roomId, request.goal, null)
         
         // Create Persistent Mission Session
@@ -193,6 +193,7 @@ class WorkstreamService(
                 taskService.updateStatus(parentTask.id, TaskStatus.FAILED, "스케줄링 중 치명적 오류: ${e.message}")
             }
         }
+        return missionSession.id
     }
 
     fun getMissionsByRoom(roomId: String): List<MissionSession> =
