@@ -206,7 +206,12 @@ export const MissionHiveDashboard: React.FC<MissionHiveDashboardProps> = ({ acti
                            사후 분석 보고서
                            {selectedMission.isSynthesized && <Sparkles size={10} className="text-amber-400" />}
                         </button>
-                            <Users size={10} className="text-indigo-400" />
+                        <button 
+                          onClick={() => setActiveTab('SYNERGY')}
+                          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'SYNERGY' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                           시너지 맵
+                           <Users size={10} className="text-indigo-400" />
                         </button>
                         <button 
                           onClick={() => setActiveTab('JOURNAL')}
