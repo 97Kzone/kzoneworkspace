@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Book, Calendar, TrendingUp, BrainCircuit, Users, Zap, 
   ChevronLeft, ChevronRight, Sparkles, Search, RefreshCw, 
-  FileText, History, Quote, ArrowUpRight
+  FileText, History, Quote, ArrowUpRight, BarChart3
 } from 'lucide-react';
 import { swarmJournalService, SwarmJournal } from '../app/apiService';
 import ReactMarkdown from 'react-markdown';
