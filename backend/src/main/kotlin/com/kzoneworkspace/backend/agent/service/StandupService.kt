@@ -2,6 +2,10 @@ package com.kzoneworkspace.backend.agent.service
 
 import com.kzoneworkspace.backend.agent.dto.AgentStandup
 import com.kzoneworkspace.backend.agent.repository.ActivityLogRepository
+import com.kzoneworkspace.backend.agent.repository.MemoryRepository
+import com.kzoneworkspace.backend.claude.GeminiClient
+import com.google.gson.Gson
+import com.google.common.reflect.TypeToken
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -11,49 +15,81 @@ import java.time.LocalDateTime
 class StandupService(
     private val agentService: AgentService,
     private val activityLogRepository: ActivityLogRepository,
-    private val warRoomService: WarRoomService
+    private val warRoomService: WarRoomService,
+    private val memoryRepository: MemoryRepository,
+    private val geminiClient: GeminiClient
 ) {
+    private val gson = Gson()
     @Transactional
     fun generateDailyStandup(): List<AgentStandup> {
         val agents = agentService.getAllAgents()
         
         return agents.map { agent ->
 
-            val recentLogs = activityLogRepository.findByAgentIdOrderByTimestampDesc(agent.id)
-            
-            // "어제 한 일" 추론
-            val pastAction = if (recentLogs.isNotEmpty()) {
-                val lastTool = recentLogs.firstOrNull { it.activityType == "TOOL_CALL" }
-                if (lastTool != null) {
-                    "${lastTool.toolName} 도구를 사용하여 태스크를 처리했습니다."
-                } else {
-                    "주어진 백그라운드 태스크를 분석했습니다."
+            val recentLogs = activityLogRepository.findByAgentIdOrderByTimestampDesc(agent.id).take(10)
+            val recentMemories = memoryRepository.findByCreatedAtAfter(LocalDateTime.now().minusHours(24))
+                .filter { it.agentId == agent.id }
+                .take(5)
+
+            val logsData = recentLogs.joinToString("\n") { "- ${it.timestamp}: ${it.activityType} (${it.toolName ?: ""}) ${it.details ?: ""}" }
+            val memoriesData = recentMemories.joinToString("\n") { "- ${it.createdAt}: ${it.content}" }
+
+            val systemPrompt = """
+                당신은 AI 에이전트 군집의 '스탠드업 마스터'입니다. 에이전트의 활동 로그와 기억을 바탕으로 데일리 스탠드업 보고서(어제 한 일, 오늘 할 일, 블로커)를 작성해야 합니다.
+                응답은 반드시 JSON 형식으로만 제공하며, 다음 필드를 포함해야 합니다:
+                - pastAction: 어제 완료한 일 또는 최근 활동 요약 (한국어, 1~2문장)
+                - todayFocus: 오늘 집중할 일 또는 목표 (한국어, 1~2문장)
+                - blocker: 현재 겪고 있는 문제나 방해 요소. 없으면 null (한국어, 1문장)
+            """.trimIndent()
+
+            val userPrompt = """
+                다음은 에이전트 '${agent.name}' (${agent.role})의 최근 활동 데이터입니다:
+
+                [활동 로그]
+                ${if (logsData.isBlank()) "활동 로그 없음" else logsData}
+
+                [최근 기억]
+                ${if (memoriesData.isBlank()) "최근 기억 없음" else memoriesData}
+
+                위 데이터를 바탕으로 스탠드업 보고서를 JSON으로 작성하세요.
+            """.trimIndent()
+
+            var pastAction = "시스템 유지보수 및 대기 상태였습니다."
+            var todayFocus = "주어진 목표에 맞춰 할당된 업무를 신속하게 처리하겠습니다."
+            var blocker: String? = null
+
+            try {
+                val response = geminiClient.sendMessage(
+                    systemPrompt = systemPrompt,
+                    messages = listOf(mapOf("role" to "user", "content" to userPrompt)),
+                    model = "gemini-2.0-flash"
+                )
+
+                val candidate = response.candidates().orElse(emptyList()).firstOrNull()
+                var jsonText = candidate?.content()?.orElse(null)?.parts()?.orElse(emptyList())?.firstOrNull()?.text()?.orElse("") ?: ""
+
+                if (jsonText.contains("```json")) {
+                    jsonText = jsonText.substringAfter("```json").substringBefore("```").trim()
+                } else if (jsonText.contains("```")) {
+                    jsonText = jsonText.substringAfter("```").substringBefore("```").trim()
                 }
-            } else {
-                "시스템 유지보수 및 대기 상태였습니다."
-            }
-            
-            // "오늘 할 일" 추론 (역할 기반)
-            val todayFocus = when (agent.role) {
-                "마스터 플래너" -> "전체 미션 아키텍처 설계 및 에이전트 리소스 할당 최적화에 집중하겠습니다."
-                "개발자", "Coder" -> "백엔드 로직 구현 및 프론트엔드 연동을 우선적으로 처리하겠습니다."
-                "코드 리뷰어" -> "PR 리뷰 및 코드 품질 향상, 잠재적 버그 탐지에 주력하겠습니다."
-                else -> "주어진 목표에 맞춰 할당된 업무를 신속하게 처리하겠습니다."
-            }
-            
-            // "블로커" 추론 (임의 생성 혹은 로그 기반)
-            val hasError = recentLogs.any { it.activityType == "ERROR" }
-            val blocker = if (hasError) {
-                "일부 모듈에서 예외가 발생하여 분석이 필요합니다."
-            } else if (agent.status.name == "OVERLOADED") {
-                "현재 할당된 태스크가 너무 많아 병목이 우려됩니다."
-            } else if (agent.role == "개발자" && Math.random() > 0.8) {
-                "플래너의 세부 요구사항 정의가 조금 더 명확했으면 좋겠습니다."
-            } else {
-                null
+
+                val resultType = object : TypeToken<Map<String, Any>>() {}.type
+                val resultData: Map<String, Any> = gson.fromJson(jsonText, resultType)
+
+                pastAction = resultData["pastAction"] as? String ?: pastAction
+                todayFocus = resultData["todayFocus"] as? String ?: todayFocus
+                blocker = resultData["blocker"] as? String
+                if (blocker == "null") blocker = null
+
+            } catch (e: Exception) {
+                // Fallback to simple heuristics if Gemini fails
+                val hasError = recentLogs.any { it.activityType == "ERROR" }
+                blocker = if (hasError) "일부 모듈에서 예외가 발생하여 분석이 필요합니다." else null
             }
 
             // Blocker가 있으면 워룸으로 에스컬레이션
+            val hasError = recentLogs.any { it.activityType == "ERROR" }
             if (blocker != null) {
                 warRoomService.escalate(
                     title = "${agent.name} 에이전트 병목 감지",
