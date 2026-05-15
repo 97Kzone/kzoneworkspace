@@ -626,6 +626,22 @@ export const warRoomService = {
     pivot: (id: number, instruction: String) => api.post<WarRoomIncident>(`/war-room/pivot/${id}`, { instruction }),
 };
 
+export interface SelfHealingLog {
+    id: number;
+    taskId: number;
+    agentName: string | null;
+    originalCommand: string;
+    error: string;
+    strategyType: string;
+    suggestedCommand: string;
+    reasoning: string;
+    createdAt: string;
+}
+
+export const selfHealingService = {
+    getLogs: () => api.get<SelfHealingLog[]>('/self-healing/logs'),
+};
+
 export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
     const client = new Client({
         webSocketFactory: () => new SockJS(WS_URL),

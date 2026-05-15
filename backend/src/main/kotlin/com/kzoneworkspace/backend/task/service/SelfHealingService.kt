@@ -2,7 +2,9 @@ package com.kzoneworkspace.backend.task.service
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.kzoneworkspace.backend.claude.ClaudeClient
+import com.kzoneworkspace.backend.task.entity.SelfHealingLog
 import com.kzoneworkspace.backend.task.entity.Task
+import com.kzoneworkspace.backend.task.repository.SelfHealingRepository
 import org.springframework.stereotype.Service
 
 data class HealingStrategy(
@@ -18,7 +20,8 @@ enum class StrategyType {
 
 @Service
 class SelfHealingService(
-    private val claudeClient: ClaudeClient
+    private val claudeClient: ClaudeClient,
+    private val selfHealingRepository: SelfHealingRepository
 ) {
     private val objectMapper = jacksonObjectMapper()
 
@@ -51,12 +54,30 @@ class SelfHealingService(
             이 상황을 분석하고 복구 전략을 제안해줘.
         """.trimIndent()
 
-        return try {
+        val strategy = try {
             val response = claudeClient.sendMessage(systemPrompt, userMessage)
             parseResponse(response)
         } catch (e: Exception) {
             HealingStrategy(StrategyType.GIVE_UP, "", "복구 분석 중 예상치 못한 오류 발생: ${e.message}")
         }
+
+        try {
+            selfHealingRepository.save(
+                SelfHealingLog(
+                    taskId = task.id,
+                    agentName = task.agent?.name,
+                    originalCommand = task.command,
+                    error = error,
+                    strategyType = strategy.type.name,
+                    suggestedCommand = strategy.suggestedCommand,
+                    reasoning = strategy.reasoning
+                )
+            )
+        } catch (e: Exception) {
+            println("Failed to save self healing log: ${e.message}")
+        }
+
+        return strategy
     }
 
     private fun parseResponse(response: String): HealingStrategy {

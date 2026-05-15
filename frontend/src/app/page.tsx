@@ -63,6 +63,7 @@ import { SwarmJournalDashboard } from "../components/SwarmJournalDashboard";
 import { ApiTrafficRadar } from "../components/ApiTrafficRadar";
 import { HiveWarRoomDashboard } from "../components/HiveWarRoomDashboard";
 import { ProjectHealthDashboard } from "../components/ProjectHealthDashboard";
+import { SelfHealingDashboard } from "../components/SelfHealingDashboard";
 
 
 export default function VirtualOfficeBright() {
@@ -276,7 +277,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'CONFLICT', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM', 'HEALTH'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'CONFLICT', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM', 'HEALTH', 'SELF_HEALING'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
 
       } else {
@@ -298,6 +299,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_MISSION_CONTROL', label: '미션 컨트롤 본부', icon: Target, category: 'NAVIGATION' },
     { id: 'NAV_MISSION_HIVE', label: '자율 미션 하이브', icon: Zap, category: 'NAVIGATION' },
     { id: 'NAV_JANITOR', label: '기술 부채 관리 (AI Janitor)', icon: Trash2, category: 'NAVIGATION' },
+    { id: 'NAV_SELF_HEALING', label: '자가 치유 대시보드', icon: Zap, category: 'NAVIGATION' },
     { id: 'NAV_CODE_REVIEW', label: '코드 리뷰 센터', icon: ShieldAlert, category: 'NAVIGATION' },
     { id: 'NAV_STATS', label: '워크스테이션 통계', icon: BarChart2, category: 'NAVIGATION' },
     { id: 'NAV_ANALYTICS', label: '팀 생산성 분석', icon: BarChart3, category: 'NAVIGATION' },
@@ -620,6 +622,10 @@ export default function VirtualOfficeBright() {
           
           {vo.activeTab === 'WAR_ROOM' && vo.activeCategory === 'INTELLIGENCE' && (
              <HiveWarRoomDashboard />
+          )}
+
+          {vo.activeTab === 'SELF_HEALING' && vo.activeCategory === 'INTELLIGENCE' && (
+             <SelfHealingDashboard />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (
