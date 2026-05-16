@@ -666,3 +666,33 @@ export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => v
 
     return client;
 };
+
+export interface PipelineStage {
+    id: string;
+    name: string;
+    status: 'ACTIVE' | 'IDLE' | 'BOTTLENECK';
+    agentName: string;
+    avgTimeSec: number;
+    successRate: number;
+    queueSize: number;
+    bottleneckScore: number;
+}
+
+export interface OptimizationRecommendation {
+    title: string;
+    description: string;
+    targetStageId: string;
+    impact: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+export interface PipelineMetrics {
+    overallEfficiency: number;
+    stages: PipelineStage[];
+    recommendations: OptimizationRecommendation[];
+    updatedAt: string;
+}
+
+export const workflowPipelineService = {
+    getMetrics: () => api.get<PipelineMetrics>('/workflow-pipeline/metrics'),
+};
+
