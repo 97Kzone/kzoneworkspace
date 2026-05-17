@@ -334,6 +334,7 @@ export const memoryService = {
     getAll: (limit: number = 50) => api.get<Memory[]>(`/memories?limit=${limit}`),
     search: (query: string, agentId?: number, limit: number = 10) => 
         api.get<Memory[]>(`/memories/search?query=${query}${agentId ? `&agentId=${agentId}` : ''}&limit=${limit}`),
+    compact: () => api.post<{optimizedCount: number, deletedCount: number, message: string}>('/memories/compact'),
 };
 
 export const codebaseService = {

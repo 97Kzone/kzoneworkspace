@@ -6,10 +6,14 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
+import com.kzoneworkspace.backend.agent.service.MemoryOptimizationService
+import com.kzoneworkspace.backend.agent.service.CompactionResult
+
 @RestController
 @RequestMapping("/api/memories")
 class MemoryController(
-    private val memoryService: MemoryService
+    private val memoryService: MemoryService,
+    private val memoryOptimizationService: MemoryOptimizationService
 ) {
     private val logger = LoggerFactory.getLogger(MemoryController::class.java)
 
@@ -33,4 +37,10 @@ class MemoryController(
         @RequestParam(defaultValue = "20") limit: Int
     ): ResponseEntity<List<MemoryResponse>> =
         ResponseEntity.ok(memoryService.getAllMemories(limit).filter { it.agentId == agentId })
+
+    @PostMapping("/compact")
+    fun compactMemories(): ResponseEntity<CompactionResult> {
+        logger.info("POST /api/memories/compact")
+        return ResponseEntity.ok(memoryOptimizationService.compactMemories())
+    }
 }

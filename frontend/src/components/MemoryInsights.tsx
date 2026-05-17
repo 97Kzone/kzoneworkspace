@@ -12,17 +12,34 @@ import {
   TrendingUp,
   AlertCircle
 } from 'lucide-react';
-import { Memory } from '../app/apiService';
+import { Memory, memoryService } from '../app/apiService';
 
 interface MemoryInsightsProps {
   memories: Memory[];
   getAgentColor: (name: string) => { bg: string; text: string; border: string; soft: string };
+  onRefresh?: () => void;
 }
 
-export const MemoryInsights = ({ memories, getAgentColor }: MemoryInsightsProps) => {
+export const MemoryInsights = ({ memories, getAgentColor, onRefresh }: MemoryInsightsProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [minImportance, setMinImportance] = useState(0);
+  const [isCompacting, setIsCompacting] = useState(false);
+
+  const handleCompact = async () => {
+    if (!confirm('단편적인 기억들을 분석하여 핵심 지식으로 압축하시겠습니까? 이 작업은 몇 초 정도 소요될 수 있습니다.')) return;
+    setIsCompacting(true);
+    try {
+        const res = await memoryService.compact();
+        alert(res.data.message);
+        if (onRefresh) onRefresh();
+    } catch (e) {
+        console.error('Failed to compact memories:', e);
+        alert('지식 압축 중 오류가 발생했습니다.');
+    } finally {
+        setIsCompacting(false);
+    }
+  };
 
   // 태그 추출 및 빈도 계산
   const tagStats = useMemo(() => {
@@ -69,7 +86,15 @@ export const MemoryInsights = ({ memories, getAgentColor }: MemoryInsightsProps)
             에이전트가 수집한 핵심 지식 및 사용자 선호도 분석
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-4 items-end">
+          <button 
+            onClick={handleCompact} 
+            disabled={isCompacting}
+            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-slate-200"
+          >
+            {isCompacting ? <Sparkles className="animate-spin" size={16} /> : <Brain size={16} />}
+            {isCompacting ? '압축 분석 중...' : '지식 압축 시작'}
+          </button>
           <div className="flex flex-col items-end">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Total Knowledge</span>
             <span className="text-2xl font-black text-indigo-600 leading-none">{memories.length}</span>

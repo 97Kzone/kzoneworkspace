@@ -9,7 +9,7 @@ import {
 import { MissionSession, Task, workstreamService, taskService } from "../app/apiService";
 import { MissionPostMortem } from "./MissionPostMortem";
 import { SwarmSynergyMap } from "./SwarmSynergyMap";
-import SwarmJournalDashboard from "./SwarmJournalDashboard";
+import { SwarmJournalDashboard } from "./SwarmJournalDashboard";
 
 interface MissionHiveDashboardProps {
   activeRoom: string;

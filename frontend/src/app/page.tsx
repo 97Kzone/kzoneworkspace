@@ -564,7 +564,7 @@ export default function VirtualOfficeBright() {
           )}
 
           {vo.activeTab === 'KNOWLEDGE' && vo.activeCategory === 'INTELLIGENCE' && (
-             <MemoryInsights memories={vo.memories} getAgentColor={getAgentColor} />
+             <MemoryInsights memories={vo.memories} getAgentColor={getAgentColor} onRefresh={vo.fetchInitialData} />
           )}
 
           {vo.activeTab === 'STRATEGIC_COUNCIL' && vo.activeCategory === 'INTELLIGENCE' && (
