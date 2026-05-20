@@ -282,6 +282,9 @@ export const agentService = {
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
     updateAgent: (id: number, agentData: any) => api.put<Agent>(`/agents/${id}`, agentData),
     getPerformance: () => api.get<TeamPerformance>('/agents/performance'),
+    create: (agentData: any) => api.post<Agent>('/agents', agentData),
+    update: (id: number, agentData: any) => api.put<Agent>(`/agents/${id}`, agentData),
+    delete: (id: number) => api.delete(`/agents/${id}`),
 };
 
 export const synergyService = {
@@ -291,10 +294,14 @@ export const synergyService = {
 export const taskService = {
     getByRoom: (roomId: String) => api.get<Task[]>(`/tasks?roomId=${roomId}`),
     getByMission: (missionId: number) => api.get<Task[]>(`/tasks/mission/${missionId}`),
+    execute: (roomId: string, command: string) => 
+        api.post<string>('/workstreams/start', { roomId, goal: command }),
 };
 
 export const chatService = {
     getHistory: (roomId: String) => api.get<ChatMessage[]>(`/chat/history?roomId=${roomId}`),
+    send: (roomId: string, senderName: string, content: string) => 
+        api.post<ChatMessage>('/chat/send', { roomId, senderId: senderName, senderName, content, type: 'CHAT' }),
 };
 
 export const skillService = {
@@ -328,6 +335,8 @@ export const codeReviewService = {
     perform: (filePath: string) =>
         api.post<CodeReviewResult[]>(`/code-review/perform?filePath=${filePath}`),
     applyFix: (id: number) => api.post<{success: boolean, message: string}>(`/code-review/${id}/apply`),
+    analyze: () =>
+        api.post<CodeReviewResult[]>('/code-review/perform?filePath=backend/src/main/kotlin/com/kzoneworkspace/backend/websocket/ChatHistoryController.kt'),
 };
 
 export const memoryService = {
@@ -427,6 +436,7 @@ export const brainstormingService = {
 
 export const projectHealthService = {
     get: () => api.get<ProjectHealth>('/project-health'),
+    getReport: () => api.get<ProjectHealth>('/project-health'),
 };
 
 export const lessonService = {
@@ -456,6 +466,8 @@ export const janitorService = {
     triggerScan: () => api.post<{success: boolean, foundCount: number}>('/janitor/scan'),
     applyFix: (id: number) => api.post<{success: boolean, message: string}>(`/janitor/fix/${id}`),
     ignoreIssue: (id: number) => api.post<{success: boolean}>(`/janitor/ignore/${id}`),
+    scan: () => api.post<{success: boolean, foundCount: number}>('/janitor/scan'),
+    fix: (id: number) => api.post<{success: boolean, message: string}>(`/janitor/fix/${id}`),
 };
 
 export const scenarioService = {
@@ -695,5 +707,37 @@ export interface PipelineMetrics {
 
 export const workflowPipelineService = {
     getMetrics: () => api.get<PipelineMetrics>('/workflow-pipeline/metrics'),
+};
+
+export interface WorkloadMetric {
+    agentId: number;
+    agentName: string;
+    agentRole: string;
+    activeTasks: number;
+    pendingTasks: number;
+    utilizationScore: number;
+}
+
+export interface RebalanceResult {
+    reassignedCount: number;
+    messages: string[];
+}
+
+export const workloadService = {
+    getMetrics: () => api.get<WorkloadMetric[]>('/workload/metrics'),
+    rebalance: () => api.post<RebalanceResult>('/workload/rebalance'),
+};
+
+export interface SwarmDocsReport {
+    content: string;
+    totalFiles: number;
+    indexedSignatures: number;
+    agentInsightsCount: number;
+    lastUpdatedAt: string;
+}
+
+export const swarmDocsService = {
+    getLatest: () => api.get<SwarmDocsReport>('/swarm-docs/latest'),
+    generate: () => api.post<SwarmDocsReport>('/swarm-docs/generate'),
 };
 

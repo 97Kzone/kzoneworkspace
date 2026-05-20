@@ -7,8 +7,8 @@ import { TeamProductivityChart } from "../charts/TeamProductivityChart";
 
 interface WorkspaceDashboardProps {
   vo: any;
-  scrollRef: React.RefObject<HTMLDivElement>;
-  consoleScrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  consoleScrollRef: React.RefObject<HTMLDivElement | null>;
   onSendMessage: () => Promise<void>;
   onExecuteCommand: (command: string) => Promise<void>;
 }

@@ -102,19 +102,19 @@ export const JanitorDashboard: React.FC<JanitorDashboardProps> = ({
                 <div className="flex items-center gap-3 mb-1">
                   <span
                     className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                      issue.status === "FIXED"
+                      issue.status === "APPLIED"
                         ? "bg-emerald-500 text-white"
                         : "bg-indigo-500 text-white"
                     }`}
                   >
-                    {issue.status === "FIXED" ? "해결됨" : "미관리"}
+                    {issue.status === "APPLIED" ? "해결됨" : "미관리"}
                   </span>
                   <span className="text-[10px] font-black text-slate-400 font-mono italic truncate">
                     {issue.filePath}
                   </span>
                 </div>
                 <h4 className="text-sm font-black text-slate-800 mb-1 leading-tight uppercase">
-                  {issue.title || issue.category}
+                  {issue.category}
                 </h4>
                 <p className="text-xs text-slate-500 font-medium line-clamp-1">
                   {issue.description}
@@ -122,12 +122,12 @@ export const JanitorDashboard: React.FC<JanitorDashboardProps> = ({
               </div>
               <button
                 onClick={() => onApplyFix(issue.id)}
-                disabled={isLoading || issue.status === "FIXED"}
+                disabled={isLoading || issue.status === "APPLIED"}
                 className={`px-6 py-3 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
-                    issue.status === 'FIXED' ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-emerald-500'
+                    issue.status === 'APPLIED' ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-emerald-500'
                 }`}
               >
-                {issue.status === "FIXED" ? "완료됨" : "자동 수정"}
+                {issue.status === "APPLIED" ? "완료됨" : "자동 수정"}
               </button>
             </motion.div>
           ))

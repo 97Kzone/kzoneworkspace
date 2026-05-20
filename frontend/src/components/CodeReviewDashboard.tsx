@@ -80,37 +80,37 @@ export const CodeReviewDashboard: React.FC<CodeReviewDashboardProps> = ({
                 <div className="flex items-center gap-4">
                   <div
                     className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${
-                      review.severity === "CRITICAL"
+                      review.severity === "HIGH"
                         ? "bg-rose-500 text-white"
-                        : review.severity === "WARNING"
+                        : review.severity === "MEDIUM"
                         ? "bg-amber-500 text-white"
                         : "bg-indigo-500 text-white"
                     }`}
                   >
-                    {review.severity === "CRITICAL"
+                    {review.severity === "HIGH"
                       ? "중대"
-                      : review.severity === "WARNING"
+                      : review.severity === "MEDIUM"
                       ? "경고"
                       : "정보"}
                   </div>
                   <div className="flex items-center gap-2">
                     <Code2 size={14} className="text-slate-400" />
                     <span className="text-xs font-mono font-bold text-slate-700 truncate max-w-[200px]">
-                      {review.fileName}
+                      {review.filePath}
                     </span>
                   </div>
                 </div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  {new Date(review.generatedAt).toLocaleString()}
+                  {new Date(review.createdAt).toLocaleString()}
                 </span>
               </div>
               <div className="p-8 space-y-6">
                 <div>
                   <h4 className="text-sm font-black text-slate-800 mb-2 leading-tight uppercase">
-                    {review.reason}
+                    {review.title}
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic">
-                    {review.description}
+                    {review.issue}
                   </p>
                 </div>
 
@@ -121,7 +121,7 @@ export const CodeReviewDashboard: React.FC<CodeReviewDashboardProps> = ({
                     </span>
                     <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-inner overflow-x-auto">
                       <pre className="text-[11px] font-mono text-rose-300 leading-relaxed">
-                        <code>{review.originalSnippet}</code>
+                        <code>{review.originalCode || ""}</code>
                       </pre>
                     </div>
                   </div>
@@ -131,7 +131,7 @@ export const CodeReviewDashboard: React.FC<CodeReviewDashboardProps> = ({
                     </span>
                     <div className="bg-indigo-900/10 rounded-2xl p-5 border border-indigo-500/20 shadow-inner overflow-x-auto relative">
                       <pre className="text-[11px] font-mono text-indigo-600 leading-relaxed">
-                        <code>{review.suggestedFix}</code>
+                        <code>{review.suggestedCode || ""}</code>
                       </pre>
                       <div className="absolute top-4 right-4">
                         <Sparkles

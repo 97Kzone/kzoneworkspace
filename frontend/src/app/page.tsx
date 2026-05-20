@@ -7,7 +7,7 @@ import {
   Bot, User, MessageSquare, X, Users, Terminal, Code2, Layout, Database, 
   Send, Command, Sparkles, Coffee, GripVertical, Maximize2, 
   BarChart3, BarChart2, Brain, ChevronRight, Pause, Play, 
-  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History, Shield, Cpu 
+  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History, Shield, Cpu, Book, BookOpen
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
@@ -15,7 +15,7 @@ import ReactMarkdown from 'react-markdown';
 import { 
   agentService, taskService, chatService, schedulingService, codeReviewService, 
   memoryService, codebaseService, briefingService, projectHealthService, 
-  scenarioService, ActionableStrategy 
+  scenarioService, janitorService, ActionableStrategy 
 } from "./apiService";
 
 // 유틸리티
@@ -47,6 +47,7 @@ import { JanitorDashboard } from "../components/JanitorDashboard";
 import { CodeReviewDashboard } from "../components/CodeReviewDashboard";
 import { MissionHiveDashboard } from "../components/MissionHiveDashboard";
 import { ScenarioLabDashboard } from "../components/ScenarioLabDashboard";
+import { BrainstormingBoard } from "../components/BrainstormingBoard";
 import { EmotionBubble } from "../components/EmotionBubble";
 import { MemoryInsights } from "../components/MemoryInsights";
 import { StrategicCouncilDashboard } from "../components/StrategicCouncilDashboard";
@@ -64,6 +65,8 @@ import { ApiTrafficRadar } from "../components/ApiTrafficRadar";
 import { HiveWarRoomDashboard } from "../components/HiveWarRoomDashboard";
 import { ProjectHealthDashboard } from "../components/ProjectHealthDashboard";
 import { SelfHealingDashboard } from "../components/SelfHealingDashboard";
+import { WorkloadBalancerDashboard } from "../components/WorkloadBalancerDashboard";
+import { SwarmDocsDashboard } from "../components/SwarmDocsDashboard";
 
 
 export default function VirtualOfficeBright() {
@@ -277,7 +280,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'CONFLICT', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM', 'HEALTH', 'SELF_HEALING'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'CONFLICT', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM', 'HEALTH', 'SELF_HEALING', 'WORKLOAD', 'SWARM_DOCS'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
 
       } else {
@@ -309,16 +312,18 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_STRATEGIC_COUNCIL', label: '하이브 전략 위원회', icon: Shield, category: 'NAVIGATION' },
     { id: 'NAV_EFFICIENCY', label: '군집 효율성 분석기', icon: Cpu, category: 'NAVIGATION' },
     { id: 'NAV_ALIGNMENT', label: '하이브 인지 정렬 펄스', icon: Activity, category: 'NAVIGATION' },
-    { id: 'NAV_RESONANCE', label: '하이브 신경 공명 (HNR)', icon: BrainCircuit, category: 'NAVIGATION' },
+    { id: 'NAV_RESONANCE', label: '하이브 신경 공명 (HNR)', icon: Brain, category: 'NAVIGATION' },
     { id: 'NAV_EVALUATION_LAB', label: '에이전트 벤치마킹 랩', icon: Target, category: 'NAVIGATION' },
     { id: 'NAV_STANDUP', label: '군집 일일 스탠드업', icon: Users, category: 'NAVIGATION' },
     { id: 'NAV_WORKSTREAM_GANTT', label: '워크스트림 간트 차트', icon: Layout, category: 'NAVIGATION' },
+    { id: 'NAV_WORKLOAD', label: '에이전트 워크로드 분산기', icon: Activity, category: 'NAVIGATION' },
     { id: 'NAV_SYNERGY', label: '에이전트 시너지 매트릭스', icon: Users, category: 'NAVIGATION' },
     { id: 'NAV_CONFLICT', label: '군집 갈등 해결 허브', icon: Shield, category: 'NAVIGATION' },
     { id: 'NAV_EVOLUTION', label: '에이전트 진화 연대기', icon: TrendingUp, category: 'NAVIGATION' },
     { id: 'NAV_JOURNAL', label: '하이브 데일리 저널', icon: Book, category: 'NAVIGATION' },
     { id: 'NAV_TRAFFIC', label: '군집 API 트래픽 레이더', icon: Activity, category: 'NAVIGATION' },
     { id: 'NAV_HEALTH', label: '프로젝트 건강진단 대시보드', icon: Heart, category: 'NAVIGATION' },
+    { id: 'NAV_SWARM_DOCS', label: '아키텍처 문서실 이동', icon: BookOpen, category: 'NAVIGATION' },
     { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
 
     { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
@@ -452,9 +457,9 @@ export default function VirtualOfficeBright() {
                         </div>
                         <button 
                           onClick={() => handleToggleScheduler(task.id)}
-                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ease-in-out ${task.active ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ease-in-out ${task.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-200'}`}
                         >
-                           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ease-in-out ${task.active ? 'left-7' : 'left-1'}`}></div>
+                           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ease-in-out ${task.status === 'ACTIVE' ? 'left-7' : 'left-1'}`}></div>
                         </button>
                      </div>
                      <h4 className="text-sm font-black text-slate-800 mb-2 truncate leading-tight uppercase">{task.description}</h4>
@@ -479,7 +484,7 @@ export default function VirtualOfficeBright() {
                ))}
                {vo.tasks.filter(t => t.status === 'RUNNING' || t.status === 'HEALING').length === 0 && (
                   <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 opacity-50 py-20">
-                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center"><TargetIcon size={40} /></div>
+                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center"><Target size={40} /></div>
                     <p className="text-sm font-black uppercase tracking-widest">현재 진행 중인 미션이 없습니다</p>
                   </div>
                )}
@@ -628,6 +633,14 @@ export default function VirtualOfficeBright() {
              <SelfHealingDashboard />
           )}
 
+          {vo.activeTab === 'WORKLOAD' && vo.activeCategory === 'INTELLIGENCE' && (
+             <WorkloadBalancerDashboard getAgentColor={getAgentColor} />
+          )}
+
+          {vo.activeTab === 'SWARM_DOCS' && vo.activeCategory === 'INTELLIGENCE' && (
+             <SwarmDocsDashboard />
+          )}
+
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (
              <div className="flex-1 flex flex-col gap-6 overflow-hidden">
                 <div className="flex items-center justify-between shrink-0 px-2">
@@ -715,8 +728,12 @@ export default function VirtualOfficeBright() {
       </div>
 
       {/* 실시간 플로팅 레이어 */}
-      <EmotionBubble />
-      <LivePreviewBubble previews={vo.activePreviews} getAgentColor={getAgentColor} />
+      {vo.agents.find(a => a.lastEmotion)?.lastEmotion && (
+        <EmotionBubble emotion={vo.agents.find(a => a.lastEmotion)!.lastEmotion!} />
+      )}
+      {Object.values(vo.activePreviews).find(p => p !== null) && (
+        <LivePreviewBubble preview={Object.values(vo.activePreviews).find(p => p !== null)!} getAgentColor={getAgentColor} />
+      )}
 
       {/* 모달 관리 영역 */}
       <AnimatePresence>

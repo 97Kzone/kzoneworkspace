@@ -4,7 +4,7 @@ import { Sun, CheckCircle2, Target, AlertTriangle, Users, Loader2 } from "lucide
 import { AgentStandup, standupService } from "../app/apiService";
 
 interface StandupBoardProps {
-  getAgentColor: (name: string) => string;
+  getAgentColor: (name: string) => { bg: string; text: string; border: string; soft: string };
 }
 
 export const StandupBoard: React.FC<StandupBoardProps> = ({ getAgentColor }) => {
@@ -52,7 +52,7 @@ export const StandupBoard: React.FC<StandupBoardProps> = ({ getAgentColor }) => 
       <div className="flex-1 overflow-x-auto p-10 custom-scrollbar-dark flex gap-8 items-start">
         <AnimatePresence>
           {standups.map((standup, index) => {
-            const colorClass = getAgentColor(standup.agentName);
+            const color = getAgentColor(standup.agentName);
             return (
               <motion.div
                 key={standup.agentId}
@@ -62,9 +62,9 @@ export const StandupBoard: React.FC<StandupBoardProps> = ({ getAgentColor }) => 
                 className="w-[340px] shrink-0 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-[2rem] overflow-hidden flex flex-col shadow-xl"
               >
                 <div className={`p-6 border-b border-slate-700/50 relative overflow-hidden`}>
-                  <div className={`absolute top-0 left-0 w-full h-1 ${colorClass}`}></div>
+                  <div className={`absolute top-0 left-0 w-full h-1 ${color.bg}`}></div>
                   <div className="flex items-center gap-4 relative z-10">
-                    <div className={`w-12 h-12 rounded-full ${colorClass} text-white flex items-center justify-center text-xl font-black shadow-lg`}>
+                    <div className={`w-12 h-12 rounded-full ${color.bg} text-white flex items-center justify-center text-xl font-black shadow-lg`}>
                       {standup.agentName[0]}
                     </div>
                     <div>

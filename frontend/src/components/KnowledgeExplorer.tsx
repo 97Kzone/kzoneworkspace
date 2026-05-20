@@ -102,7 +102,7 @@ export const KnowledgeExplorer = ({
                       </span>
                       <span className="text-[9px] text-slate-400 font-bold">•</span>
                       <span className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1.5 leading-none">
-                        <Clock size={10} /> {new Date(memory.timestamp).toLocaleString()}
+                        <Clock size={10} /> {new Date(memory.createdAt).toLocaleString()}
                       </span>
                     </div>
                     <h4 className="text-base font-black text-slate-800 mb-3 group-hover:text-indigo-600 transition-colors uppercase leading-tight relative z-10">{memory.content}</h4>

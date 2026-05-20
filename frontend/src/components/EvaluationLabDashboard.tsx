@@ -5,7 +5,7 @@ import { Agent, evaluationService, EvaluationRunResponse, EvaluationDetailRespon
 
 interface EvaluationLabDashboardProps {
   agents: Agent[];
-  getAgentColor: (name: string) => string;
+  getAgentColor: (name: string) => { bg: string; text: string; border: string; soft: string };
 }
 
 const AVAILABLE_MODELS = [
@@ -172,7 +172,7 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({ 
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${selectedAgent ? getAgentColor(selectedAgent.name) : 'bg-slate-300'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${selectedAgent ? getAgentColor(selectedAgent.name).bg : 'bg-slate-300'}`}></div>
                         <span className="text-xs font-black text-slate-700">{run.modelName}</span>
                       </div>
                       <div className="text-right">
