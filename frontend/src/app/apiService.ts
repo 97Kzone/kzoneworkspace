@@ -350,6 +350,7 @@ export const codebaseService = {
     index: () => api.post<{status: string, message: string}>('/codebase/index'),
     search: (query: string, limit: number = 10) => 
         api.get<CodebaseChunk[]>(`/codebase/search?query=${query}&limit=${limit}`),
+    getFiles: () => api.get<string[]>('/codebase/files'),
 };
 
 export interface TechPulse {
@@ -655,7 +656,7 @@ export const selfHealingService = {
     getLogs: () => api.get<SelfHealingLog[]>('/self-healing/logs'),
 };
 
-export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => void) => {
+export const createWebSocketClient = (onMessageReceived?: (msg: ChatMessage) => void) => {
     const client = new Client({
         webSocketFactory: () => new SockJS(WS_URL),
         debug: (str) => {
@@ -668,9 +669,11 @@ export const createWebSocketClient = (onMessageReceived: (msg: ChatMessage) => v
 
     client.onConnect = () => {
         console.log('Connected to WebSocket');
-        client.subscribe('/topic/public', (message) => {
-            onMessageReceived(JSON.parse(message.body));
-        });
+        if (onMessageReceived) {
+            client.subscribe('/topic/public', (message) => {
+                onMessageReceived(JSON.parse(message.body));
+            });
+        }
     };
 
     client.onStompError = (frame) => {

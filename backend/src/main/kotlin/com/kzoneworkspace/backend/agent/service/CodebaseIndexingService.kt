@@ -110,4 +110,16 @@ class CodebaseIndexingService(
     fun isIndexEmpty(): Boolean {
         return codebaseChunkRepository.count() == 0L
     }
+
+    fun getProjectFiles(): List<String> {
+        val root = findProjectRoot()
+        val files = mutableListOf<String>()
+        root.walkTopDown()
+            .filter { shouldIndex(it) }
+            .forEach { file ->
+                val relativePath = file.relativeTo(root).path
+                files.add(relativePath.replace("\\", "/"))
+            }
+        return files.sorted()
+    }
 }

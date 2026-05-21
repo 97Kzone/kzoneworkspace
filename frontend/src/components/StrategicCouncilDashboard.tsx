@@ -167,7 +167,7 @@ export const StrategicCouncilDashboard: React.FC = () => {
                         <div className="flex gap-2 items-start">
                           <AlertTriangle className="text-amber-500/50 shrink-0 mt-0.5" size={14} />
                           <p className="text-[10px] text-slate-500 font-bold leading-tight">
-                            AI 분석 결과: {rec.analysisReasoning.split('\n')[0].take(100)}...
+                            AI 분석 결과: {rec.analysisReasoning.split('\n')[0]?.slice(0, 100) || ""}...
                           </p>
                         </div>
                       )}

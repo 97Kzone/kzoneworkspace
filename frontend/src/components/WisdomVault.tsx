@@ -72,12 +72,12 @@ export const WisdomVault = ({
                           </div>
                           <div>
                              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{lesson.agentName}의 교훈</h4>
-                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{new Date(lesson.timestamp).toLocaleString()}</p>
+                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{new Date(lesson.createdAt).toLocaleString()}</p>
                           </div>
                        </div>
                        <div className="flex gap-2">
-                          <span className={`px-3 py-1.5 rounded-xl ${lesson.outcome === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'} text-[10px] font-black uppercase tracking-widest`}>
-                             {lesson.outcome === 'SUCCESS' ? '성공 사례' : '실패 극복'}
+                          <span className={`px-3 py-1.5 rounded-xl ${lesson.importance >= 3 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'} text-[10px] font-black uppercase tracking-widest`}>
+                             {lesson.importance >= 3 ? '중요 교훈' : '일반 교훈'}
                           </span>
                        </div>
                     </div>
@@ -89,7 +89,7 @@ export const WisdomVault = ({
                              <span className="text-[10px] font-black uppercase tracking-widest">실패/문제 패턴</span>
                           </div>
                           <p className="text-sm font-bold text-slate-700 leading-relaxed bg-rose-50/30 p-6 rounded-2xl border border-rose-100/30 shadow-inner">
-                             {lesson.failurePattern}
+                             {lesson.failPattern || "패턴 정보 없음"}
                           </p>
                        </div>
                        <div className="space-y-4">
@@ -106,13 +106,13 @@ export const WisdomVault = ({
                     <div className="px-10 py-6 bg-slate-50/50 border-t border-slate-50 flex items-center justify-between">
                        <div className="flex items-center gap-2">
                           <Zap size={14} className="text-indigo-500" />
-                          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">다음 단계 가이드:</span>
-                          <span className="text-[11px] font-bold text-indigo-600">{lesson.actionableStep}</span>
+                          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">연관 리소스:</span>
+                          <span className="text-[11px] font-bold text-indigo-600">{lesson.relatedFiles || "전체 소스코드"}</span>
                        </div>
                        <div className="flex items-center gap-3">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">신뢰도 점수</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase">분석 중요도</span>
                           <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
-                             <motion.div initial={{ width: 0 }} animate={{ width: '85%' }} className="h-full bg-indigo-500" />
+                             <motion.div initial={{ width: 0 }} animate={{ width: `${(lesson.importance / 5) * 100}%` }} className="h-full bg-indigo-500" />
                           </div>
                        </div>
                     </div>

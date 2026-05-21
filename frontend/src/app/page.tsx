@@ -156,10 +156,14 @@ export default function VirtualOfficeBright() {
     }
   };
 
-  const handleStartReview = async () => {
+  const handleStartReview = async (filePath?: string) => {
     vo.setIsReviewing(true);
     try {
-        await codeReviewService.analyze();
+        if (filePath) {
+            await codeReviewService.perform(filePath);
+        } else {
+            await codeReviewService.analyze();
+        }
         const res = await codeReviewService.getAll();
         vo.setCodeReviews(res.data);
     } catch (e) {

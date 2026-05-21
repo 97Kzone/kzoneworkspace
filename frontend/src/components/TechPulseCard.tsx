@@ -49,18 +49,18 @@ export const TechPulseCard = ({ pulse }: { pulse: TechPulse }) => {
            </div>
         </div>
         
-        <h4 className="text-sm font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors uppercase">{pulse.techName}</h4>
+        <h4 className="text-sm font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors uppercase">{pulse.title}</h4>
         <p className="text-[11px] text-slate-500 font-medium leading-relaxed mb-6 line-clamp-2">{pulse.description}</p>
         
         <div className="space-y-3 pt-4 border-t border-slate-50">
            <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
-              <span>트렌드 성장률</span>
-              <span className="text-indigo-500">+{pulse.trendGrowth}%</span>
+              <span>프로젝트 영향도</span>
+              <span className="text-indigo-500">{pulse.impactScore}점</span>
            </div>
            <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100 shadow-inner">
               <motion.div 
                 initial={{ width: 0 }} 
-                animate={{ width: `${pulse.trendGrowth}%` }} 
+                animate={{ width: `${pulse.impactScore}%` }} 
                 className="h-full bg-gradient-to-r from-indigo-500 to-violet-400" 
               />
            </div>
@@ -69,9 +69,9 @@ export const TechPulseCard = ({ pulse }: { pulse: TechPulse }) => {
         <div className="mt-4 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
             <div className="flex items-center gap-1">
                 <TrendingUp size={10} className="text-emerald-500" />
-                <span>관심도 점수: {pulse.interestScore}</span>
+                <span>영향 점수: {pulse.impactScore}</span>
             </div>
-            <span>{new Date(pulse.updatedAt).toLocaleDateString()}</span>
+            <span>{new Date(pulse.createdAt).toLocaleDateString()}</span>
         </div>
       </motion.div>
     );

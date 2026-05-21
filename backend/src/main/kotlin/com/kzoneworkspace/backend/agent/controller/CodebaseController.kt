@@ -22,4 +22,9 @@ class CodebaseController(
     fun search(@RequestParam query: String, @RequestParam(defaultValue = "10") limit: Int): List<CodebaseChunk> {
         return codebaseIndexingService.search(query, limit)
     }
+
+    @GetMapping("/files")
+    fun getProjectFiles(): List<String> {
+        return codebaseIndexingService.getProjectFiles()
+    }
 }
