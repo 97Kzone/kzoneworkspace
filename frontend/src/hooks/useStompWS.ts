@@ -18,7 +18,8 @@ export const useStompWS = (
   setCognitiveTraces: any,
   setActiveCollaborations: any,
   setIsIntelligenceBoosted: any,
-  fetchInitialData: any
+  fetchInitialData: any,
+  setLiveEvaluation?: any
 ) => {
   /**
    * WebSocket 서버에 연결하고 각 토픽을 구독하는 함수
@@ -138,10 +139,18 @@ export const useStompWS = (
               setIsIntelligenceBoosted((prev: any) => ({ ...prev, [intelId]: false }));
           }, 3000);
       });
+
+      // 벤치마킹 실시간 평가 구독
+      stompClientRef.current.subscribe('/topic/evaluations', (msg: any) => {
+          const body = JSON.parse(msg.body);
+          if (setLiveEvaluation) {
+              setLiveEvaluation(body);
+          }
+      });
     };
 
     stompClientRef.current.activate();
-  }, [stompClientRef, setMessages, setTasks, setAgents, setActivities, setPerformanceData, setActiveConnections, setActivePreviews, setShowHealingToast, setCognitiveTraces, setActiveCollaborations, setIsIntelligenceBoosted]);
+  }, [stompClientRef, setMessages, setTasks, setAgents, setActivities, setPerformanceData, setActiveConnections, setActivePreviews, setShowHealingToast, setCognitiveTraces, setActiveCollaborations, setIsIntelligenceBoosted, setLiveEvaluation]);
 
   useEffect(() => {
     fetchInitialData();

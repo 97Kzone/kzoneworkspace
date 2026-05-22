@@ -28,5 +28,26 @@ data class EvaluationDetailResponse(
     val isSuccess: Boolean,
     val score: Double,
     val latencyMs: Long,
+    val rationale: String?,
     val errorLog: String?
 )
+
+data class CreateBenchmarkTaskRequest(
+    val name: String,
+    val category: String,
+    val inputPrompt: String,
+    val expectedOutput: String?,
+    val criteriaType: String, // EXACT_MATCH, CONTAINS, REGEX, SEMANTIC
+    val difficulty: Int
+)
+
+data class BenchmarkTaskResponse(
+    val id: Long,
+    val name: String,
+    val category: String,
+    val inputPrompt: String,
+    val expectedOutput: String?,
+    val criteriaType: String,
+    val difficulty: Int
+)
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { 
   Plus as PlusIcon, Calendar, Activity, Zap, Target, Loader2, Presentation,
@@ -71,6 +71,7 @@ import { SwarmDocsDashboard } from "../components/SwarmDocsDashboard";
 
 export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
+  const [liveEvaluation, setLiveEvaluation] = useState<any>(null);
   const stompClient = useRef<any>(null);
 
   // WebSocket 연결 및 초기 데이터 로드
@@ -88,7 +89,8 @@ export default function VirtualOfficeBright() {
     vo.setCognitiveTraces,
     vo.setActiveCollaborations,
     vo.setIsIntelligenceBoosted,
-    vo.fetchInitialData
+    vo.fetchInitialData,
+    setLiveEvaluation
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -593,7 +595,12 @@ export default function VirtualOfficeBright() {
           )}
 
           { vo.activeTab === 'EVALUATION_LAB' && vo.activeCategory === 'INTELLIGENCE' && (
-             <EvaluationLabDashboard agents={vo.agents} getAgentColor={getAgentColor} />
+             <EvaluationLabDashboard 
+               agents={vo.agents} 
+               getAgentColor={getAgentColor} 
+               liveEvaluation={liveEvaluation}
+               setLiveEvaluation={setLiveEvaluation}
+             />
           )}
 
           {vo.activeTab === 'HEALTH' && vo.activeCategory === 'INTELLIGENCE' && (

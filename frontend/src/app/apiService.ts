@@ -577,13 +577,36 @@ export interface EvaluationDetailResponse {
     isSuccess: boolean;
     score: number;
     latencyMs: number;
+    rationale: string | null;
     errorLog: string | null;
+}
+
+export interface BenchmarkTaskResponse {
+    id: number;
+    name: string;
+    category: string;
+    inputPrompt: string;
+    expectedOutput: string | null;
+    criteriaType: string;
+    difficulty: number;
+}
+
+export interface CreateBenchmarkTaskRequest {
+    name: string;
+    category: string;
+    inputPrompt: string;
+    expectedOutput: string | null;
+    criteriaType: string;
+    difficulty: number;
 }
 
 export const evaluationService = {
     run: (data: EvaluationRequest) => api.post<EvaluationRunResponse>('/evaluations/run', data),
     getHistory: (agentId: number) => api.get<EvaluationRunResponse[]>(`/evaluations/history/${agentId}`),
     getDetails: (runId: number) => api.get<EvaluationDetailResponse[]>(`/evaluations/${runId}/details`),
+    getTasks: () => api.get<BenchmarkTaskResponse[]>('/evaluations/tasks'),
+    createTask: (data: CreateBenchmarkTaskRequest) => api.post<BenchmarkTaskResponse>('/evaluations/tasks', data),
+    deleteTask: (id: number) => api.delete<{message: string}>(`/evaluations/tasks/${id}`),
 };
 
 export interface AgentStandup {

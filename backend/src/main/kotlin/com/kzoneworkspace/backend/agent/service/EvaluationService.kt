@@ -1,13 +1,19 @@
 package com.kzoneworkspace.backend.agent.service
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.kzoneworkspace.backend.agent.dto.*
 import com.kzoneworkspace.backend.agent.entity.*
 import com.kzoneworkspace.backend.agent.repository.*
 import com.kzoneworkspace.backend.claude.AgentExecutor
+import com.kzoneworkspace.backend.claude.GeminiClient
 import jakarta.annotation.PostConstruct
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import kotlin.system.measureTimeMillis
 
 @Service
 class EvaluationService(
@@ -15,8 +21,12 @@ class EvaluationService(
     private val evaluationRunRepository: EvaluationRunRepository,
     private val evaluationResultRepository: EvaluationResultRepository,
     private val agentService: AgentService,
-    private val agentExecutor: AgentExecutor
+    private val agentExecutor: AgentExecutor,
+    private val geminiClient: GeminiClient,
+    private val messagingTemplate: SimpMessagingTemplate
 ) {
+    private val coroutineScope = CoroutineScope(Dispatchers.Default)
+    private val objectMapper = jacksonObjectMapper()
 
     @PostConstruct
     fun initBenchmarks() {
@@ -63,22 +73,29 @@ class EvaluationService(
             totalTasks = benchmarkTaskRepository.count().toInt()
         ))
         
-        // 비동기로 실행하는 것이 좋으나, 일단 동기적으로 구현 (간단한 예제)
-        // 실제 운영 환경에서는 @Async 등을 사용해야 함
-        runEvaluationSync(run)
+        // 코루틴 비동기 백그라운드 태스크 실행
+        coroutineScope.launch {
+            try {
+                runEvaluationAsync(run.id)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
         
         return run
     }
 
-    private fun runEvaluationSync(run: EvaluationRun) {
+    @Transactional
+    fun runEvaluationAsync(runId: Long) {
+        val run = evaluationRunRepository.findById(runId).orElse(null) ?: return
         val benchmarks = benchmarkTaskRepository.findAll()
         var totalScore = 0.0
         var totalLatency: Long = 0
         var completed = 0
         
-        // 임시로 에이전트의 모델을 변경 (평가용)
         val originalModel = run.agent.model
         run.agent.model = run.modelName
+        agentService.save(run.agent)
 
         try {
             for (benchmark in benchmarks) {
@@ -89,27 +106,17 @@ class EvaluationService(
                 
                 val startTime = System.currentTimeMillis()
                 try {
-                    // AgentExecutor를 통해 실행 (평가용 전용 룸 사용)
-                    // 실제 AgentExecutor 내부에서 발생하는 사이드 이펙트(포인트 지급 등)는 감수하거나 
-                    // 별도의 리팩토링이 필요함. 여기서는 개념 증명을 위해 직접 호출.
-                    
-                    // 주의: AgentExecutor.execute는 결과를 리턴하지 않고 WebSocket으로 보냄.
-                    // 따라서 평가를 위해서는 AgentExecutor의 로직 중 응답을 리턴하는 부분을 분리해야 함.
-                    // 여기서는 runReasoningLoop와 유사한 로직을 직접 수행하거나 AgentExecutor를 수정해야 함.
-                    
-                    // 일단 TaskService를 통해 결과를 가져오는 방식으로 대략적 구현
-                    // (실제 구현 시에는 AgentExecutor에 리턴값이 있는 메서드를 추가하는 것이 정석)
-                    
-                    val dummyRoomId = "eval-room-${run.id}"
-                    
-                    // AgentExecutor를 통해 실제 LLM 호출 수행
                     val response = agentExecutor.executeBenchmark(run.agent, run.modelName, benchmark.inputPrompt)
                     val latency = System.currentTimeMillis() - startTime
                     
                     result.actualOutput = response
                     result.latencyMs = latency
-                    result.isSuccess = evaluate(response, benchmark)
-                    result.score = if (result.isSuccess) 100.0 else 0.0
+                    
+                    // 의미 분석 및 기준 매칭 판정
+                    val evalResult = evaluateSemanticOrMatch(response, benchmark)
+                    result.isSuccess = evalResult.success
+                    result.score = evalResult.score
+                    result.rationale = evalResult.rationale
                     
                     totalScore += result.score
                     totalLatency += latency
@@ -119,9 +126,17 @@ class EvaluationService(
                     result.errorLog = e.message
                     result.isSuccess = false
                     result.score = 0.0
+                    result.rationale = "에러 발생: ${e.message}"
                 }
                 
                 evaluationResultRepository.save(result)
+                
+                run.completedTasks = completed
+                run.overallScore = if (completed > 0) totalScore / completed else 0.0
+                evaluationRunRepository.save(run)
+                
+                // 실시간 웹소켓 메시지 발행
+                broadcastProgress(run, result)
             }
             
             run.status = "COMPLETED"
@@ -130,28 +145,147 @@ class EvaluationService(
             run.avgLatencyMs = if (completed > 0) totalLatency / completed else 0
             run.endTime = LocalDateTime.now()
             
+        } catch (e: Exception) {
+            run.status = "FAILED"
+            run.endTime = LocalDateTime.now()
         } finally {
-            // 모델 복구
             run.agent.model = originalModel
+            agentService.save(run.agent)
             evaluationRunRepository.save(run)
+            
+            // 최종 웹소켓 전송
+            broadcastProgress(run, null)
         }
     }
 
-    private fun evaluate(actual: String, benchmark: BenchmarkTask): Boolean {
-        if (benchmark.expectedOutput == null) return true
+    private fun broadcastProgress(run: EvaluationRun, latestResult: EvaluationResult?) {
+        val payload = mapOf(
+            "id" to run.id,
+            "agentName" to run.agent.name,
+            "modelName" to run.modelName,
+            "status" to run.status,
+            "overallScore" to run.overallScore,
+            "totalTasks" to run.totalTasks,
+            "completedTasks" to run.completedTasks,
+            "startTime" to run.startTime.toString(),
+            "endTime" to run.endTime?.toString(),
+            "latestResult" to latestResult?.let {
+                mapOf(
+                    "taskId" to it.benchmarkTask.id,
+                    "taskName" to it.benchmarkTask.name,
+                    "isSuccess" to it.isSuccess,
+                    "score" to it.score,
+                    "latencyMs" to it.latencyMs,
+                    "rationale" to it.rationale,
+                    "actualOutput" to it.actualOutput
+                )
+            }
+        )
+        messagingTemplate.convertAndSend("/topic/evaluations", payload)
+    }
+
+    data class EvalJudgeResult(val success: Boolean, val score: Double, val rationale: String)
+
+    private fun evaluateSemanticOrMatch(actual: String, benchmark: BenchmarkTask): EvalJudgeResult {
+        if (benchmark.expectedOutput == null) {
+            return EvalJudgeResult(true, 100.0, "기대 정답이 존재하지 않아 패스 처리되었습니다.")
+        }
         
         return when (benchmark.criteriaType) {
-            CriteriaType.EXACT_MATCH -> actual.trim() == benchmark.expectedOutput?.trim()
-            CriteriaType.CONTAINS -> {
-                val keywords = benchmark.expectedOutput?.split(",")?.map { it.trim() } ?: emptyList()
-                keywords.all { actual.contains(it, ignoreCase = true) }
+            CriteriaType.SEMANTIC -> evaluateSemantic(actual, benchmark)
+            else -> {
+                val isSuccess = when (benchmark.criteriaType) {
+                    CriteriaType.EXACT_MATCH -> actual.trim() == benchmark.expectedOutput?.trim()
+                    CriteriaType.CONTAINS -> {
+                        val keywords = benchmark.expectedOutput?.split(",")?.map { it.trim() } ?: emptyList()
+                        keywords.all { actual.contains(it, ignoreCase = true) }
+                    }
+                    CriteriaType.REGEX -> {
+                        val regex = benchmark.expectedOutput?.toRegex()
+                        regex?.containsMatchIn(actual) ?: false
+                    }
+                    else -> true
+                }
+                EvalJudgeResult(
+                    success = isSuccess,
+                    score = if (isSuccess) 100.0 else 0.0,
+                    rationale = if (isSuccess) "일치 기준(${benchmark.criteriaType})을 완벽히 만족합니다." else "기대하는 출력값 매칭 기준(${benchmark.criteriaType})을 미달하였습니다."
+                )
             }
-            CriteriaType.REGEX -> {
-                val regex = benchmark.expectedOutput?.toRegex()
-                regex?.containsMatchIn(actual) ?: false
-            }
-            CriteriaType.SEMANTIC -> true // 추후 구현
         }
+    }
+
+    private fun evaluateSemantic(actual: String, benchmark: BenchmarkTask): EvalJudgeResult {
+        val systemPrompt = "당신은 AI 에이전트의 응답을 엄격하고 공정하게 채점하는 판정관입니다. 반드시 응답은 아래 지정된 JSON 포맷으로만 작성해야 하며, 어떠한 마크다운 코드 블록(```json)도 사용하지 말고 순수 JSON 문자열만 출력하세요."
+        
+        val judgePrompt = """
+            사용자의 입력 프롬프트에 대해 AI 에이전트가 내놓은 실제 답변이 기대하는 올바른 답변의 의미 및 의도와 맥락적으로 일치하는지 평가해 주세요.
+            
+            [평가 대상 데이터]
+            - 입력 프롬프트: ${benchmark.inputPrompt}
+            - 기대하는 올바른 답변: ${benchmark.expectedOutput}
+            - AI 에이전트의 실제 답변: $actual
+            
+            [채점 기준]
+            - 기대하는 답변의 핵심 의미가 실제 답변에 모두 들어있고 오류가 없다면 100점 (success: true)
+            - 핵심 의미가 포함되어 있으나 표현에 부차적인 차이가 있다면 70~90점 (success: true)
+            - 기대하는 정답의 일부만 담겨있거나, 다소 불충분하면 50~60점 (success: false 또는 true 상황에 따라 유연하게)
+            - 의미가 완전히 빗나가거나 잘못된 정보를 담고 있다면 0~40점 (success: false)
+            
+            [응답 포맷 (순수 JSON)]
+            {
+              "score": <0-100 사이의 숫자>,
+              "success": <true 또는 false>,
+              "rationale": "<평가 이유 요약 (한국어로 작성)>"
+            }
+        """.trimIndent()
+        
+        return try {
+            val response = geminiClient.sendMessage(
+                systemPrompt = systemPrompt,
+                messages = listOf(mapOf("role" to "user", "content" to judgePrompt)),
+                model = "gemini-2.0-flash"
+            )
+            val textRaw = response.candidates().orElse(null)?.firstOrNull()?.content()?.orElse(null)?.parts()?.orElse(null)?.firstOrNull()?.text()?.orElse("") ?: ""
+            val cleanJson = textRaw.replace("```json", "").replace("```", "").trim()
+            
+            val jsonNode = objectMapper.readTree(cleanJson)
+            val score = jsonNode["score"]?.asDouble() ?: 0.0
+            val success = jsonNode["success"]?.asBoolean() ?: false
+            val rationale = jsonNode["rationale"]?.asText() ?: "성공적으로 의미 분석을 마쳤습니다."
+            
+            EvalJudgeResult(success, score, rationale)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val keywords = benchmark.expectedOutput?.split(",")?.map { it.trim() } ?: emptyList()
+            val fallbackSuccess = keywords.all { actual.contains(it, ignoreCase = true) }
+            EvalJudgeResult(
+                success = fallbackSuccess,
+                score = if (fallbackSuccess) 100.0 else 0.0,
+                rationale = "Semantic 분석 엔진 호출 실패로 인해 기본 키워드 매칭(CONTAINS)으로 대체 채점되었습니다. 에러: ${e.message}"
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getAllBenchmarkTasks(): List<BenchmarkTask> = benchmarkTaskRepository.findAll()
+
+    @Transactional
+    fun createBenchmarkTask(request: CreateBenchmarkTaskRequest): BenchmarkTask {
+        val task = BenchmarkTask(
+            name = request.name,
+            category = request.category,
+            inputPrompt = request.inputPrompt,
+            expectedOutput = request.expectedOutput,
+            criteriaType = CriteriaType.valueOf(request.criteriaType),
+            difficulty = request.difficulty
+        )
+        return benchmarkTaskRepository.save(task)
+    }
+
+    @Transactional
+    fun deleteBenchmarkTask(id: Long) {
+        benchmarkTaskRepository.deleteById(id)
     }
 
     fun getRunHistory(agentId: Long): List<EvaluationRun> =

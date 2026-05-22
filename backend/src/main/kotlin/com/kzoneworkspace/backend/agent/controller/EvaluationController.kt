@@ -57,9 +57,48 @@ class EvaluationController(
                 isSuccess = it.isSuccess,
                 score = it.score,
                 latencyMs = it.latencyMs,
+                rationale = it.rationale,
                 errorLog = it.errorLog
             )
         }
         return ResponseEntity.ok(details)
     }
+
+    // 벤치마크 태스크 CRUD API 신설
+    @GetMapping("/tasks")
+    fun getAllTasks(): ResponseEntity<List<BenchmarkTaskResponse>> {
+        val tasks = evaluationService.getAllBenchmarkTasks().map {
+            BenchmarkTaskResponse(
+                id = it.id,
+                name = it.name,
+                category = it.category,
+                inputPrompt = it.inputPrompt,
+                expectedOutput = it.expectedOutput,
+                criteriaType = it.criteriaType.name,
+                difficulty = it.difficulty
+            )
+        }
+        return ResponseEntity.ok(tasks)
+    }
+
+    @PostMapping("/tasks")
+    fun createTask(@RequestBody request: CreateBenchmarkTaskRequest): ResponseEntity<BenchmarkTaskResponse> {
+        val task = evaluationService.createBenchmarkTask(request)
+        return ResponseEntity.ok(BenchmarkTaskResponse(
+            id = task.id,
+            name = task.name,
+            category = task.category,
+            inputPrompt = task.inputPrompt,
+            expectedOutput = task.expectedOutput,
+            criteriaType = task.criteriaType.name,
+            difficulty = task.difficulty
+        ))
+    }
+
+    @DeleteMapping("/tasks/{id}")
+    fun deleteTask(@PathVariable id: Long): ResponseEntity<Map<String, String>> {
+        evaluationService.deleteBenchmarkTask(id)
+        return ResponseEntity.ok(mapOf("message" to "Benchmark task deleted successfully"))
+    }
 }
+

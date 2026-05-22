@@ -30,6 +30,9 @@ class EvaluationResult(
     var tokenUsage: Long = 0,
 
     @Column(columnDefinition = "TEXT")
+    var rationale: String? = null,
+
+    @Column(columnDefinition = "TEXT")
     var errorLog: String? = null,
 
     @Column(nullable = false)
