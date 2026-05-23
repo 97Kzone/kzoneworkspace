@@ -105,11 +105,15 @@ class AgentService(
         val agent = getAgentById(agentId)
         agent.missionCount += 1
         
-        // 경험치 및 레벨업 로직
-        val expGain = if (missionSuccess) complexity * 10 else complexity * 2
-        val totalExp = agent.experienceLevel * 100 + agent.points + expGain
-        agent.experienceLevel = totalExp / 100
-        agent.points = totalExp % 100
+        // 지능 신뢰도 지수 및 기여 스코어 연산 (게임성 제거 및 전문 메트릭화)
+        if (missionSuccess) {
+            // 성공 시: 기여도 점진 상승 및 신뢰도 회복 (최대 100%)
+            agent.points += complexity * 5
+            agent.experienceLevel = (agent.experienceLevel + complexity * 2).coerceAtMost(100)
+        } else {
+            // 실패 시: 신뢰도 지수 대폭 타격 (최소 30% 보장)
+            agent.experienceLevel = (agent.experienceLevel - (15 - complexity)).coerceAtLeast(30)
+        }
 
         // 성격 진화 로직 (간단한 규칙)
         val traits = agent.personalityTraits
@@ -125,7 +129,6 @@ class AgentService(
             traits["ANALYTICAL"] = (traits["ANALYTICAL"] ?: 50) + 1
         }
 
-        // 창의성 및 공감 능력은 특정 활동 로그나 추론 과정에 따라 변화하도록 나중에 확장 가능
         // 값 범위 제한 (0-100)
         traits.keys.forEach { key ->
             traits[key] = (traits[key] ?: 50).coerceIn(0, 100)
@@ -134,12 +137,12 @@ class AgentService(
         agent.updatedAt = LocalDateTime.now()
         val savedAgent = agentRepository.save(agent)
 
-        // 진화 로그 기록
-        val achievement = if (missionSuccess) "미션 성공: 복잡도 $complexity 해결" else "미션 실패 분석 및 학습"
+        // 신뢰성 변화 이력 기록
+        val achievement = if (missionSuccess) "태스크 수행 성공: 복잡도 $complexity 해결 기여" else "태스크 한계 분석 및 인지 정렬 학습"
         evolutionRepository.save(AgentEvolutionLog(
             agentId = savedAgent.id,
             agentName = savedAgent.name,
-            experienceLevel = savedAgent.experienceLevel,
+            experienceLevel = savedAgent.experienceLevel, // 신뢰도 수치 기록
             missionCount = savedAgent.missionCount,
             personalityTraits = savedAgent.personalityTraits.toMap(),
             achievement = achievement

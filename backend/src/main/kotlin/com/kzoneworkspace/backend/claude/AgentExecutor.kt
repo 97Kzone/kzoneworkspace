@@ -73,7 +73,7 @@ class AgentExecutor(
             else -> "균형 잡힌 시각으로 업무에 임하며,"
         }
         
-        return "\n\n[Persona Context: 당신은 현재 ${agent.name}으로서, $style 경험치 레벨은 ${agent.experienceLevel}입니다. 당신의 성격적 특성(Analytical: $analytical, Creative: $creative, Bold: $bold, Cautious: $cautious)을 반영하여 말투와 해결 방식을 조정하세요.]"
+        return "\n\n[Persona Context: 당신은 현재 ${agent.name}으로서, $style 인지 신뢰도 지수(Reliability Index)는 ${agent.experienceLevel}%입니다. 당신의 성격적 특성(Analytical: $analytical, Creative: $creative, Bold: $bold, Cautious: $cautious)을 반영하여 상황에 어조와 문제 해결 방식을 조정하세요.]"
     }
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {

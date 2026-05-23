@@ -146,11 +146,11 @@ export const AgentEvolutionDashboard: React.FC = () => {
           <div>
             <h3 className="text-white text-2xl font-black uppercase tracking-tight italic flex items-center gap-3">
               <TrendingUp className="text-indigo-400" size={24} />
-              Evolution Chronicles
+              Cognitive Reliability Hub
               <span className="text-white/20 font-light mx-2">|</span>
-              <span className="text-indigo-400">에이전트 진화 연대기</span>
+              <span className="text-indigo-400">에이전트 인지 신뢰성 분석실</span>
             </h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-1">개별 에이전트의 성향 변화 및 업무 최적화 지표 분석</p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-1">개별 에이전트의 사고 정합성 성향 및 업무 신뢰성 지표 정량 분석</p>
           </div>
         </div>
 
@@ -182,8 +182,8 @@ export const AgentEvolutionDashboard: React.FC = () => {
               </div>
               <div className="flex justify-between items-end relative z-10">
                 <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">LV.</span>
-                  <span className="text-xl font-black text-white italic leading-none">{agent.experienceLevel}</span>
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Reliability</span>
+                  <span className="text-xl font-black text-white italic leading-none">{agent.experienceLevel}%</span>
                 </div>
                 <div className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${
                    agent.status === 'RUNNING' ? 'bg-indigo-500/20 text-indigo-400 animate-pulse' : 'bg-slate-800 text-slate-500'
@@ -294,11 +294,11 @@ export const AgentEvolutionDashboard: React.FC = () => {
              <div className="flex items-center justify-between">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                    <Activity size={14} className="text-indigo-400" />
-                   Growth Velocity Index
+                   Cognitive Reliability Curve
                 </h4>
                 <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                   <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Optimized Growth</span>
+                   <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Stability Guaranteed</span>
                 </div>
              </div>
 
@@ -339,7 +339,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
           <div className="flex flex-col gap-6">
              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-2">
                 <History size={14} className="text-amber-400" />
-                Evolution Milestones
+                Reliability Audit Chronicles
              </h4>
 
              <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
@@ -374,16 +374,16 @@ export const AgentEvolutionDashboard: React.FC = () => {
                              <div className="bg-white/5 hover:bg-white/[0.08] rounded-[2rem] border border-white/5 p-6 transition-all">
                                 <div className="flex justify-between items-start mb-4">
                                    <div>
-                                      <p className="text-white text-sm font-black tracking-tight mb-1">{log.achievement || "Evolution Sequence Optimized"}</p>
+                                      <p className="text-white text-sm font-black tracking-tight mb-1">{log.achievement || "Cognitive Safety Metrics Audited"}</p>
                                       <div className="flex items-center gap-3">
                                          <span className="text-[9px] font-bold text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
                                          <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                         <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">MISSION {log.missionCount}</span>
+                                         <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">TASK #{log.missionCount}</span>
                                       </div>
                                    </div>
                                    <div className="flex flex-col items-end">
-                                      <span className="text-[8px] font-black text-slate-600 uppercase">Experience</span>
-                                      <span className="text-lg font-black text-white italic leading-none">LV.{log.experienceLevel}</span>
+                                      <span className="text-[8px] font-black text-slate-600 uppercase">Reliability</span>
+                                      <span className="text-lg font-black text-white italic leading-none">{log.experienceLevel}%</span>
                                    </div>
                                 </div>
                                 
@@ -411,16 +411,16 @@ export const AgentEvolutionDashboard: React.FC = () => {
          <div className="flex gap-10">
             <div className="flex items-center gap-3">
                <Cpu size={16} className="text-indigo-400" />
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Neural Synapse High</span>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cognitive State Audited</span>
             </div>
             <div className="flex items-center gap-3">
                <Shield size={16} className="text-emerald-400" />
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logic Consistency Stable</span>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logic Consistency Certified</span>
             </div>
          </div>
          <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evolution Engine Live</span>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Reliability Analyzer Live</span>
          </div>
       </div>
     </div>

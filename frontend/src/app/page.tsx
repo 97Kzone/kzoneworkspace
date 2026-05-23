@@ -325,7 +325,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_WORKLOAD', label: '에이전트 워크로드 분산기', icon: Activity, category: 'NAVIGATION' },
     { id: 'NAV_SYNERGY', label: '에이전트 시너지 매트릭스', icon: Users, category: 'NAVIGATION' },
     { id: 'NAV_CONFLICT', label: '군집 갈등 해결 허브', icon: Shield, category: 'NAVIGATION' },
-    { id: 'NAV_EVOLUTION', label: '에이전트 진화 연대기', icon: TrendingUp, category: 'NAVIGATION' },
+    { id: 'NAV_EVOLUTION', label: '에이전트 인지 신뢰성 분석실', icon: TrendingUp, category: 'NAVIGATION' },
     { id: 'NAV_JOURNAL', label: '하이브 데일리 저널', icon: Book, category: 'NAVIGATION' },
     { id: 'NAV_TRAFFIC', label: '군집 API 트래픽 레이더', icon: Activity, category: 'NAVIGATION' },
     { id: 'NAV_HEALTH', label: '프로젝트 건강진단 대시보드', icon: Heart, category: 'NAVIGATION' },
