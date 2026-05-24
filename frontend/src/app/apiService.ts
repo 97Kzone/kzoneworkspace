@@ -564,6 +564,7 @@ export interface EvaluationRunResponse {
     overallScore: number;
     totalTasks: number;
     completedTasks: number;
+    avgLatencyMs: number;
     startTime: string;
     endTime: string | null;
 }
@@ -571,6 +572,7 @@ export interface EvaluationRunResponse {
 export interface EvaluationDetailResponse {
     taskId: number;
     taskName: string;
+    category: string;
     inputPrompt: string;
     expectedOutput: string | null;
     actualOutput: string | null;

@@ -15,6 +15,7 @@ data class EvaluationRunResponse(
     val overallScore: Double,
     val totalTasks: Int,
     val completedTasks: Int,
+    val avgLatencyMs: Long,
     val startTime: LocalDateTime,
     val endTime: LocalDateTime?
 )
@@ -22,6 +23,7 @@ data class EvaluationRunResponse(
 data class EvaluationDetailResponse(
     val taskId: Long,
     val taskName: String,
+    val category: String,
     val inputPrompt: String,
     val expectedOutput: String?,
     val actualOutput: String?,

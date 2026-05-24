@@ -23,7 +23,8 @@ class EvaluationService(
     private val agentService: AgentService,
     private val agentExecutor: AgentExecutor,
     private val geminiClient: GeminiClient,
-    private val messagingTemplate: SimpMessagingTemplate
+    private val messagingTemplate: SimpMessagingTemplate,
+    private val agentEvolutionRepository: AgentEvolutionRepository
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
     private val objectMapper = jacksonObjectMapper()
@@ -144,6 +145,22 @@ class EvaluationService(
             run.overallScore = if (completed > 0) totalScore / completed else 0.0
             run.avgLatencyMs = if (completed > 0) totalLatency / completed else 0
             run.endTime = LocalDateTime.now()
+
+            // 인지 신뢰도 지수 (Reliability Index) 자동 연동
+            val scoreInt = run.overallScore.toInt().coerceIn(1, 100)
+            run.agent.experienceLevel = scoreInt
+            agentService.save(run.agent)
+
+            // AgentEvolutionLog 생성 및 기록
+            val evolutionLog = AgentEvolutionLog(
+                agentId = run.agent.id,
+                agentName = run.agent.name,
+                experienceLevel = scoreInt,
+                missionCount = run.agent.missionCount,
+                personalityTraits = run.agent.personalityTraits.toMap(),
+                achievement = "하이브 벤치마크 평가 완료 - 종합 신뢰성 지수 ${scoreInt}% 달성 (모델: ${run.modelName})"
+            )
+            agentEvolutionRepository.save(evolutionLog)
             
         } catch (e: Exception) {
             run.status = "FAILED"

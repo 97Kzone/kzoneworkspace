@@ -22,6 +22,7 @@ class EvaluationController(
             overallScore = run.overallScore,
             totalTasks = run.totalTasks,
             completedTasks = run.completedTasks,
+            avgLatencyMs = run.avgLatencyMs,
             startTime = run.startTime,
             endTime = run.endTime
         ))
@@ -38,6 +39,7 @@ class EvaluationController(
                 overallScore = it.overallScore,
                 totalTasks = it.totalTasks,
                 completedTasks = it.completedTasks,
+                avgLatencyMs = it.avgLatencyMs,
                 startTime = it.startTime,
                 endTime = it.endTime
             )
@@ -51,6 +53,7 @@ class EvaluationController(
             EvaluationDetailResponse(
                 taskId = it.benchmarkTask.id,
                 taskName = it.benchmarkTask.name,
+                category = it.benchmarkTask.category,
                 inputPrompt = it.benchmarkTask.inputPrompt,
                 expectedOutput = it.benchmarkTask.expectedOutput,
                 actualOutput = it.actualOutput,

@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, Activity, History, Server, Loader2, Target, 
   CheckCircle2, XCircle, Clock, Zap, Check, ChevronRight, 
-  Plus, Trash2, Database, FileText 
+  Plus, Trash2, Database, FileText, Download
 } from 'lucide-react';
 import { 
   Agent, evaluationService, EvaluationRunResponse, 
   EvaluationDetailResponse, CreateBenchmarkTaskRequest, BenchmarkTaskResponse 
 } from '../app/apiService';
+import {
+  ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  BarChart, CartesianGrid, XAxis, YAxis, Tooltip as ChartTooltip, Legend, Bar
+} from 'recharts';
 
 interface EvaluationLabDashboardProps {
   agents: Agent[];
@@ -53,6 +57,149 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // 비교 분석 관련 상태 추가
+  const [selectedRunIds, setSelectedRunIds] = useState<number[]>([]);
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [compareData, setCompareData] = useState<{ run: EvaluationRunResponse; details: EvaluationDetailResponse[] }[]>([]);
+  const [isComparingLoading, setIsComparingLoading] = useState(false);
+
+  const handleToggleRunSelection = (e: React.MouseEvent, runId: number) => {
+    e.stopPropagation();
+    setIsCompareMode(false); // 선택 상태가 변하면 비교 뷰 리셋
+    setSelectedRunIds(prev => 
+      prev.includes(runId) ? prev.filter(id => id !== runId) : [...prev, runId]
+    );
+  };
+
+  const handleStartComparison = async () => {
+    if (selectedRunIds.length < 2) {
+      alert("비교 분석을 하려면 최소 2개 이상의 평가 리포트를 선택해야 합니다.");
+      return;
+    }
+    setIsComparingLoading(true);
+    setIsCompareMode(true);
+    setSelectedRun(null); // 단일 상세 모드 해제
+    try {
+      const selectedRuns = history.filter(run => selectedRunIds.includes(run.id));
+      const loadedCompareData = await Promise.all(
+        selectedRuns.map(async (run) => {
+          const res = await evaluationService.getDetails(run.id);
+          return {
+            run,
+            details: res.data
+          };
+        })
+      );
+      setCompareData(loadedCompareData);
+    } catch (e) {
+      console.error("비교 분석 데이터 로딩 실패:", e);
+      alert("비교 분석에 필요한 상세 데이터를 불러오는 데 실패했습니다.");
+      setIsCompareMode(false);
+    } finally {
+      setIsComparingLoading(false);
+    }
+  };
+
+  // 단일 보고서 마크다운 내보내기
+  const handleDownloadSingleReportMarkdown = (run: EvaluationRunResponse, details: EvaluationDetailResponse[]) => {
+    let md = `# AI 에이전트 성능 평가 보고서 (EVAL-#${run.id})\n\n`;
+    md += `## 1. 개요\n`;
+    md += `- **평가 대상 에이전트**: ${run.agentName}\n`;
+    md += `- **사용 LLM 엔진**: ${run.modelName}\n`;
+    md += `- **최종 종합 점수**: **${run.overallScore.toFixed(1)} / 100 pt**\n`;
+    md += `- **평가 일시**: ${new Date(run.startTime).toLocaleString()}\n`;
+    md += `- **태스크 달성률**: ${run.completedTasks} / ${run.totalTasks} 완료\n\n`;
+
+    md += `## 2. 평가 카테고리별 요약\n`;
+    const categories = Array.from(new Set(details.map(d => d.category)));
+    categories.forEach(cat => {
+      const catDetails = details.filter(d => d.category === cat);
+      const avg = catDetails.reduce((sum, d) => sum + d.score, 0) / catDetails.length;
+      md += `- **${cat}**: 평균 ${avg.toFixed(1)} pt (총 ${catDetails.length}개 태스크)\n`;
+    });
+    md += `\n`;
+
+    md += `## 3. 개별 테스트 상세 내역\n\n`;
+    details.forEach((detail, index) => {
+      md += `### [${index + 1}] ${detail.taskName} (${detail.category})\n`;
+      md += `- **결과**: ${detail.isSuccess ? '✅ 성공' : '❌ 실패'} (${detail.score} pt)\n`;
+      md += `- **응답 소요 시간**: ${detail.latencyMs} ms\n`;
+      md += `- **입력 프롬프트**:\n\`\`\`\n${detail.inputPrompt}\n\`\`\`\n`;
+      md += `- **기대 답변**:\n\`\`\`\n${detail.expectedOutput || 'N/A'}\n\`\`\`\n`;
+      md += `- **실제 답변**:\n\`\`\`\n${detail.actualOutput || 'N/A'}\n\`\`\`\n`;
+      if (detail.rationale) {
+        md += `- **LLM Judge 판정 이유 (Rationale)**:\n> ${detail.rationale}\n`;
+      }
+      md += `\n---\n\n`;
+    });
+
+    const filename = `evaluation_report_${run.agentName}_${run.modelName}.md`;
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 비교 분석 보고서 마크다운 내보내기
+  const handleDownloadCompareReportMarkdown = () => {
+    if (compareData.length === 0) return;
+    let md = `# 하이브 군집 지능 모델 성능 비교 분석 보고서\n\n`;
+    md += `## 1. 비교 대상 목록\n`;
+    compareData.forEach((item, idx) => {
+      md += `### [대상 #${idx + 1}] ${item.run.modelName} (EVAL-#${item.run.id})\n`;
+      md += `- **에이전트**: ${item.run.agentName}\n`;
+      md += `- **최종 점수**: **${item.run.overallScore.toFixed(1)} / 100 pt**\n`;
+      md += `- **완료 비율**: ${item.run.completedTasks} / ${item.run.totalTasks} 태스크\n\n`;
+    });
+
+    md += `## 2. 카테고리별 상세 대조표\n\n`;
+    const categories = ['CODING', 'LOGIC', 'SYSTEM', 'WRITING'];
+    md += `| 카테고리 | ` + compareData.map(item => `${item.run.modelName}`).join(' | ') + ` |\n`;
+    md += `| --- | ` + compareData.map(() => `---`).join(' | ') + ` |\n`;
+    categories.forEach(cat => {
+      let row = `| **${cat}** | `;
+      compareData.forEach(item => {
+        const catDetails = item.details.filter(d => d.category === cat);
+        const avg = catDetails.length > 0 ? catDetails.reduce((sum, d) => sum + d.score, 0) / catDetails.length : 0;
+        row += `${avg.toFixed(1)} pt | `;
+      });
+      md += row + `\n`;
+    });
+    md += `\n`;
+
+    md += `## 3. 개별 태스크 결과 대조표\n\n`;
+    const taskNames = Array.from(new Set(compareData.flatMap(item => item.details.map(d => d.taskName))));
+    md += `| 태스크명 | ` + compareData.map(item => `${item.run.modelName}`).join(' | ') + ` |\n`;
+    md += `| --- | ` + compareData.map(() => `---`).join(' | ') + ` |\n`;
+    taskNames.forEach(tName => {
+      let row = `| ${tName} | `;
+      compareData.forEach(item => {
+        const detail = item.details.find(d => d.taskName === tName);
+        if (detail) {
+          row += `${detail.isSuccess ? '✅' : '❌'} (${detail.score} pt / ${detail.latencyMs}ms) | `;
+        } else {
+          row += `미수행 | `;
+        }
+      });
+      md += row + `\n`;
+    });
+    md += `\n\n*본 보고서는 하이브 벤치마킹 랩에 의해 자동으로 한글로 작성되었습니다.*`;
+
+    const filename = `swarm_compare_report.md`;
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // 테스트 케이스 상태
   const [benchmarkTasks, setBenchmarkTasks] = useState<BenchmarkTaskResponse[]>([]);
@@ -130,6 +277,7 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
   };
 
   const handleSelectRun = async (run: EvaluationRunResponse) => {
+    setIsCompareMode(false);
     setSelectedRun(run);
     setIsLoadingDetails(true);
     try {
@@ -199,6 +347,209 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
   };
 
   const selectedAgent = agents.find(a => a.id === selectedAgentId);
+
+  const renderCompareView = () => {
+    if (isComparingLoading) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-500 z-10 relative text-center p-10">
+          <Loader2 size={40} className="animate-spin text-indigo-500 mb-2" />
+          <span className="text-xs font-black uppercase tracking-widest text-slate-300">하이브 모델 비교 분석 데이터 가공 중...</span>
+        </div>
+      );
+    }
+
+    if (compareData.length === 0) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4 z-10 relative">
+          <Target size={40} className="text-indigo-500/50 animate-pulse" />
+          <p className="text-sm font-black text-white uppercase tracking-widest">비교할 데이터가 없습니다</p>
+        </div>
+      );
+    }
+
+    const categories = ['CODING', 'LOGIC', 'SYSTEM', 'WRITING'];
+    const radarData = categories.map(cat => {
+      const row: any = { subject: cat };
+      compareData.forEach(item => {
+        const catDetails = item.details.filter(d => d.category === cat);
+        const avg = catDetails.length > 0 ? catDetails.reduce((sum, d) => sum + d.score, 0) / catDetails.length : 0;
+        row[item.run.modelName] = Math.round(avg);
+      });
+      return row;
+    });
+
+    const barData = compareData.map(item => {
+      const avgLatency = item.run.avgLatencyMs || (item.details.reduce((sum, d) => sum + d.latencyMs, 0) / item.details.length);
+      return {
+        name: item.run.modelName,
+        '평균 지연(ms)': Math.round(avgLatency)
+      };
+    });
+
+    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
+    const taskNames = Array.from(new Set(compareData.flatMap(item => item.details.map(d => d.taskName))));
+
+    return (
+      <div className="flex flex-col h-full relative z-10">
+        <div className="p-8 border-b border-slate-800/50 flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 bg-black/20">
+          <div>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">
+                하이브 모델 비교 분석 <span className="text-indigo-400 font-light">대시보드</span>
+              </h2>
+              <button
+                onClick={handleDownloadCompareReportMarkdown}
+                className="mb-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-slate-700 active:scale-95 cursor-pointer"
+                title="한글 마크다운 문서 다운로드"
+              >
+                <Download size={12} /> 다운로드 (.md)
+              </button>
+            </div>
+            <div className="flex gap-4 items-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">
+                SWARM-COMPARE
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 font-mono">
+                <Server size={12} /> 총 {compareData.length}개 모델 성능 종합 대조
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsCompareMode(false)}
+            className="px-4 py-2 bg-slate-850 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+          >
+            비교 닫기
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar-dark p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {compareData.map((item, idx) => (
+              <div key={item.run.id} className="bg-slate-800/40 border border-slate-700/40 rounded-3xl p-6 relative overflow-hidden">
+                <div 
+                  className="absolute top-0 left-0 w-full h-1"
+                  style={{ backgroundColor: colors[idx % colors.length] }}
+                ></div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">대상 #{idx + 1} 모델</span>
+                <h4 className="text-base font-black text-white mt-1 truncate">{item.run.modelName}</h4>
+                <div className="flex items-end justify-between mt-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500">종합 평가 점수</p>
+                    <p className="text-3xl font-black text-white tracking-tighter mt-1">
+                      {item.run.overallScore.toFixed(1)}<span className="text-xs text-slate-500 font-light"> / 100 pt</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold text-slate-500">성공률</p>
+                    <p className="text-sm font-black text-slate-300 mt-1 font-mono">
+                      {Math.round((item.details.filter(d => d.isSuccess).length / item.details.length) * 100)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-slate-800/20 border border-slate-800 rounded-[2rem] p-6 flex flex-col items-center">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-6 self-start font-mono">Cognitive Area comparison (Radar)</h4>
+              <div className="w-full h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                    <PolarGrid stroke="#334155" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#475569', fontSize: 8 }} />
+                    {compareData.map((item, idx) => (
+                      <Radar
+                        key={item.run.id}
+                        name={item.run.modelName}
+                        dataKey={item.run.modelName}
+                        stroke={colors[idx % colors.length]}
+                        fill={colors[idx % colors.length]}
+                        fillOpacity={0.15}
+                      />
+                    ))}
+                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+                    <ChartTooltip 
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: 12 }}
+                      labelStyle={{ color: '#94a3b8', fontWeight: 'bold', fontSize: 11 }}
+                      itemStyle={{ fontSize: 11, color: '#f8fafc' }}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/20 border border-slate-800 rounded-[2rem] p-6 flex flex-col items-center">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-6 self-start font-mono">Response Latency comparison (ms)</h4>
+              <div className="w-full h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} />
+                    <YAxis tick={{ fill: '#94a3b8', fontSize: 9 }} unit="ms" />
+                    <ChartTooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: 12 }}
+                      labelStyle={{ color: '#94a3b8', fontWeight: 'bold', fontSize: 11 }}
+                      itemStyle={{ fontSize: 11 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+                    <Bar dataKey="평균 지연(ms)" fill="#818cf8" radius={[8, 8, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-800/20 border border-slate-800 rounded-[2rem] p-8 overflow-hidden">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-6">개별 태스크 상세 매트릭스</h4>
+            <div className="overflow-x-auto custom-scrollbar-dark">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 font-bold">
+                    <th className="py-3 px-4 min-w-[150px]">테스트 케이스명</th>
+                    {compareData.map((item, idx) => (
+                      <th key={item.run.id} className="py-3 px-4 text-center">
+                        <span className="inline-block px-2 py-0.5 rounded text-[9px] font-bold text-white mb-1" style={{ backgroundColor: colors[idx % colors.length] }}>
+                          {item.run.modelName}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {taskNames.map((tName, tIdx) => (
+                    <tr key={tIdx} className="border-b border-slate-800/50 hover:bg-slate-800/10 text-slate-300 font-semibold">
+                      <td className="py-3.5 px-4 font-bold text-white">{tName}</td>
+                      {compareData.map(item => {
+                        const detail = item.details.find(d => d.taskName === tName);
+                        if (!detail) {
+                          return <td key={item.run.id} className="py-3.5 px-4 text-center text-slate-600 font-bold">미구동</td>;
+                        }
+                        return (
+                          <td key={item.run.id} className="py-3.5 px-4 text-center">
+                            <div className="flex flex-col items-center">
+                              <span className={`text-[10px] font-black ${detail.isSuccess ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {detail.isSuccess ? 'SUCCESS' : 'FAILED'}
+                              </span>
+                              <span className="text-[9px] text-slate-500 font-mono mt-0.5">
+                                {detail.score}pt / {detail.latencyMs}ms
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50/50">
@@ -285,41 +636,67 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
 
             {/* History */}
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl flex-1 flex flex-col overflow-hidden">
-              <div className="p-6 border-b border-slate-50 shrink-0 flex justify-between items-center bg-slate-50/50">
+              <div className="p-6 border-b border-slate-50 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/50 gap-2">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                   <History size={14} className="text-slate-500" /> 과거 평가 리포트 목록
                 </h4>
-                {isLoadingHistory && <Loader2 size={12} className="animate-spin text-slate-400" />}
+                <div className="flex items-center gap-2">
+                  {selectedRunIds.length >= 2 && (
+                    <button
+                      onClick={handleStartComparison}
+                      disabled={isComparingLoading}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-[9px] font-black uppercase tracking-wider shadow transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      {isComparingLoading ? <Loader2 size={10} className="animate-spin" /> : <Activity size={10} />}
+                      비교 분석 ({selectedRunIds.length})
+                    </button>
+                  )}
+                  {isLoadingHistory && <Loader2 size={12} className="animate-spin text-slate-400" />}
+                </div>
               </div>
               
               <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
                 <AnimatePresence>
-                  {history.map((run, i) => (
-                    <motion.div
-                      key={run.id}
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                      onClick={() => !isRunning && handleSelectRun(run)}
-                      className={`p-4 rounded-2xl cursor-pointer transition-all border mb-2 ${selectedRun?.id === run.id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-white border-transparent hover:bg-slate-50'} ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${run.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600' : run.status === 'RUNNING' ? 'bg-indigo-100 text-indigo-600 animate-pulse' : 'bg-rose-100 text-rose-600'}`}>
-                          {run.status === 'COMPLETED' ? '완료' : run.status === 'RUNNING' ? '분석 중' : '실패'}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-400 font-mono flex items-center gap-1">
-                          <Clock size={10} /> {new Date(run.startTime).toLocaleDateString()} {new Date(run.startTime).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${selectedAgent ? getAgentColor(selectedAgent.name).bg : 'bg-slate-300'}`}></div>
-                          <span className="text-xs font-black text-slate-700 truncate max-w-[120px]">{run.modelName}</span>
+                  {history.map((run, i) => {
+                    const isSelectedForCompare = selectedRunIds.includes(run.id);
+                    return (
+                      <motion.div
+                        key={run.id}
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                        onClick={() => !isRunning && handleSelectRun(run)}
+                        className={`p-4 rounded-2xl cursor-pointer transition-all border mb-2 relative ${selectedRun?.id === run.id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : isSelectedForCompare ? 'bg-slate-50 border-indigo-200 shadow-sm' : 'bg-white border-transparent hover:bg-slate-50'} ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelectedForCompare}
+                              disabled={run.status !== 'COMPLETED'}
+                              onClick={(e) => handleToggleRunSelection(e, run.id)}
+                              onChange={() => {}}
+                              className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                              title="비교 분석 항목으로 선택"
+                            />
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${run.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600' : run.status === 'RUNNING' ? 'bg-indigo-100 text-indigo-600 animate-pulse' : 'bg-rose-100 text-rose-600'}`}>
+                              {run.status === 'COMPLETED' ? '완료' : run.status === 'RUNNING' ? '분석 중' : '실패'}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-400 font-mono flex items-center gap-1">
+                            <Clock size={10} /> {new Date(run.startTime).toLocaleDateString()}
+                          </span>
                         </div>
-                        <div className="text-right">
-                          <span className="text-lg font-black text-indigo-600">{run.overallScore.toFixed(0)}<span className="text-xs text-indigo-300">/100</span></span>
+                        <div className="flex items-center justify-between mt-1">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${selectedAgent ? getAgentColor(selectedAgent.name).bg : 'bg-slate-300'}`}></div>
+                            <span className="text-[11px] font-black text-slate-700 truncate max-w-[100px]">{run.modelName}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-black text-indigo-600">{run.overallScore.toFixed(0)}<span className="text-[10px] text-indigo-300">/100</span></span>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                   {history.length === 0 && !isLoadingHistory && (
                      <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-3 py-10">
                        <Activity size={32} className="opacity-20" />
@@ -433,14 +810,26 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
                    </div>
                  </div>
                </div>
+             ) : isCompareMode ? (
+               /* ================== [COMPARISON MODE] ================== */
+               renderCompareView()
              ) : selectedRun ? (
                /* ================== [STATIC DETAIL MODE] ================== */
                <>
                  <div className="p-8 border-b border-slate-800/50 flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 relative z-10 bg-black/20">
                     <div>
-                      <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">
-                         {selectedRun.modelName} <span className="text-slate-500 font-light">평가 보고서</span>
-                      </h2>
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2 font-mono">
+                           {selectedRun.modelName} <span className="text-slate-500 font-light">평가 보고서</span>
+                        </h2>
+                        <button
+                          onClick={() => handleDownloadSingleReportMarkdown(selectedRun, runDetails)}
+                          className="mb-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-slate-700 active:scale-95 cursor-pointer"
+                          title="한글 마크다운 문서 다운로드"
+                        >
+                          <Download size={12} /> 다운로드 (.md)
+                        </button>
+                      </div>
                       <div className="flex gap-4 items-center">
                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">
                             EVAL-#{selectedRun.id}
