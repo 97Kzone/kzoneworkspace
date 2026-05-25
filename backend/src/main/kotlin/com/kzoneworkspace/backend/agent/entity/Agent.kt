@@ -51,8 +51,8 @@ class Agent(
 
     var updatedAt: LocalDateTime = LocalDateTime.now(),
 
-    @Column(nullable = false)
-    var points: Int = 0,
+    @Column(name = "points", nullable = false)
+    var contributionPoints: Int = 0,
 
     @Column
     var lastEmotion: String? = null,
@@ -69,10 +69,10 @@ class Agent(
         "EMPATHETIC" to 50
     ),
 
-    @Column(nullable = false)
-    var experienceLevel: Int = 1,
+    @Column(name = "experience_level", nullable = false)
+    var reliabilityIndex: Int = 1,
 
-    @Column(nullable = false)
+    @Column(name = "mission_count", nullable = false)
     var missionCount: Int = 0,
 
     @Transient

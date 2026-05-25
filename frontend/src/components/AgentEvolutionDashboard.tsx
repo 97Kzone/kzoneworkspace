@@ -87,7 +87,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
   const trendData = useMemo(() => {
     return [...evolutionLogs].reverse().map(log => ({
       time: new Date(log.createdAt).toLocaleDateString(),
-      level: log.experienceLevel,
+      level: log.reliabilityIndex,
       missions: log.missionCount,
       ...log.personalityTraits
     }));
@@ -182,8 +182,8 @@ export const AgentEvolutionDashboard: React.FC = () => {
               </div>
               <div className="flex justify-between items-end relative z-10">
                 <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Reliability</span>
-                  <span className="text-xl font-black text-white italic leading-none">{agent.experienceLevel}%</span>
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">인지 신뢰도</span>
+                  <span className="text-xl font-black text-white italic leading-none">{agent.reliabilityIndex}%</span>
                 </div>
                 <div className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${
                    agent.status === 'RUNNING' ? 'bg-indigo-500/20 text-indigo-400 animate-pulse' : 'bg-slate-800 text-slate-500'
@@ -211,16 +211,16 @@ export const AgentEvolutionDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Target size={14} className="text-indigo-400" />
-                    Persona Resonance
+                    페르소나 성향 분석
                   </h4>
                   <div className="flex gap-4">
                      <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                        <span className="text-[8px] font-black text-slate-500 uppercase">Agent</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase">에이전트</span>
                      </div>
                      <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full border border-white/30" />
-                        <span className="text-[8px] font-black text-slate-500 uppercase">Swarm Avg</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase">군집 평균</span>
                      </div>
                   </div>
                 </div>
@@ -257,7 +257,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
               <div className="flex flex-col gap-5">
                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Gauge size={14} className="text-emerald-400" />
-                    Operational Suitability Analysis
+                    업무 적합도 분석 (Suitability)
                  </h4>
                  <div className="grid grid-cols-1 gap-4">
                     {roleSuitability.map((role, idx) => (
@@ -294,11 +294,11 @@ export const AgentEvolutionDashboard: React.FC = () => {
              <div className="flex items-center justify-between">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                    <Activity size={14} className="text-indigo-400" />
-                   Cognitive Reliability Curve
+                   인지 신뢰도 변화 곡선
                 </h4>
                 <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                   <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Stability Guaranteed</span>
+                   <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">안정성 보장됨</span>
                 </div>
              </div>
 
@@ -339,7 +339,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
           <div className="flex flex-col gap-6">
              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-2">
                 <History size={14} className="text-amber-400" />
-                Reliability Audit Chronicles
+                신뢰성 평가 및 인지 분석 기록
              </h4>
 
              <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
@@ -355,7 +355,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
                       </div>
                    ) : (
                       evolutionLogs.map((log, idx) => {
-                        const isMajor = idx === 0 || log.experienceLevel > evolutionLogs[idx+1]?.experienceLevel;
+                        const isMajor = idx === 0 || log.reliabilityIndex > evolutionLogs[idx+1]?.reliabilityIndex;
                         return (
                           <motion.div 
                             key={log.id}
@@ -374,7 +374,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
                              <div className="bg-white/5 hover:bg-white/[0.08] rounded-[2rem] border border-white/5 p-6 transition-all">
                                 <div className="flex justify-between items-start mb-4">
                                    <div>
-                                      <p className="text-white text-sm font-black tracking-tight mb-1">{log.achievement || "Cognitive Safety Metrics Audited"}</p>
+                                      <p className="text-white text-sm font-black tracking-tight mb-1">{log.achievement || "인지 안정성 평가 검증 완료"}</p>
                                       <div className="flex items-center gap-3">
                                          <span className="text-[9px] font-bold text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
                                          <span className="w-1 h-1 rounded-full bg-slate-700" />
@@ -382,8 +382,8 @@ export const AgentEvolutionDashboard: React.FC = () => {
                                       </div>
                                    </div>
                                    <div className="flex flex-col items-end">
-                                      <span className="text-[8px] font-black text-slate-600 uppercase">Reliability</span>
-                                      <span className="text-lg font-black text-white italic leading-none">{log.experienceLevel}%</span>
+                                      <span className="text-[8px] font-black text-slate-600 uppercase">신뢰도</span>
+                                      <span className="text-lg font-black text-white italic leading-none">{log.reliabilityIndex}%</span>
                                    </div>
                                 </div>
                                 
@@ -411,16 +411,16 @@ export const AgentEvolutionDashboard: React.FC = () => {
          <div className="flex gap-10">
             <div className="flex items-center gap-3">
                <Cpu size={16} className="text-indigo-400" />
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cognitive State Audited</span>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">인지 상태 검증됨</span>
             </div>
             <div className="flex items-center gap-3">
                <Shield size={16} className="text-emerald-400" />
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logic Consistency Certified</span>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">논리 일관성 공인됨</span>
             </div>
          </div>
          <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Reliability Analyzer Live</span>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">신뢰도 분석기 실시간 분석 중</span>
          </div>
       </div>
     </div>

@@ -17,12 +17,12 @@ export interface Agent {
     provider: string;
     model: string;
     assignedSkills: string[];
-    points: number; // 협업 기여도 지표 (Successful Collaboration Contribution Score)
+    contributionPoints: number; // 협업 기여도 지표 (Successful Collaboration Contribution Score)
     lastEmotion: string | null;
     greeting: string | null;
     currentActivity: string | null;
     personalityTraits: Record<string, number>;
-    experienceLevel: number; // 인지 신뢰도 지수 (Reliability Index, %)
+    reliabilityIndex: number; // 인지 신뢰도 지수 (Reliability Index, %)
     missionCount: number;
 }
 
@@ -270,7 +270,7 @@ export interface AgentEvolutionLog {
     id: number;
     agentId: number;
     agentName: string;
-    experienceLevel: number; // 신뢰도 지수 기록 (Reliability Index, %)
+    reliabilityIndex: number; // 신뢰도 지수 기록 (Reliability Index, %)
     missionCount: number;
     personalityTraits: Record<string, number>;
     achievement: string | null;

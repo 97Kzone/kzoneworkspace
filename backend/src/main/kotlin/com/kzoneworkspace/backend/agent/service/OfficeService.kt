@@ -16,11 +16,11 @@ class OfficeService(
     @Transactional
     fun buyItem(agentId: Long, name: String, type: String, x: Int, y: Int, price: Int): OfficeItem {
         val agent = agentService.getAgentById(agentId)
-        if (agent.points < price) {
-            throw RuntimeException("Not enough points to buy this item!")
+        if (agent.contributionPoints < price) {
+            throw RuntimeException("자산 배치를 위한 기여도가 부족합니다. (Not enough contribution points to allocate this asset)")
         }
         
-        agent.points -= price
+        agent.contributionPoints -= price
         agentService.save(agent)
 
         val item = OfficeItem(

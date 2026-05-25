@@ -91,10 +91,10 @@ class AgentService(
         agent.provider = updated.provider
         agent.model = updated.model
         agent.assignedSkills = updated.assignedSkills
-        agent.points = updated.points
+        agent.contributionPoints = updated.contributionPoints
         agent.lastEmotion = updated.lastEmotion
         agent.personalityTraits = updated.personalityTraits
-        agent.experienceLevel = updated.experienceLevel
+        agent.reliabilityIndex = updated.reliabilityIndex
         agent.missionCount = updated.missionCount
         agent.updatedAt = LocalDateTime.now()
         return agentRepository.save(agent)
@@ -108,11 +108,11 @@ class AgentService(
         // 지능 신뢰도 지수 및 기여 스코어 연산 (게임성 제거 및 전문 메트릭화)
         if (missionSuccess) {
             // 성공 시: 기여도 점진 상승 및 신뢰도 회복 (최대 100%)
-            agent.points += complexity * 5
-            agent.experienceLevel = (agent.experienceLevel + complexity * 2).coerceAtMost(100)
+            agent.contributionPoints += complexity * 5
+            agent.reliabilityIndex = (agent.reliabilityIndex + complexity * 2).coerceAtMost(100)
         } else {
             // 실패 시: 신뢰도 지수 대폭 타격 (최소 30% 보장)
-            agent.experienceLevel = (agent.experienceLevel - (15 - complexity)).coerceAtLeast(30)
+            agent.reliabilityIndex = (agent.reliabilityIndex - (15 - complexity)).coerceAtLeast(30)
         }
 
         // 성격 진화 로직 (간단한 규칙)
@@ -142,7 +142,7 @@ class AgentService(
         evolutionRepository.save(AgentEvolutionLog(
             agentId = savedAgent.id,
             agentName = savedAgent.name,
-            experienceLevel = savedAgent.experienceLevel, // 신뢰도 수치 기록
+            reliabilityIndex = savedAgent.reliabilityIndex, // 신뢰도 수치 기록
             missionCount = savedAgent.missionCount,
             personalityTraits = savedAgent.personalityTraits.toMap(),
             achievement = achievement

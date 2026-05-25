@@ -16,10 +16,10 @@ class AgentEvolutionLog(
     @Column(nullable = false)
     val agentName: String,
 
-    @Column(nullable = false)
-    val experienceLevel: Int,
+    @Column(name = "experience_level", nullable = false)
+    val reliabilityIndex: Int,
 
-    @Column(nullable = false)
+    @Column(name = "mission_count", nullable = false)
     val missionCount: Int,
 
     @ElementCollection(fetch = FetchType.EAGER)

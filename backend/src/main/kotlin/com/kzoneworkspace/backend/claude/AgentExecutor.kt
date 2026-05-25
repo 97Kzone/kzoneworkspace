@@ -73,7 +73,7 @@ class AgentExecutor(
             else -> "균형 잡힌 시각으로 업무에 임하며,"
         }
         
-        return "\n\n[Persona Context: 당신은 현재 ${agent.name}으로서, $style 인지 신뢰도 지수(Reliability Index)는 ${agent.experienceLevel}%입니다. 당신의 성격적 특성(Analytical: $analytical, Creative: $creative, Bold: $bold, Cautious: $cautious)을 반영하여 상황에 어조와 문제 해결 방식을 조정하세요.]"
+        return "\n\n[Persona Context: 당신은 현재 ${agent.name}으로서, $style 인지 신뢰도 지수(Reliability Index)는 ${agent.reliabilityIndex}%입니다. 당신의 성격적 특성(Analytical: $analytical, Creative: $creative, Bold: $bold, Cautious: $cautious)을 반영하여 상황에 어조와 문제 해결 방식을 조정하세요.]"
     }
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
@@ -145,14 +145,14 @@ class AgentExecutor(
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
             // 성공 시 포인트 지급 및 감정 업데이트
-            agent.points += 10
+            agent.contributionPoints += 10
             agent.lastEmotion = "HAPPY"
             agentService.save(agent)
             
             // 실시간 상태 업데이트 전송
             val statusPayload = objectMapper.writeValueAsString(mapOf(
                 "agentId" to agent.id,
-                "points" to agent.points,
+                "points" to agent.contributionPoints,
                 "lastEmotion" to agent.lastEmotion
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM) // 또는 새로운 전용 타입 사용 가능
@@ -185,7 +185,7 @@ class AgentExecutor(
             
             val statusPayload = objectMapper.writeValueAsString(mapOf(
                 "agentId" to agent.id,
-                "points" to agent.points,
+                "points" to agent.contributionPoints,
                 "lastEmotion" to agent.lastEmotion
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM)
@@ -240,13 +240,13 @@ class AgentExecutor(
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
             // 성공 시 보상
-            agent.points += 10
+            agent.contributionPoints += 10
             agent.lastEmotion = "HAPPY"
             agentService.save(agent)
             
             // 실시간 상태 전송
             val statusPayload = objectMapper.writeValueAsString(mapOf(
-                "agentId" to agent.id, "points" to agent.points, "lastEmotion" to agent.lastEmotion
+                "agentId" to agent.id, "points" to agent.contributionPoints, "lastEmotion" to agent.lastEmotion
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM)
 
