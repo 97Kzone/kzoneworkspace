@@ -735,6 +735,8 @@ export interface PipelineMetrics {
 
 export const workflowPipelineService = {
     getMetrics: () => api.get<PipelineMetrics>('/workflow-pipeline/metrics'),
+    applyOptimization: (stageId: string, title: string) => 
+        api.post<{success: boolean, message: string}>('/workflow-pipeline/apply', { stageId, title }),
 };
 
 export interface WorkloadMetric {

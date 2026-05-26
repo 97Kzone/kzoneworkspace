@@ -1,6 +1,12 @@
 package com.kzoneworkspace.backend.agent.service
 
+import com.kzoneworkspace.backend.agent.controller.ApplyOptimizationResult
+import com.kzoneworkspace.backend.websocket.ChatMessage
+import com.kzoneworkspace.backend.websocket.ChatMessageRepository
+import com.kzoneworkspace.backend.websocket.MessageType
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import kotlin.random.Random
 
@@ -30,7 +36,39 @@ data class OptimizationRecommendation(
 )
 
 @Service
-class WorkflowPipelineService {
+class WorkflowPipelineService(
+    private val activityLogService: ActivityLogService,
+    private val chatMessageRepository: ChatMessageRepository,
+    private val messagingTemplate: SimpMessagingTemplate
+) {
+
+    @Transactional
+    fun applyOptimization(stageId: String, title: String): ApplyOptimizationResult {
+        // 1. 에이전트 시스템 활동 로그 기록
+        activityLogService.logActivity(
+            agentId = 1L, // 기본 관리자/시스템 에이전트 ID
+            roomId = "default",
+            activityType = "PIPELINE_OPTIMIZATION",
+            details = "워크플로우 파이프라인 단계 '$stageId'에 대해 최적화 전략 '$title' 적용 완료"
+        )
+
+        // 2. 실시간 채팅 창에 시스템 알림 메시지 추가 및 저장
+        val message = ChatMessage(
+            roomId = "default",
+            senderId = "system",
+            senderName = "System",
+            content = "⚙️ **[워크플로우 파이프라인 최적화]** AI가 제안한 최적화 전략 *'$title'*이(가) 시스템에 성공적으로 반영되었습니다. (대상 단계: $stageId)",
+            type = MessageType.SYSTEM,
+            timestamp = LocalDateTime.now()
+        )
+        chatMessageRepository.save(message)
+        messagingTemplate.convertAndSend("/topic/public", message)
+
+        return ApplyOptimizationResult(
+            success = true,
+            message = "워크플로우 파이프라인 최적화 전략 '$title'이(가) 실시간으로 군집 지능 시스템에 적용되었습니다."
+        )
+    }
 
     fun getMetrics(): PipelineMetrics {
         // 임의의 파이프라인 단계 생성

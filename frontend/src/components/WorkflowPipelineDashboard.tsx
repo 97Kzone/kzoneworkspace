@@ -17,6 +17,9 @@ import { workflowPipelineService, PipelineMetrics, OptimizationRecommendation } 
 export const WorkflowPipelineDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<PipelineMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -54,8 +57,25 @@ export const WorkflowPipelineDashboard: React.FC = () => {
     }
   };
 
-  const handleApplyOptimization = (rec: OptimizationRecommendation) => {
-    alert(`최적화 전략 '${rec.title}'을(를) 시스템에 적용합니다.`);
+  const handleApplyOptimization = async (rec: OptimizationRecommendation) => {
+    setApplyingId(rec.targetStageId);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    try {
+      const res = await workflowPipelineService.applyOptimization(rec.targetStageId, rec.title);
+      if (res.data.success) {
+        setSuccessMessage(res.data.message);
+        setTimeout(() => setSuccessMessage(null), 5000);
+        fetchData();
+      } else {
+        setErrorMessage("최적화 파이프라인 조치를 적용하지 못했습니다.");
+      }
+    } catch (e) {
+      console.error(e);
+      setErrorMessage("백엔드 서버 통신 중 오류가 발생했습니다.");
+    } finally {
+      setApplyingId(null);
+    }
   };
 
   return (
@@ -101,6 +121,32 @@ export const WorkflowPipelineDashboard: React.FC = () => {
           </motion.button>
         </div>
       </div>
+
+      {/* Notification Bar */}
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-5 py-4 rounded-2xl flex items-center gap-3 text-xs font-bold relative z-20"
+          >
+            <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+            <span>{successMessage}</span>
+          </motion.div>
+        )}
+        {errorMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-5 py-4 rounded-2xl flex items-center gap-3 text-xs font-bold relative z-20"
+          >
+            <AlertTriangle size={18} className="text-rose-400 shrink-0" />
+            <span>{errorMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-8 relative z-10">
         {loading && !metrics ? (
@@ -212,9 +258,15 @@ export const WorkflowPipelineDashboard: React.FC = () => {
                       <div className="pt-4 border-t border-white/5">
                         <button 
                           onClick={() => handleApplyOptimization(rec)}
-                          className="w-full py-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                          disabled={applyingId === rec.targetStageId}
+                          className="w-full py-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 disabled:opacity-50 text-indigo-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          <TrendingUp size={14} /> 자동 최적화 적용
+                          {applyingId === rec.targetStageId ? (
+                            <Loader2 className="animate-spin text-indigo-400" size={14} />
+                          ) : (
+                            <TrendingUp size={14} />
+                          )}
+                          {applyingId === rec.targetStageId ? "최적화 적용 중..." : "자동 최적화 적용"}
                         </button>
                       </div>
                     </motion.div>
