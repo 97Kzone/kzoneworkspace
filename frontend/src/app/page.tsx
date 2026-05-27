@@ -7,7 +7,7 @@ import {
   Bot, User, MessageSquare, X, Users, Terminal, Code2, Layout, Database, 
   Send, Command, Sparkles, Coffee, GripVertical, Maximize2, 
   BarChart3, BarChart2, Brain, ChevronRight, Pause, Play, 
-  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History, Shield, Cpu, Book, BookOpen, Workflow
+  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History, Shield, Cpu, Book, BookOpen, Workflow, Server
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
@@ -68,6 +68,7 @@ import { SelfHealingDashboard } from "../components/SelfHealingDashboard";
 import { WorkloadBalancerDashboard } from "../components/WorkloadBalancerDashboard";
 import { SwarmDocsDashboard } from "../components/SwarmDocsDashboard";
 import { WorkflowPipelineDashboard } from "../components/WorkflowPipelineDashboard";
+import { AssetAllocationDashboard } from "../components/AssetAllocationDashboard";
 
 
 export default function VirtualOfficeBright() {
@@ -287,7 +288,7 @@ export default function VirtualOfficeBright() {
       vo.setActiveTab(id.replace('NAV_', '') as any);
       if (['STATS', 'ANALYTICS', 'TECH_PULSE'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('METRICS');
-      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'CONFLICT', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM', 'HEALTH', 'SELF_HEALING', 'WORKLOAD', 'SWARM_DOCS', 'WORKFLOW_PIPELINE'].includes(id.replace('NAV_', ''))) {
+      } else if (['REASONING', 'CODE_REVIEW', 'JANITOR', 'MISSION_HIVE', 'MISSION_CONTROL', 'BRAINSTORMING', 'SCENARIO_LAB', 'STRATEGIC_COUNCIL', 'EFFICIENCY', 'ALIGNMENT', 'RESONANCE', 'EVALUATION_LAB', 'STANDUP', 'WORKSTREAM_GANTT', 'SYNERGY', 'CONFLICT', 'EVOLUTION', 'JOURNAL', 'TRAFFIC', 'WAR_ROOM', 'HEALTH', 'SELF_HEALING', 'WORKLOAD', 'SWARM_DOCS', 'WORKFLOW_PIPELINE', 'ASSET_ALLOCATION'].includes(id.replace('NAV_', ''))) {
           vo.setActiveCategory('INTELLIGENCE');
 
       } else {
@@ -332,6 +333,7 @@ export default function VirtualOfficeBright() {
     { id: 'NAV_HEALTH', label: '프로젝트 건강진단 대시보드', icon: Heart, category: 'NAVIGATION' },
     { id: 'NAV_SWARM_DOCS', label: '아키텍처 문서실 이동', icon: BookOpen, category: 'NAVIGATION' },
     { id: 'NAV_WORKFLOW_PIPELINE', label: '워크플로우 파이프라인 최적화', icon: Workflow, category: 'NAVIGATION' },
+    { id: 'NAV_ASSET_ALLOCATION', label: '생산성 컴퓨팅 자산 배치', icon: Server, category: 'NAVIGATION' },
     { id: 'ACTION_DAILY_BRIEFING', label: '데일리 브리핑 열기', icon: Sparkles, category: 'ACTIONS' },
 
     { id: 'ACTION_PROJECT_HEALTH', label: '프로젝트 건강진단 실행', icon: Heart, category: 'ACTIONS' },
@@ -656,6 +658,10 @@ export default function VirtualOfficeBright() {
 
           {vo.activeTab === 'WORKFLOW_PIPELINE' && vo.activeCategory === 'INTELLIGENCE' && (
              <WorkflowPipelineDashboard />
+          )}
+
+          {vo.activeTab === 'ASSET_ALLOCATION' && vo.activeCategory === 'INTELLIGENCE' && (
+             <AssetAllocationDashboard />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (
