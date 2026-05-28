@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, Activity, History, Server, Loader2, Target, 
   CheckCircle2, XCircle, Clock, Zap, Check, ChevronRight, 
-  Plus, Trash2, Database, FileText, Download
+  Plus, Trash2, Database, FileText, Download, Terminal
 } from 'lucide-react';
 import { 
   Agent, evaluationService, EvaluationRunResponse, 
@@ -63,6 +63,19 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareData, setCompareData] = useState<{ run: EvaluationRunResponse; details: EvaluationDetailResponse[] }[]>([]);
   const [isComparingLoading, setIsComparingLoading] = useState(false);
+
+  // 단일 리포트 통계 필터 및 복사 상태 추가
+  const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isCopied, setIsCopied] = useState<boolean>(false);
+
+  // 샌드박스 즉시 검증 상태 추가
+  const [activeSandboxTaskId, setActiveSandboxTaskId] = useState<number | null>(null);
+  const [sandboxAgentId, setSandboxAgentId] = useState<number>(agents.length > 0 ? agents[0].id : 0);
+  const [sandboxModel, setSandboxModel] = useState<string>(AVAILABLE_MODELS[0].id);
+  const [sandboxLoading, setSandboxLoading] = useState<boolean>(false);
+  const [sandboxResult, setSandboxResult] = useState<EvaluationDetailResponse | null>(null);
 
   const handleToggleRunSelection = (e: React.MouseEvent, runId: number) => {
     e.stopPropagation();
@@ -143,6 +156,71 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // 단일 보고서 마크다운 클립보드 복사
+  const handleCopyMarkdown = (run: EvaluationRunResponse, details: EvaluationDetailResponse[]) => {
+    let md = `# AI 에이전트 성능 평가 보고서 (EVAL-#${run.id})\n\n`;
+    md += `## 1. 개요\n`;
+    md += `- **평가 대상 에이전트**: ${run.agentName}\n`;
+    md += `- **사용 LLM 엔진**: ${run.modelName}\n`;
+    md += `- **최종 종합 점수**: **${run.overallScore.toFixed(1)} / 100 pt**\n`;
+    md += `- **평가 일시**: ${new Date(run.startTime).toLocaleString()}\n`;
+    md += `- **태스크 달성률**: ${run.completedTasks} / ${run.totalTasks} 완료\n\n`;
+
+    md += `## 2. 평가 카테고리별 요약\n`;
+    const categories = Array.from(new Set(details.map(d => d.category)));
+    categories.forEach(cat => {
+      const catDetails = details.filter(d => d.category === cat);
+      const avg = catDetails.reduce((sum, d) => sum + d.score, 0) / catDetails.length;
+      md += `- **${cat}**: 평균 ${avg.toFixed(1)} pt (총 ${catDetails.length}개 태스크)\n`;
+    });
+    md += `\n`;
+
+    md += `## 3. 개별 테스트 상세 내역\n\n`;
+    details.forEach((detail, index) => {
+      md += `### [${index + 1}] ${detail.taskName} (${detail.category})\n`;
+      md += `- **결과**: ${detail.isSuccess ? '✅ 성공' : '❌ 실패'} (${detail.score} pt)\n`;
+      md += `- **응답 소요 시간**: ${detail.latencyMs} ms\n`;
+      md += `- **입력 프롬프트**:\n\`\`\`\n${detail.inputPrompt}\n\`\`\`\n`;
+      md += `- **기대 답변**:\n\`\`\`\n${detail.expectedOutput || 'N/A'}\n\`\`\`\n`;
+      md += `- **실제 답변**:\n\`\`\`\n${detail.actualOutput || 'N/A'}\n\`\`\`\n`;
+      if (detail.rationale) {
+        md += `- **LLM Judge 판정 이유 (Rationale)**:\n> ${detail.rationale}\n`;
+      }
+      md += `\n---\n\n`;
+    });
+
+    navigator.clipboard.writeText(md).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }).catch(err => {
+      console.error("복사 실패:", err);
+      alert("클립보드 복사에 실패했습니다.");
+    });
+  };
+
+  // 샌드박스 즉시 검증 비동기 구동 함수
+  const handleRunSandbox = async (taskId: number) => {
+    if (!sandboxAgentId) {
+      alert("검증을 진행할 에이전트를 선택해주세요.");
+      return;
+    }
+    setSandboxLoading(true);
+    setSandboxResult(null);
+    try {
+      const res = await evaluationService.quickTest({
+        agentId: sandboxAgentId,
+        taskId: taskId,
+        targetModel: sandboxModel
+      });
+      setSandboxResult(res.data);
+    } catch (e) {
+      console.error("샌드박스 검증 실패:", e);
+      alert("샌드박스 즉시 검증 중 오류가 발생했습니다.");
+    } finally {
+      setSandboxLoading(false);
+    }
   };
 
   // 비교 분석 보고서 마크다운 내보내기
@@ -815,100 +893,260 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
                renderCompareView()
              ) : selectedRun ? (
                /* ================== [STATIC DETAIL MODE] ================== */
-               <>
-                 <div className="p-8 border-b border-slate-800/50 flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 relative z-10 bg-black/20">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2 font-mono">
-                           {selectedRun.modelName} <span className="text-slate-500 font-light">평가 보고서</span>
-                        </h2>
-                        <button
-                          onClick={() => handleDownloadSingleReportMarkdown(selectedRun, runDetails)}
-                          className="mb-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-slate-700 active:scale-95 cursor-pointer"
-                          title="한글 마크다운 문서 다운로드"
-                        >
-                          <Download size={12} /> 다운로드 (.md)
-                        </button>
-                      </div>
-                      <div className="flex gap-4 items-center">
-                         <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">
-                            EVAL-#{selectedRun.id}
-                         </span>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 font-mono">
-                            <Server size={12} /> {selectedRun.completedTasks} / {selectedRun.totalTasks} 태스크 채점 완료
-                         </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">최종 종합 평점</span>
-                       <div className="text-5xl font-black text-white tracking-tighter">
-                         {selectedRun.overallScore.toFixed(1)}<span className="text-xl text-slate-600"> / 100</span>
+              (() => {
+                const successCount = runDetails.filter(d => d.isSuccess).length;
+                const totalCount = runDetails.length;
+                const successRate = totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0;
+                const avgLatency = totalCount > 0 ? Math.round(runDetails.reduce((sum, d) => sum + d.latencyMs, 0) / totalCount) : 0;
+
+                // Recharts category score data
+                const categoriesList = Array.from(new Set(runDetails.map(d => d.category)));
+                const singleRunChartData = categoriesList.map(cat => {
+                  const catDetails = runDetails.filter(d => d.category === cat);
+                  const avgScore = catDetails.reduce((sum, d) => sum + d.score, 0) / catDetails.length;
+                  const avgLat = catDetails.reduce((sum, d) => sum + d.latencyMs, 0) / catDetails.length;
+                  return {
+                    name: cat,
+                    '평균 점수': Math.round(avgScore),
+                    '평균 지연(ms)': Math.round(avgLat)
+                  };
+                });
+
+                // Filtered list
+                const filteredDetails = runDetails.filter(detail => {
+                  const matchesCategory = filterCategory === 'ALL' || detail.category === filterCategory;
+                  const matchesStatus = filterStatus === 'ALL' || 
+                    (filterStatus === 'SUCCESS' && detail.isSuccess) || 
+                    (filterStatus === 'FAILED' && !detail.isSuccess);
+                  const matchesSearch = detail.taskName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (detail.actualOutput && detail.actualOutput.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                    (detail.rationale && detail.rationale.toLowerCase().includes(searchTerm.toLowerCase()));
+                  return matchesCategory && matchesStatus && matchesSearch;
+                });
+
+                return (
+                  <>
+                    <div className="p-8 border-b border-slate-800/50 flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 relative z-10 bg-black/20">
+                       <div>
+                         <div className="flex items-center gap-3 flex-wrap">
+                           <h2 className="text-2xl font-black text-white uppercase tracking-tight font-mono">
+                              {selectedRun.modelName} <span className="text-slate-500 font-light">평가 보고서</span>
+                           </h2>
+                           <div className="flex items-center gap-2">
+                             <button
+                               onClick={() => handleDownloadSingleReportMarkdown(selectedRun, runDetails)}
+                               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-slate-700 active:scale-95 cursor-pointer"
+                               title="한글 마크다운 문서 다운로드"
+                             >
+                               <Download size={12} /> 다운로드 (.md)
+                             </button>
+                             <button
+                               onClick={() => handleCopyMarkdown(selectedRun, runDetails)}
+                               className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border active:scale-95 cursor-pointer ${isCopied ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-850 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white'}`}
+                               title="마크다운 리포트 클립보드 복사"
+                             >
+                               <Check size={12} /> {isCopied ? '복사 완료!' : '마크다운 복사'}
+                             </button>
+                           </div>
+                         </div>
+                         <div className="flex gap-4 items-center mt-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">
+                               EVAL-#{selectedRun.id}
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 font-mono">
+                               <Server size={12} /> {selectedRun.completedTasks} / {selectedRun.totalTasks} 태스크 채점 완료
+                            </span>
+                         </div>
+                       </div>
+                       <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">최종 종합 평점</span>
+                          <div className="text-5xl font-black text-white tracking-tighter">
+                            {selectedRun.overallScore.toFixed(1)}<span className="text-xl text-slate-600"> / 100</span>
+                          </div>
                        </div>
                     </div>
-                 </div>
 
-                 <div className="flex-1 overflow-y-auto custom-scrollbar-dark p-8 relative z-10">
-                   {isLoadingDetails ? (
-                      <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-500">
-                         <Loader2 size={40} className="animate-spin text-indigo-500" />
-                         <span className="text-xs font-black uppercase tracking-widest">결과 세부 데이터 동기화 중...</span>
-                      </div>
-                   ) : (
-                      <div className="space-y-6">
-                        {runDetails.map((detail, idx) => (
-                          <motion.div 
-                            key={detail.taskId}
-                            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
-                            className="bg-slate-800/40 border border-slate-700/40 rounded-3xl p-6 hover:bg-slate-800 transition-all"
-                          >
-                            <div className="flex items-start justify-between mb-4">
-                               <div className="flex items-center gap-3">
-                                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-lg ${detail.isSuccess ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
-                                    {detail.isSuccess ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                                 </div>
-                                 <div>
-                                   <h4 className="text-sm font-black text-white uppercase tracking-wider">{detail.taskName}</h4>
-                                   <p className="text-[10px] font-mono text-slate-500 mt-1">응답 소요: {detail.latencyMs}ms</p>
-                                 </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar-dark p-8 relative z-10 space-y-8">
+                      {isLoadingDetails ? (
+                         <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-500 py-20">
+                            <Loader2 size={40} className="animate-spin text-indigo-500" />
+                            <span className="text-xs font-black uppercase tracking-widest">결과 세부 데이터 동기화 중...</span>
+                         </div>
+                      ) : (
+                         <>
+                           {/* 통계 요약 카드 */}
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                             <div className="bg-slate-800/30 border border-slate-700/40 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+                               <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">인텔리전스 성공률</span>
+                               <div className="flex items-baseline gap-2 mt-2">
+                                 <span className="text-3xl font-black text-emerald-400">{successRate}%</span>
+                                 <span className="text-[10px] text-slate-500 font-bold">({successCount} / {totalCount} 성공)</span>
                                </div>
-                               <div className="text-right">
-                                  <span className={`text-xl font-black ${detail.isSuccess ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                    {detail.score.toFixed(0)} <span className="text-[10px] text-slate-500">pt</span>
-                                  </span>
+                             </div>
+                             <div className="bg-slate-800/30 border border-slate-700/40 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+                               <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
+                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">평균 응답 지연 시간</span>
+                               <div className="flex items-baseline gap-2 mt-2">
+                                 <span className="text-3xl font-black text-indigo-400">{avgLatency} ms</span>
+                                 <span className="text-[10px] text-slate-500 font-bold">전체 태스크 평균</span>
                                </div>
-                            </div>
+                             </div>
+                             <div className="bg-slate-800/30 border border-slate-700/40 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+                               <div className="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
+                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">평가 카테고리 수</span>
+                               <div className="flex items-baseline gap-2 mt-2">
+                                 <span className="text-3xl font-black text-purple-400">{categoriesList.length} 개</span>
+                                 <span className="text-[10px] text-slate-500 font-bold">도메인 다양성</span>
+                               </div>
+                             </div>
+                           </div>
 
-                            <div className="space-y-4 mt-6">
-                               <div className="bg-slate-900/80 rounded-2xl p-4 border border-slate-800">
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block">입력 프롬프트 (Input)</span>
-                                  <p className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">{detail.inputPrompt}</p>
-                               </div>
-                               
-                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="bg-emerald-950/20 rounded-2xl p-4 border border-emerald-900/30">
-                                     <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400/80 mb-2 block">기대 답변 (Expected)</span>
-                                     <p className="text-xs text-emerald-100/70 leading-relaxed font-mono whitespace-pre-wrap">{detail.expectedOutput || '기대 정답 없음'}</p>
-                                  </div>
-                                  <div className={`rounded-2xl p-4 border ${detail.isSuccess ? 'bg-slate-900/80 border-slate-800' : 'bg-rose-950/20 border-rose-900/30'}`}>
-                                     <span className={`text-[9px] font-black uppercase tracking-widest mb-2 block ${detail.isSuccess ? 'text-slate-500' : 'text-rose-500/70'}`}>실제 답변 (Actual)</span>
-                                     <p className={`text-xs leading-relaxed font-mono whitespace-pre-wrap ${detail.isSuccess ? 'text-slate-300' : 'text-rose-100/70'}`}>{detail.actualOutput || detail.errorLog || '출력 없음'}</p>
-                                  </div>
+                           {/* 카테고리별 성능 시각화 차트 */}
+                           <div className="bg-slate-800/20 border border-slate-850 rounded-[2.5rem] p-8">
+                             <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-6 font-mono">CATEGORY PERFORMANCE METRICS (AVG SCORE & LATENCY)</h4>
+                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                               {/* 점수 차트 */}
+                               <div className="h-60">
+                                 <span className="text-[10px] font-bold text-slate-400 mb-2 block">카테고리별 평균 획득 점수 (점)</span>
+                                 <ResponsiveContainer width="100%" height="100%">
+                                   <BarChart data={singleRunChartData} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
+                                     <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" horizontal={false} />
+                                     <XAxis type="number" domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 9 }} />
+                                     <YAxis dataKey="name" type="category" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} width={80} />
+                                     <ChartTooltip 
+                                       contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: 12 }}
+                                       itemStyle={{ color: '#f8fafc', fontSize: 10 }}
+                                     />
+                                     <Bar dataKey="평균 점수" fill="#818cf8" radius={[0, 8, 8, 0]} barSize={20} />
+                                   </BarChart>
+                                 </ResponsiveContainer>
                                </div>
 
-                               {detail.rationale && (
-                                 <div className="bg-indigo-950/30 rounded-2xl p-4 border border-indigo-900/40">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1.5 block flex items-center gap-1"><Zap size={10} /> LLM Judge 판정 분석 (Rationale)</span>
-                                    <p className="text-xs text-indigo-200 leading-relaxed font-semibold">{detail.rationale}</p>
+                               {/* 지연 시간 차트 */}
+                               <div className="h-60">
+                                 <span className="text-[10px] font-bold text-slate-400 mb-2 block">카테고리별 평균 지연 시간 (ms)</span>
+                                 <ResponsiveContainer width="100%" height="100%">
+                                   <BarChart data={singleRunChartData} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
+                                     <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" horizontal={false} />
+                                     <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 9 }} unit="ms" />
+                                     <YAxis dataKey="name" type="category" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} width={80} />
+                                     <ChartTooltip 
+                                       contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: 12 }}
+                                       itemStyle={{ color: '#f8fafc', fontSize: 10 }}
+                                     />
+                                     <Bar dataKey="평균 지연(ms)" fill="#a78bfa" radius={[0, 8, 8, 0]} barSize={20} />
+                                   </BarChart>
+                                 </ResponsiveContainer>
+                               </div>
+                             </div>
+                           </div>
+
+                           {/* 실시간 필터 및 검색 바 */}
+                           <div className="bg-slate-800/30 border border-slate-700/30 rounded-3xl p-6 flex flex-col md:flex-row items-center gap-4">
+                             <div className="flex-1 w-full relative">
+                               <input
+                                 type="text"
+                                 placeholder="결과 내 검색 (태스크명, 응답, 판정 사유...)"
+                                 className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-4 pr-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-500"
+                                 value={searchTerm}
+                                 onChange={e => setSearchTerm(e.target.value)}
+                               />
+                             </div>
+                             <div className="flex gap-4 w-full md:w-auto shrink-0">
+                               <select
+                                 className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                 value={filterCategory}
+                                 onChange={e => setFilterCategory(e.target.value)}
+                               >
+                                 <option value="ALL">모든 카테고리</option>
+                                 <option value="CODING">CODING (코딩)</option>
+                                 <option value="LOGIC">LOGIC (논리)</option>
+                                 <option value="SYSTEM">SYSTEM (시스템)</option>
+                                 <option value="WRITING">WRITING (작문)</option>
+                               </select>
+
+                               <select
+                                 className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                 value={filterStatus}
+                                 onChange={e => setFilterStatus(e.target.value)}
+                               >
+                                 <option value="ALL">모든 결과</option>
+                                 <option value="SUCCESS">성공 (✅)</option>
+                                 <option value="FAILED">실패 (❌)</option>
+                               </select>
+                             </div>
+                           </div>
+
+                           {/* 필터링된 결과 상세 리스트 */}
+                           <div className="space-y-6">
+                             {filteredDetails.map((detail, idx) => (
+                               <motion.div 
+                                 key={detail.taskId}
+                                 initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
+                                 className="bg-slate-800/40 border border-slate-700/40 rounded-3xl p-6 hover:bg-slate-800 transition-all"
+                               >
+                                 <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-lg ${detail.isSuccess ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+                                         {detail.isSuccess ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                                      </div>
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <h4 className="text-sm font-black text-white uppercase tracking-wider">{detail.taskName}</h4>
+                                          <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-slate-700 text-slate-300">{detail.category}</span>
+                                        </div>
+                                        <p className="text-[10px] font-mono text-slate-500 mt-1">응답 소요: {detail.latencyMs}ms</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                       <span className={`text-xl font-black ${detail.isSuccess ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                         {detail.score.toFixed(0)} <span className="text-[10px] text-slate-500">pt</span>
+                                       </span>
+                                    </div>
                                  </div>
-                               )}
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                   )}
-                 </div>
-               </>
-             ) : (
+
+                                 <div className="space-y-4 mt-6">
+                                    <div className="bg-slate-900/80 rounded-2xl p-4 border border-slate-800">
+                                       <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block">입력 프롬프트 (Input)</span>
+                                       <p className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">{detail.inputPrompt}</p>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                       <div className="bg-emerald-950/20 rounded-2xl p-4 border border-emerald-900/30">
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400/80 mb-2 block">기대 답변 (Expected)</span>
+                                          <p className="text-xs text-emerald-100/70 leading-relaxed font-mono whitespace-pre-wrap">{detail.expectedOutput || '기대 정답 없음'}</p>
+                                       </div>
+                                       <div className={`rounded-2xl p-4 border ${detail.isSuccess ? 'bg-slate-900/80 border-slate-800' : 'bg-rose-950/20 border-rose-900/30'}`}>
+                                          <span className={`text-[9px] font-black uppercase tracking-widest mb-2 block ${detail.isSuccess ? 'text-slate-500' : 'text-rose-500/70'}`}>실제 답변 (Actual)</span>
+                                          <p className={`text-xs leading-relaxed font-mono whitespace-pre-wrap ${detail.isSuccess ? 'text-slate-300' : 'text-rose-100/70'}`}>{detail.actualOutput || detail.errorLog || '출력 없음'}</p>
+                                       </div>
+                                    </div>
+
+                                    {detail.rationale && (
+                                      <div className="bg-indigo-950/30 rounded-2xl p-4 border border-indigo-900/40">
+                                         <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1.5 block flex items-center gap-1"><Zap size={10} /> LLM Judge 판정 분석 (Rationale)</span>
+                                         <p className="text-xs text-indigo-200 leading-relaxed font-semibold">{detail.rationale}</p>
+                                      </div>
+                                    )}
+                                 </div>
+                               </motion.div>
+                             ))}
+
+                             {filteredDetails.length === 0 && (
+                               <div className="flex flex-col items-center justify-center text-slate-500 py-16 bg-slate-900/20 border border-slate-800 rounded-3xl gap-4">
+                                 <Target size={32} className="opacity-20" />
+                                 <span className="text-xs font-bold uppercase tracking-widest">필터 기준에 부합하는 평가 상세 내역이 없습니다.</span>
+                               </div>
+                             )}
+                           </div>
+                         </>
+                      )}
+                    </div>
+                  </>
+                )
+              })()
+            ) : (
                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-6 z-10 relative">
                   <div className="w-24 h-24 rounded-full bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
                     <Activity size={40} className="text-indigo-500/50 animate-pulse" />
@@ -988,10 +1226,107 @@ export const EvaluationLabDashboard: React.FC<EvaluationLabDashboardProps> = ({
                     <span className="text-[10px] font-semibold text-slate-500 flex items-center gap-1 font-mono">
                       난이도: <span className="font-bold text-slate-700">{DIFFICULTY_LABELS[task.difficulty] || task.difficulty}</span>
                     </span>
-                    <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
-                      {CRITERIA_LABELS[task.criteriaType] || task.criteriaType}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
+                        {CRITERIA_LABELS[task.criteriaType] || task.criteriaType}
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (activeSandboxTaskId === task.id) {
+                            setActiveSandboxTaskId(null);
+                            setSandboxResult(null);
+                          } else {
+                            setActiveSandboxTaskId(task.id);
+                            setSandboxResult(null);
+                          }
+                        }}
+                        className={`px-2.5 py-1 text-[9px] font-black rounded-md border transition-all ${activeSandboxTaskId === task.id ? 'bg-indigo-600 border-indigo-500 text-white shadow' : 'bg-slate-50 hover:bg-slate-100 text-slate-500 border-slate-200'}`}
+                      >
+                        {activeSandboxTaskId === task.id ? '콘솔 닫기' : '즉시 검증'}
+                      </button>
+                    </div>
                   </div>
+
+                  {activeSandboxTaskId === task.id && (
+                    <div className="border-t border-slate-100 mt-4 pt-4 space-y-4 relative z-10 bg-slate-50/50 p-4 rounded-2xl border text-left">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1"><Terminal size={10} /> 샌드박스 검증 콘솔</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[8px] font-bold text-slate-400 block mb-1">검증 에이전트</label>
+                          <select 
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-slate-700 focus:outline-none"
+                            value={sandboxAgentId}
+                            onChange={e => setSandboxAgentId(Number(e.target.value))}
+                            disabled={sandboxLoading}
+                          >
+                            <option value={0} disabled>선택...</option>
+                            {agents.map(a => (
+                              <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-bold text-slate-400 block mb-1">검증 엔진</label>
+                          <select 
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-slate-700 focus:outline-none"
+                            value={sandboxModel}
+                            onChange={e => setSandboxModel(e.target.value)}
+                            disabled={sandboxLoading}
+                          >
+                            {AVAILABLE_MODELS.map(m => (
+                              <option key={m.id} value={m.id}>{m.name.split(' (')[0]}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleRunSandbox(task.id)}
+                        disabled={sandboxLoading || !sandboxAgentId}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow transition-all flex items-center justify-center gap-1"
+                      >
+                        {sandboxLoading ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
+                        {sandboxLoading ? '실시간 추론 및 채점 중...' : '샌드박스 테스트 실행'}
+                      </button>
+
+                      {sandboxLoading && (
+                        <div className="p-3 bg-slate-900 rounded-xl text-slate-400 font-mono text-[9px] border border-slate-800 animate-pulse leading-relaxed">
+                          &gt; 에이전트 "{agents.find(a => a.id === sandboxAgentId)?.name}" 기동 중...<br/>
+                          &gt; LLM 채널 연결 수립 완료 (모델: {sandboxModel})...<br/>
+                          &gt; 입력 프롬프트 인출 및 의미 추론 진행 중...
+                        </div>
+                      )}
+
+                      {sandboxResult && (
+                        <div className="space-y-3 mt-3 animate-fadeIn">
+                          <div className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-200">
+                            <span className="text-[8px] font-bold text-slate-400">검증 점수</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] font-black ${sandboxResult.isSuccess ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {sandboxResult.isSuccess ? 'SUCCESS' : 'FAILED'}
+                              </span>
+                              <span className="text-slate-300">|</span>
+                              <span className="text-xs font-black text-indigo-600">{sandboxResult.score} pt</span>
+                              <span className="text-slate-300">|</span>
+                              <span className="text-[9px] text-slate-500 font-mono">{sandboxResult.latencyMs}ms</span>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 text-[10px] font-mono text-slate-300 max-h-[120px] overflow-y-auto custom-scrollbar-dark leading-relaxed">
+                            <span className="text-[8px] font-black text-slate-500 block mb-1 uppercase">에이전트 응답 (Actual Response)</span>
+                            {sandboxResult.actualOutput || sandboxResult.errorLog || '응답이 존재하지 않습니다.'}
+                          </div>
+
+                          {sandboxResult.rationale && (
+                            <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 text-[10px] text-indigo-700 leading-relaxed font-semibold">
+                              <span className="text-[8px] font-black text-indigo-500 block mb-1 uppercase">LLM Judge 판정 근거 (Rationale)</span>
+                              {sandboxResult.rationale}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               ))}
 

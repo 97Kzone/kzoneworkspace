@@ -53,3 +53,10 @@ data class BenchmarkTaskResponse(
     val difficulty: Int
 )
 
+data class QuickTestRequest(
+    val agentId: Long,
+    val taskId: Long,
+    val targetModel: String? = null
+)
+
+

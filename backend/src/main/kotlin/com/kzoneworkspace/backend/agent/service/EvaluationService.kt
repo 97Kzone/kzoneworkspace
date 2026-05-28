@@ -310,4 +310,58 @@ class EvaluationService(
 
     fun getRunDetails(runId: Long): List<EvaluationResult> =
         evaluationResultRepository.findByEvaluationRunId(runId)
+
+    @Transactional
+    fun runQuickTest(agentId: Long, taskId: Long, targetModel: String? = null): EvaluationDetailResponse {
+        val agent = agentService.getAgentById(agentId)
+        val task = benchmarkTaskRepository.findById(taskId).orElseThrow { IllegalArgumentException("Benchmark task not found") }
+        val modelToUse = targetModel ?: agent.model
+
+        val originalModel = agent.model
+        agent.model = modelToUse
+        agentService.save(agent)
+
+        val startTime = System.currentTimeMillis()
+        var actualOutput: String? = null
+        var isSuccess = false
+        var score = 0.0
+        var rationale: String? = null
+        var errorLog: String? = null
+        var latency: Long = 0
+
+        try {
+            val response = agentExecutor.executeBenchmark(agent, modelToUse, task.inputPrompt)
+            latency = System.currentTimeMillis() - startTime
+            actualOutput = response
+
+            val evalResult = evaluateSemanticOrMatch(response, task)
+            isSuccess = evalResult.success
+            score = evalResult.score
+            rationale = evalResult.rationale
+        } catch (e: Exception) {
+            latency = System.currentTimeMillis() - startTime
+            errorLog = e.message
+            isSuccess = false
+            score = 0.0
+            rationale = "에러 발생: ${e.message}"
+        } finally {
+            agent.model = originalModel
+            agentService.save(agent)
+        }
+
+        return EvaluationDetailResponse(
+            taskId = task.id,
+            taskName = task.name,
+            category = task.category,
+            inputPrompt = task.inputPrompt,
+            expectedOutput = task.expectedOutput,
+            actualOutput = actualOutput,
+            isSuccess = isSuccess,
+            score = score,
+            latencyMs = latency,
+            rationale = rationale,
+            errorLog = errorLog
+        )
+    }
 }
+

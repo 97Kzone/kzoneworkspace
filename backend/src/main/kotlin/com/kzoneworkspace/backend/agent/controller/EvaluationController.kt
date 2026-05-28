@@ -103,5 +103,12 @@ class EvaluationController(
         evaluationService.deleteBenchmarkTask(id)
         return ResponseEntity.ok(mapOf("message" to "Benchmark task deleted successfully"))
     }
+
+    @PostMapping("/quick-test")
+    fun runQuickTest(@RequestBody request: QuickTestRequest): ResponseEntity<EvaluationDetailResponse> {
+        val result = evaluationService.runQuickTest(request.agentId, request.taskId, request.targetModel)
+        return ResponseEntity.ok(result)
+    }
 }
+
 

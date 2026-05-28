@@ -609,6 +609,7 @@ export const evaluationService = {
     getTasks: () => api.get<BenchmarkTaskResponse[]>('/evaluations/tasks'),
     createTask: (data: CreateBenchmarkTaskRequest) => api.post<BenchmarkTaskResponse>('/evaluations/tasks', data),
     deleteTask: (id: number) => api.delete<{message: string}>(`/evaluations/tasks/${id}`),
+    quickTest: (data: { agentId: number; taskId: number; targetModel?: string }) => api.post<EvaluationDetailResponse>('/evaluations/quick-test', data),
 };
 
 export interface AgentStandup {
