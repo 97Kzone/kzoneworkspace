@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface OfficeItemRepository : JpaRepository<OfficeItem, Long>
+interface OfficeItemRepository : JpaRepository<OfficeItem, Long> {
+    fun findByAgentId(agentId: Long): List<OfficeItem>
+}

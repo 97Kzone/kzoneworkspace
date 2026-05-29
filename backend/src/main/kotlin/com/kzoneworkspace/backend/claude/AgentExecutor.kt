@@ -28,6 +28,7 @@ import com.kzoneworkspace.backend.agent.service.ShadowWorkspaceService
 import com.kzoneworkspace.backend.agent.service.LessonService
 import com.kzoneworkspace.backend.agent.entity.CodebaseChunk
 import com.kzoneworkspace.backend.agent.service.MissionIntelligenceService
+import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
 import org.springframework.transaction.annotation.Transactional
 import java.net.URLEncoder
 
@@ -52,6 +53,7 @@ class AgentExecutor(
     private val shadowWorkspaceService: ShadowWorkspaceService,
     private val lessonService: LessonService,
     private val missionIntelligenceService: MissionIntelligenceService,
+    private val officeItemRepository: OfficeItemRepository,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val shadowSessions = mutableMapOf<String, Long>() // roomId or sessionId mapping
@@ -74,6 +76,22 @@ class AgentExecutor(
         }
         
         return "\n\n[Persona Context: 당신은 현재 ${agent.name}으로서, $style 인지 신뢰도 지수(Reliability Index)는 ${agent.reliabilityIndex}%입니다. 당신의 성격적 특성(Analytical: $analytical, Creative: $creative, Bold: $bold, Cautious: $cautious)을 반영하여 상황에 어조와 문제 해결 방식을 조정하세요.]"
+    }
+
+    private fun getAssetPrompt(agentId: Long): String {
+        val assets = officeItemRepository.findByAgentId(agentId)
+        if (assets.isEmpty()) return ""
+        
+        val sb = java.lang.StringBuilder("\n\n[활성화된 고성능 컴퓨팅 리소스 설정]")
+        assets.forEach { asset ->
+            when (asset.type) {
+                "REASONING_CORE" -> sb.append("\n- 🚀 [고성능 추론 코어]: GPU 연산 가속이 활성화되어 더 깊고 높은 논리적 엄밀함을 발휘할 수 있습니다. 엄격한 알고리즘 설계 및 최적화된 로직으로 코드를 작성하세요.")
+                "EXTENDED_CONTEXT" -> sb.append("\n- 📁 [대용량 컨텍스트 메모리]: Context Window가 128k로 확장되고 지능형 세션 캐싱이 적용되어 복잡한 전역 구조나 방대한 기술 설정을 손쉽게 파악할 수 있습니다.")
+                "VECTOR_SEARCH" -> sb.append("\n- 🔍 [실시간 벡터 DB 검색 세션]: 과거의 기억과 프로젝트 RAG 지식 검색의 정밀도가 극대화되어 있습니다. 정확한 지식 베이스를 인출하여 답변하세요.")
+                "AUXILIARY_INSTANCE" -> sb.append("\n- 🛡️ [보조 추론 모델 인스턴스]: 다중 스레드 병렬 검증 인스턴스가 가동 중이므로 자가 오류 치유 및 교차 코드 검증 능력이 대폭 향상되어 있습니다.")
+            }
+        }
+        return sb.toString()
     }
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
@@ -128,7 +146,8 @@ class AgentExecutor(
             sendMessage(roomId, agent.name, "최적의 해결 방법을 계획하고 있습니다...", MessageType.THINKING)
             
             val personaPrompt = getPersonaPrompt(agent)
-            val enhancedSystemPrompt = agent.systemPrompt + personaPrompt
+            val assetPrompt = getAssetPrompt(agent.id)
+            val enhancedSystemPrompt = agent.systemPrompt + personaPrompt + assetPrompt
             
             // 기존 runReasoningLoop 호출 시 enhancedSystemPrompt 사용 (이 메서드가 systemPrompt 인자를 받도록 수정 필요하거나 내부에서 agent.systemPrompt 대신 사용)
             // 여기서는 runReasoningLoop 내부에서 agent.systemPrompt를 직접 사용하므로, 임시로 변경했다가 복구하는 방식을 취함
@@ -234,7 +253,17 @@ class AgentExecutor(
             
             messages.add(mapOf("role" to "user", "content" to "[System Context: Project Overview]\n$projectContext\n\n$missionIntelPrompt\n\n[User Goal]: $userMessage"))
 
-            val lastResponse = runReasoningLoop(agent, roomId, messages)
+            val personaPrompt = getPersonaPrompt(agent)
+            val assetPrompt = getAssetPrompt(agent.id)
+            val enhancedSystemPrompt = agent.systemPrompt + personaPrompt + assetPrompt
+            val originalPrompt = agent.systemPrompt
+            agent.systemPrompt = enhancedSystemPrompt
+
+            val lastResponse = try {
+                runReasoningLoop(agent, roomId, messages)
+            } finally {
+                agent.systemPrompt = originalPrompt
+            }
 
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
@@ -273,6 +302,11 @@ class AgentExecutor(
             agent.model = modelOverride
         }
 
+        val originalPrompt = agent.systemPrompt
+        val personaPrompt = getPersonaPrompt(agent)
+        val assetPrompt = getAssetPrompt(agent.id)
+        agent.systemPrompt = agent.systemPrompt + personaPrompt + assetPrompt
+
         try {
             val messages = mutableListOf<Map<String, Any>>()
             
@@ -285,6 +319,7 @@ class AgentExecutor(
             
             return runReasoningLoop(agent, evalRoomId, messages, silent = true)
         } finally {
+            agent.systemPrompt = originalPrompt
             agent.model = originalModel
         }
     }

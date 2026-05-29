@@ -24,7 +24,8 @@ class EvaluationService(
     private val agentExecutor: AgentExecutor,
     private val geminiClient: GeminiClient,
     private val messagingTemplate: SimpMessagingTemplate,
-    private val agentEvolutionRepository: AgentEvolutionRepository
+    private val agentEvolutionRepository: AgentEvolutionRepository,
+    private val officeItemRepository: OfficeItemRepository
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
     private val objectMapper = jacksonObjectMapper()
@@ -115,12 +116,24 @@ class EvaluationService(
                     
                     // 의미 분석 및 기준 매칭 판정
                     val evalResult = evaluateSemanticOrMatch(response, benchmark)
-                    result.isSuccess = evalResult.success
-                    result.score = evalResult.score
-                    result.rationale = evalResult.rationale
                     
-                    totalScore += result.score
-                    totalLatency += latency
+                    // 컴퓨팅 자산별 성능 보정 적용
+                    val adjusted = applyAssetAdjustments(
+                        agentId = run.agent.id,
+                        benchmark = benchmark,
+                        baseScore = evalResult.score,
+                        baseSuccess = evalResult.success,
+                        baseLatencyMs = latency,
+                        baseRationale = evalResult.rationale
+                    )
+                    
+                    result.isSuccess = adjusted.isSuccess
+                    result.score = adjusted.score
+                    result.rationale = adjusted.rationale
+                    result.latencyMs = adjusted.latencyMs
+                    
+                    totalScore += adjusted.score
+                    totalLatency += adjusted.latencyMs
                     completed++
                     
                 } catch (e: Exception) {
@@ -335,9 +348,21 @@ class EvaluationService(
             actualOutput = response
 
             val evalResult = evaluateSemanticOrMatch(response, task)
-            isSuccess = evalResult.success
-            score = evalResult.score
-            rationale = evalResult.rationale
+            
+            // 컴퓨팅 자산별 성능 보정 적용
+            val adjusted = applyAssetAdjustments(
+                agentId = agent.id,
+                benchmark = task,
+                baseScore = evalResult.score,
+                baseSuccess = evalResult.success,
+                baseLatencyMs = latency,
+                baseRationale = evalResult.rationale
+            )
+            
+            isSuccess = adjusted.isSuccess
+            score = adjusted.score
+            rationale = adjusted.rationale
+            latency = adjusted.latencyMs
         } catch (e: Exception) {
             latency = System.currentTimeMillis() - startTime
             errorLog = e.message
@@ -361,6 +386,77 @@ class EvaluationService(
             latencyMs = latency,
             rationale = rationale,
             errorLog = errorLog
+        )
+    }
+
+    data class AssetAdjustmentResult(val score: Double, val isSuccess: Boolean, val latencyMs: Long, val rationale: String)
+
+    private fun applyAssetAdjustments(
+        agentId: Long,
+        benchmark: BenchmarkTask,
+        baseScore: Double,
+        baseSuccess: Boolean,
+        baseLatencyMs: Long,
+        baseRationale: String?
+    ): AssetAdjustmentResult {
+        val assets = officeItemRepository.findByAgentId(agentId)
+        if (assets.isEmpty()) {
+            return AssetAdjustmentResult(baseScore, baseSuccess, baseLatencyMs, baseRationale ?: "")
+        }
+
+        var scoreBonus = 0.0
+        var latencyMultiplier = 1.0
+        val rationaleBuilders = mutableListOf<String>()
+
+        assets.forEach { asset ->
+            when (asset.type) {
+                "REASONING_CORE" -> {
+                    scoreBonus += 10.0
+                    latencyMultiplier *= 0.85
+                    rationaleBuilders.add("고성능 추론 코어(Reasoning Core) 가속 가동")
+                }
+                "EXTENDED_CONTEXT" -> {
+                    if (benchmark.difficulty >= 2) {
+                        scoreBonus += 10.0
+                        rationaleBuilders.add("대용량 컨텍스트 메모리(Extended Context) 기반 대규모 구조 파악 성공")
+                    }
+                }
+                "VECTOR_SEARCH" -> {
+                    if (benchmark.criteriaType == CriteriaType.SEMANTIC || benchmark.criteriaType == CriteriaType.CONTAINS) {
+                        scoreBonus += 8.0
+                        rationaleBuilders.add("실시간 벡터 DB 검색(Vector DB Search)을 통한 고정밀 지식 검색")
+                    }
+                }
+                "AUXILIARY_INSTANCE" -> {
+                    latencyMultiplier *= 0.75
+                    rationaleBuilders.add("보조 추론 인스턴스(Auxiliary Instance) 병렬 검증 연동")
+                }
+            }
+        }
+
+        var finalScore = (baseScore + scoreBonus).coerceAtMost(100.0)
+        var finalSuccess = baseSuccess
+
+        if (assets.any { it.type == "AUXILIARY_INSTANCE" } && finalScore < 60.0) {
+            finalScore = (finalScore + 15.0).coerceAtMost(95.0)
+            finalSuccess = true
+            rationaleBuilders.add("보조 인스턴스의 자가 교차 치유(Self-Healing) 작동")
+        }
+        
+        if (finalScore >= 60.0) {
+            finalSuccess = true
+        }
+
+        val finalLatency = (baseLatencyMs * latencyMultiplier).toLong()
+        val suffix = if (rationaleBuilders.isNotEmpty()) {
+            "\n[시스템 보전 분석]: " + rationaleBuilders.joinToString(", ") + " 완료"
+        } else ""
+
+        return AssetAdjustmentResult(
+            score = finalScore,
+            isSuccess = finalSuccess,
+            latencyMs = finalLatency,
+            rationale = (baseRationale ?: "") + suffix
         )
     }
 }
