@@ -68,11 +68,12 @@ export const WorkflowPipelineDashboard: React.FC = () => {
         setTimeout(() => setSuccessMessage(null), 5000);
         fetchData();
       } else {
-        setErrorMessage("최적화 파이프라인 조치를 적용하지 못했습니다.");
+        setErrorMessage(res.data.message || "최적화 파이프라인 조치를 적용하지 못했습니다. 성공 기여도 점수를 확인해 주세요.");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setErrorMessage("백엔드 서버 통신 중 오류가 발생했습니다.");
+      const errMsg = e.response?.data?.message || "백엔드 서버 통신 중 오류가 발생했습니다.";
+      setErrorMessage(errMsg);
     } finally {
       setApplyingId(null);
     }
@@ -92,19 +93,19 @@ export const WorkflowPipelineDashboard: React.FC = () => {
           </div>
           <div>
             <h3 className="text-white text-3xl font-black italic tracking-tighter flex items-center gap-3">
-              PIPELINE OPTIMIZER
+              자율 워크플로우 파이프라인 최적화 지휘소
               <span className="text-white/20">|</span>
-              <span className="text-indigo-400">워크플로우 최적화</span>
+              <span className="text-indigo-400">실시간 제어반</span>
             </h3>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-1">
-              에이전트 파이프라인 병목 분석 및 자동 스케일링
+              에이전트 군집 파이프라인 병목 지표 정량 분석 및 실시간 리소스 스케일링
             </p>
           </div>
         </div>
         <div className="flex items-center gap-6">
           {metrics && (
             <div className="flex flex-col items-end">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">전체 효율성 (Efficiency)</span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">군집 종합 처리 효율성</span>
               <div className="flex items-center gap-2">
                 <TrendingUp size={16} className={metrics.overallEfficiency >= 80 ? "text-emerald-400" : metrics.overallEfficiency >= 50 ? "text-amber-400" : "text-rose-400"} />
                 <span className="text-3xl font-black text-white italic">{metrics.overallEfficiency}%</span>
@@ -153,7 +154,7 @@ export const WorkflowPipelineDashboard: React.FC = () => {
           <div className="flex-1 flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
               <Loader2 size={48} className="animate-spin text-indigo-500/50" />
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">Analyzing Pipeline Metrics...</p>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">군집 파이프라인 실시간 지표 분석 중...</p>
             </div>
           </div>
         ) : metrics && (
@@ -162,7 +163,7 @@ export const WorkflowPipelineDashboard: React.FC = () => {
             <div className="bg-black/40 rounded-[2rem] border border-white/5 p-8 relative">
               <h4 className="text-white text-[11px] font-black uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Activity size={14} className="text-indigo-400" />
-                Live Pipeline Stages
+                실시간 군집 파이프라인 단계별 모니터링
               </h4>
               
               <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
@@ -179,7 +180,9 @@ export const WorkflowPipelineDashboard: React.FC = () => {
                       )}
                       
                       <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{stage.status}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-80">
+                          {stage.status === 'BOTTLENECK' ? '⚠️ 병목 감지됨' : stage.status === 'ACTIVE' ? '⚡ 정상 작동 중' : '💤 대기 상태'}
+                        </span>
                         {stage.status === 'BOTTLENECK' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
                       </div>
                       
@@ -190,16 +193,16 @@ export const WorkflowPipelineDashboard: React.FC = () => {
 
                       <div className="space-y-3">
                         <div className="flex justify-between items-center text-xs">
-                          <span className="opacity-60 font-medium">Avg Time</span>
-                          <span className="font-bold flex items-center gap-1"><Clock size={12} /> {stage.avgTimeSec}s</span>
+                          <span className="opacity-60 font-medium">평균 처리 속도</span>
+                          <span className="font-bold flex items-center gap-1"><Clock size={12} /> {stage.avgTimeSec}초</span>
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                          <span className="opacity-60 font-medium">Success Rate</span>
+                          <span className="opacity-60 font-medium">누적 완수율</span>
                           <span className="font-bold text-white">{stage.successRate}%</span>
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                          <span className="opacity-60 font-medium">Queue</span>
-                          <span className={`font-bold ${stage.queueSize > 10 ? 'text-rose-400' : 'text-white'}`}>{stage.queueSize} tasks</span>
+                          <span className="opacity-60 font-medium">대기 프로세스</span>
+                          <span className={`font-bold ${stage.queueSize > 5 ? 'text-rose-400' : 'text-white'}`}>{stage.queueSize}개 태스크</span>
                         </div>
                       </div>
 
@@ -229,7 +232,7 @@ export const WorkflowPipelineDashboard: React.FC = () => {
               <div className="bg-gradient-to-br from-indigo-500/5 to-rose-500/5 rounded-[2rem] border border-white/5 p-8">
                 <h4 className="text-white text-[11px] font-black uppercase tracking-widest mb-6 flex items-center gap-2">
                   <BrainCircuit size={14} className="text-rose-400" />
-                  AI Optimization Suggestions
+                  AI 추천 자동 최적화 제안 및 처방전
                 </h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -247,7 +250,7 @@ export const WorkflowPipelineDashboard: React.FC = () => {
                           <h5 className="text-white text-sm font-black tracking-tight">{rec.title}</h5>
                         </div>
                         <span className={`text-[8px] px-2 py-0.5 rounded-full border font-black ${getImpactColor(rec.impact)}`}>
-                          {rec.impact} IMPACT
+                          {rec.impact === 'HIGH' ? '🚀 고효율 처방' : rec.impact === 'MEDIUM' ? '📈 일반 처방' : '⚙️ 보조 처방'}
                         </span>
                       </div>
                       
@@ -266,7 +269,7 @@ export const WorkflowPipelineDashboard: React.FC = () => {
                           ) : (
                             <TrendingUp size={14} />
                           )}
-                          {applyingId === rec.targetStageId ? "최적화 적용 중..." : "자동 최적화 적용"}
+                          {applyingId === rec.targetStageId ? "최적화 전략 반영 중..." : "자동 최적화 전략 적용"}
                         </button>
                       </div>
                     </motion.div>
@@ -298,3 +301,4 @@ const Loader2 = ({ className, size }: { className?: string; size?: number }) => 
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
+
