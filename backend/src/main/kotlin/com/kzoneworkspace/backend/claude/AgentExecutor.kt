@@ -103,9 +103,14 @@ class AgentExecutor(
         try {
             val messages = mutableListOf<Map<String, Any>>()
             
+            val assets = officeItemRepository.findByAgentId(agent.id)
+            val hasExtendedContext = assets.any { it.type == "EXTENDED_CONTEXT" }
+            val hasVectorSearch = assets.any { it.type == "VECTOR_SEARCH" }
+
             // 장기 기억 조회 (Semantic Search)
             sendMessage(roomId, agent.name, "관련된 과거 기억을 조회 중입니다...", MessageType.THINKING)
-            val relatedMemories = memoryService.searchSimilarMemories(agent.id, userMessage)
+            val memoryLimit = if (hasVectorSearch) 10 else 2
+            val relatedMemories = memoryService.searchSimilarMemories(agent.id, userMessage, memoryLimit)
             if (relatedMemories.isNotEmpty()) {
                 val memoryContext = relatedMemories.joinToString("\n---\n")
                 messages.add(mapOf(
@@ -116,7 +121,8 @@ class AgentExecutor(
 
             // 코드베이스 RAG 조회 (지능 최적화)
             sendMessage(roomId, agent.name, "코드베이스에서 관련 로직을 스캔 중입니다...", MessageType.THINKING)
-            val relatedCodeChunks = codebaseIndexingService.search(userMessage, 7)
+            val codebaseLimit = if (hasExtendedContext) 15 else 5
+            val relatedCodeChunks = codebaseIndexingService.search(userMessage, codebaseLimit)
             if (relatedCodeChunks.isNotEmpty()) {
                 val codeContext = relatedCodeChunks.joinToString("\n---\n") { chunk ->
                     "### File: ${chunk.filePath} (Lines: ${chunk.startLine}-${chunk.endLine})\n```${chunk.language}\n${chunk.content}\n```"
@@ -227,8 +233,13 @@ class AgentExecutor(
         try {
             val messages = mutableListOf<Map<String, Any>>()
             
+            val assets = officeItemRepository.findByAgentId(agent.id)
+            val hasExtendedContext = assets.any { it.type == "EXTENDED_CONTEXT" }
+            val hasVectorSearch = assets.any { it.type == "VECTOR_SEARCH" }
+
             // 장기 기억 조회
-            val relatedMemories = memoryService.searchSimilarMemories(agent.id, userMessage)
+            val memoryLimit = if (hasVectorSearch) 10 else 2
+            val relatedMemories = memoryService.searchSimilarMemories(agent.id, userMessage, memoryLimit)
             if (relatedMemories.isNotEmpty()) {
                 val memoryContext = relatedMemories.joinToString("\n---\n")
                 messages.add(mapOf(
@@ -238,7 +249,8 @@ class AgentExecutor(
             }
 
             // 코드베이스 RAG
-            val relatedCodeChunks = codebaseIndexingService.search(userMessage, 7)
+            val codebaseLimit = if (hasExtendedContext) 15 else 5
+            val relatedCodeChunks = codebaseIndexingService.search(userMessage, codebaseLimit)
             if (relatedCodeChunks.isNotEmpty()) {
                 val codeContext = relatedCodeChunks.joinToString("\n---\n") { chunk ->
                     "### File: ${chunk.filePath}\n```${chunk.language}\n${chunk.content}\n```"
@@ -587,10 +599,14 @@ class AgentExecutor(
             } + (allToolsMap["Scheduler"] ?: emptyList()) // 스케줄러는 기본 제공
         }
 
+        val assets = officeItemRepository.findByAgentId(agent.id)
+        val hasReasoningCore = assets.any { it.type == "REASONING_CORE" }
+        val maxIterations = if (hasReasoningCore) 15 else 10
+        val temperature = if (hasReasoningCore) 0.1 else null
+
         var loop = true
         var lastResponse: String = ""
         var iteration = 0
-        val maxIterations = 10 // 무한 루프 방지
 
         while (loop && iteration < maxIterations) {
             iteration++
@@ -604,7 +620,8 @@ class AgentExecutor(
                         systemPrompt = agent.systemPrompt,
                         messages = messages,
                         model = agent.model,
-                        tools = tools
+                        tools = tools,
+                        temperature = temperature
                     )
                     val contentBlocks = responseNode["content"]
                     for (block in contentBlocks) {
@@ -628,7 +645,8 @@ class AgentExecutor(
                         systemPrompt = agent.systemPrompt,
                         messages = messages,
                         model = agent.model,
-                        tools = tools
+                        tools = tools,
+                        temperature = temperature
                     )
                     val candidates = response.candidates().orElse(null)
                     val candidate = if (candidates != null && candidates.isNotEmpty()) candidates[0] else null

@@ -23,12 +23,16 @@ class GeminiClient(
         systemPrompt: String,
         messages: List<Map<String, Any>>,
         model: String = "gemini-2.0-flash",
-        tools: List<Map<String, Any>>? = null
+        tools: List<Map<String, Any>>? = null,
+        temperature: Double? = null
     ): com.google.genai.types.GenerateContentResponse {
         val configBuilder = GenerateContentConfig.builder()
             .systemInstruction(com.google.genai.types.Content.fromParts(
                 com.google.genai.types.Part.fromText(systemPrompt)
             ))
+        if (temperature != null) {
+            configBuilder.temperature(temperature.toFloat())
+        }
 
         val googleTools = mutableListOf<com.google.genai.types.Tool>()
         

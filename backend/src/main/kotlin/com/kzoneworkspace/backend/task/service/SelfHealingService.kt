@@ -21,11 +21,23 @@ enum class StrategyType {
 @Service
 class SelfHealingService(
     private val claudeClient: ClaudeClient,
-    private val selfHealingRepository: SelfHealingRepository
+    private val selfHealingRepository: SelfHealingRepository,
+    private val officeItemRepository: com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
 ) {
     private val objectMapper = jacksonObjectMapper()
 
     fun analyzeAndProposeFix(task: Task, error: String): HealingStrategy {
+        val hasAuxiliaryInstance = task.agent?.let { agent ->
+            officeItemRepository.findByAgentId(agent.id).any { it.type == "AUXILIARY_INSTANCE" }
+        } ?: false
+
+        val auxiliaryPrompt = if (hasAuxiliaryInstance) {
+            """
+            * [고성능 장비 지원]: 현재 대상 에이전트는 '보조 추론 모델 인스턴스(AUXILIARY_INSTANCE)'가 추가 가동되어 다중 스레드로 병렬 연산 및 자가 치유 레이턴시 단축을 지원받고 있습니다. 
+            더 엄밀하고 고도로 최적화된, 에러를 완벽하게 회피할 수 있는 정교한 복구 명령(suggestedCommand)을 적극적으로 설계해 제안하십시오.
+            """.trimIndent()
+        } else ""
+
         val systemPrompt = """
             당신은 AI 에이전트 워크플로우의 '자가 치유(Self-Healing)' 전문가입니다. 
             에이전트가 수행하려던 명령과 실시간으로 발생한 에러 로그를 분석하여, 문제를 해결하고 다시 성공할 수 있도록 '수정된 새로운 구체적 명령'을 제안하세요.
@@ -37,6 +49,8 @@ class SelfHealingService(
                - 예: '문법 오류가 났다'면 '해당 라인을 수정하여 다시 저장하라'는 명령으로 대체.
             3. 만약 3회 이상 실패했거나 도저히 수동 개입 없이 자동 복구가 불가능한 치명적 하드웨어/네트워크 에러라면 'GIVE_UP'을 선택하세요.
             4. 에이전트는 원본 할당된 에이전트(${task.agent?.name ?: "Unknown"})와 동일한 자격과 도구를 가지고 있다고 가정합니다.
+            
+            $auxiliaryPrompt
             
             응답은 반드시 아래 JSON 형식으로만 작성하세요. 텍스트 설명은 포함하지 마세요:
             {

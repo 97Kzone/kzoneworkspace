@@ -50,7 +50,8 @@ class ClaudeClient(
         systemPrompt: String,
         messages: List<Map<String, Any>>,
         model: String = "claude-3-5-sonnet-20241022",
-        tools: List<Map<String, Any>>? = null
+        tools: List<Map<String, Any>>? = null,
+        temperature: Double? = null
     ): JsonNode {
         val bodyMap = mutableMapOf<String, Any>(
             "model" to model,
@@ -58,6 +59,9 @@ class ClaudeClient(
             "system" to systemPrompt,
             "messages" to messages
         )
+        if (temperature != null) {
+            bodyMap["temperature"] = temperature
+        }
         if (tools != null && tools.isNotEmpty()) {
             bodyMap["tools"] = tools
         }

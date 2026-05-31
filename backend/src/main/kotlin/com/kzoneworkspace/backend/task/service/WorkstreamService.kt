@@ -27,7 +27,8 @@ class WorkstreamService(
     private val missionIntelligenceService: MissionIntelligenceService,
     private val missionSessionRepository: MissionSessionRepository,
     private val missionPostMortemService: MissionPostMortemService,
-    private val missionEvolutionService: MissionEvolutionService
+    private val missionEvolutionService: MissionEvolutionService,
+    private val officeItemRepository: com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
 ) {
     private val objectMapper = jacksonObjectMapper()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -110,8 +111,13 @@ class WorkstreamService(
                         val latestDecomposition = objectMapper.readValue<DecompositionResponse>(latestMission.decompositionStructure!!)
                         var currentCommand = latestDecomposition.subTasks.find { it.id == subTaskDef.id }?.command ?: subTaskDef.command
                         
+                        val agent = taskService.getTaskById(dbId).agent
+                        val hasAuxiliary = agent?.let { ag ->
+                            officeItemRepository.findByAgentId(ag.id).any { it.type == "AUXILIARY_INSTANCE" }
+                        } ?: false
+                        
                         var retryCount = 0
-                        val maxRetries = 2
+                        val maxRetries = if (hasAuxiliary) 3 else 2
 
                         while (retryCount <= maxRetries) {
                             try {
