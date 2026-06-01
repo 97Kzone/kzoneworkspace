@@ -121,7 +121,7 @@ export const useVirtualOffice = () => {
 
   // 오피스 아이템 관련 상태
   const [officeItems, setOfficeItems] = useState<OfficeItem[]>([]);
-  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isAssetAllocationOpen, setIsAssetAllocationOpen] = useState(false);
 
   /**
    * 초기 데이터를 백엔드에서 가져오는 함수
@@ -237,7 +237,7 @@ export const useVirtualOffice = () => {
     isMemoriesLoading, setIsMemoriesLoading,
     activePreviews, setActivePreviews,
     officeItems, setOfficeItems,
-    isShopOpen, setIsShopOpen,
+    isAssetAllocationOpen, setIsAssetAllocationOpen,
     isCodebaseExplorerOpen, setIsCodebaseExplorerOpen,
     codebaseResults, setCodebaseResults,
     isCodebaseLoading, setIsCodebaseLoading,

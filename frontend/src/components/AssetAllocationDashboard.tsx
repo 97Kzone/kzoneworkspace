@@ -117,8 +117,8 @@ export const AssetAllocationDashboard: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      // API call: buyItem
-      await officeService.buyItem({
+      // API call: allocateAsset
+      await officeService.allocateAsset({
         agentId: Number(selectedAgentId),
         name: asset.name,
         type: asset.type,

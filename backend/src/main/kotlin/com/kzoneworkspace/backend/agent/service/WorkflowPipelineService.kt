@@ -79,8 +79,8 @@ class WorkflowPipelineService(
             }
 
             try {
-                // 가상 오피스에 아이템 추가 및 기여도 차감
-                officeService.buyItem(
+                // 가상 오피스에 컴퓨팅 자원 배치 및 성공 기여도 차감
+                officeService.allocateAsset(
                     agentId = agent.id,
                     name = "보조 추론 모델 인스턴스 (${agent.name} 확장)",
                     type = "AUXILIARY_INSTANCE",

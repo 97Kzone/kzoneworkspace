@@ -13,9 +13,22 @@ class OfficeController(
     @GetMapping("/items")
     fun getAllItems(): List<OfficeItem> = officeService.getAllItems()
 
+    @PostMapping("/items/allocate")
+    fun allocateAsset(@RequestBody request: AllocateAssetRequest): OfficeItem {
+        return officeService.allocateAsset(
+            agentId = request.agentId,
+            name = request.name,
+            type = request.type,
+            x = request.x,
+            y = request.y,
+            price = request.price
+        )
+    }
+
+    @Deprecated("Use allocateAsset instead")
     @PostMapping("/items/buy")
     fun buyItem(@RequestBody request: BuyItemRequest): OfficeItem {
-        return officeService.buyItem(
+        return officeService.allocateAsset(
             agentId = request.agentId,
             name = request.name,
             type = request.type,
@@ -38,6 +51,16 @@ class OfficeController(
         val y: Int
     )
 
+    data class AllocateAssetRequest(
+        val agentId: Long,
+        val name: String,
+        val type: String,
+        val x: Int,
+        val y: Int,
+        val price: Int
+    )
+
+    @Deprecated("Use AllocateAssetRequest instead")
     data class BuyItemRequest(
         val agentId: Long,
         val name: String,
