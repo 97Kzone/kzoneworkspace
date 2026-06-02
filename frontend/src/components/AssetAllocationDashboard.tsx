@@ -21,12 +21,30 @@ interface ComputationalAsset {
   color: string;
 }
 
-export const AssetAllocationDashboard: React.FC = () => {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [allocatedItems, setAllocatedItems] = useState<OfficeItem[]>([]);
-  const [loading, setLoading] = useState(true);
+interface AssetAllocationDashboardProps {
+  agents?: Agent[];
+  allocatedItems?: OfficeItem[];
+  setAgents?: React.Dispatch<React.SetStateAction<Agent[]>>;
+  setAllocatedItems?: React.Dispatch<React.SetStateAction<OfficeItem[]>>;
+  fetchInitialData?: () => Promise<void>;
+}
+
+export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> = ({
+  agents: propsAgents,
+  allocatedItems: propsAllocatedItems,
+  setAgents: propsSetAgents,
+  setAllocatedItems: propsSetAllocatedItems,
+  fetchInitialData
+}) => {
+  const [localAgents, setLocalAgents] = useState<Agent[]>([]);
+  const [localAllocatedItems, localSetAllocatedItems] = useState<OfficeItem[]>([]);
+  const [loading, setLoading] = useState(!propsAgents);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<number | "">("");
+  
+  // Props가 있으면 우선 사용하고 없으면 로컬 상태를 폴백으로 사용
+  const agents = propsAgents !== undefined ? propsAgents : localAgents;
+  const allocatedItems = propsAllocatedItems !== undefined ? propsAllocatedItems : localAllocatedItems;
   
   // 성공/실패 알림 상태
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -73,14 +91,38 @@ export const AssetAllocationDashboard: React.FC = () => {
   ];
 
   const fetchData = async () => {
+    // Props로 초기 데이터 로딩 함수가 넘어오면 이를 사용
+    if (fetchInitialData) {
+      setLoading(true);
+      try {
+        await fetchInitialData();
+      } catch (e) {
+        console.error("자산 배치 데이터 로딩 실패:", e);
+        setErrorMessage("백엔드 데이터를 로드하지 못했습니다.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const [agentRes, officeRes] = await Promise.all([
         agentService.getAll(),
         officeService.getAll()
       ]);
-      setAgents(agentRes.data);
-      setAllocatedItems(officeRes.data);
+      
+      if (propsSetAgents) {
+        propsSetAgents(agentRes.data);
+      } else {
+        setLocalAgents(agentRes.data);
+      }
+
+      if (propsSetAllocatedItems) {
+        propsSetAllocatedItems(officeRes.data);
+      } else {
+        localSetAllocatedItems(officeRes.data);
+      }
       
       if (agentRes.data.length > 0 && selectedAgentId === "") {
         setSelectedAgentId(agentRes.data[0].id);
@@ -94,8 +136,18 @@ export const AssetAllocationDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (agents.length > 0 && selectedAgentId === "") {
+      setSelectedAgentId(agents[0].id);
+    }
+  }, [agents, selectedAgentId]);
+
+  useEffect(() => {
+    if (!propsAgents) {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+  }, [propsAgents]);
 
   // 특정 자산을 에이전트에 할당 (배치)
   const handleAllocateAsset = async (asset: ComputationalAsset) => {

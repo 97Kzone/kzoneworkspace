@@ -19,7 +19,8 @@ export const useStompWS = (
   setActiveCollaborations: any,
   setIsIntelligenceBoosted: any,
   fetchInitialData: any,
-  setLiveEvaluation?: any
+  setLiveEvaluation?: any,
+  setAllocatedItems?: any
 ) => {
   /**
    * WebSocket 서버에 연결하고 각 토픽을 구독하는 함수
@@ -147,10 +148,18 @@ export const useStompWS = (
               setLiveEvaluation(body);
           }
       });
+
+      // 가상 오피스 컴퓨팅 자산 실시간 구독
+      stompClientRef.current.subscribe('/topic/office', (msg: any) => {
+          const body = JSON.parse(msg.body);
+          if (setAllocatedItems) {
+              setAllocatedItems(body);
+          }
+      });
     };
 
     stompClientRef.current.activate();
-  }, [stompClientRef, setMessages, setTasks, setAgents, setActivities, setPerformanceData, setActiveConnections, setActivePreviews, setShowHealingToast, setCognitiveTraces, setActiveCollaborations, setIsIntelligenceBoosted, setLiveEvaluation]);
+  }, [stompClientRef, setMessages, setTasks, setAgents, setActivities, setPerformanceData, setActiveConnections, setActivePreviews, setShowHealingToast, setCognitiveTraces, setActiveCollaborations, setIsIntelligenceBoosted, setLiveEvaluation, setAllocatedItems]);
 
   useEffect(() => {
     fetchInitialData();

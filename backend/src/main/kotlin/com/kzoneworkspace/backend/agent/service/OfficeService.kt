@@ -2,6 +2,7 @@ package com.kzoneworkspace.backend.agent.service
 
 import com.kzoneworkspace.backend.agent.entity.OfficeItem
 import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -9,8 +10,19 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class OfficeService(
     private val officeItemRepository: OfficeItemRepository,
-    private val agentService: AgentService
+    private val agentService: AgentService,
+    private val messagingTemplate: SimpMessagingTemplate
 ) {
+    companion object {
+        // 자산 타입별 기여 지표 소모량(가격) 정의
+        private val ASSET_PRICES = mapOf(
+            "REASONING_CORE" to 150,
+            "EXTENDED_CONTEXT" to 100,
+            "VECTOR_SEARCH" to 80,
+            "AUXILIARY_INSTANCE" to 200
+        )
+    }
+
     fun getAllItems(): List<OfficeItem> = officeItemRepository.findAll()
 
     @Transactional
@@ -30,7 +42,12 @@ class OfficeService(
             y = y,
             agentId = agentId
         )
-        return officeItemRepository.save(item)
+        val savedItem = officeItemRepository.save(item)
+
+        // 자산 상태 및 에이전트 정보 실시간 동기화 브로드캐스트
+        broadcastUpdates()
+
+        return savedItem
     }
 
     @Deprecated("Use allocateAsset instead", ReplaceWith("allocateAsset(agentId, name, type, x, y, price)"))
@@ -40,13 +57,49 @@ class OfficeService(
     }
 
     @Transactional
-    fun deleteItem(id: Long) = officeItemRepository.deleteById(id)
+    fun deleteItem(id: Long) {
+        val item = officeItemRepository.findById(id).orElse(null) ?: return
+        
+        // 자산이 에이전트에 소속되어 있는 경우 소모했던 성공 기여도를 환불 처리
+        if (item.agentId != null) {
+            val agent = agentService.getAgentById(item.agentId!!)
+            val refundPrice = ASSET_PRICES[item.type] ?: 0
+            if (refundPrice > 0) {
+                agent.contributionPoints += refundPrice
+                agentService.save(agent)
+            }
+        }
+
+        officeItemRepository.deleteById(id)
+
+        // 자산 상태 및 에이전트 정보 실시간 동기화 브로드캐스트
+        broadcastUpdates()
+    }
 
     @Transactional
     fun moveItem(id: Long, x: Int, y: Int): OfficeItem {
         val item = officeItemRepository.findById(id).orElseThrow { RuntimeException("Item not found") }
         item.x = x
         item.y = y
-        return officeItemRepository.save(item)
+        val savedItem = officeItemRepository.save(item)
+
+        // 자산 위치 변경에 따른 실시간 동기화 브로드캐스트
+        broadcastUpdates()
+
+        return savedItem
+    }
+
+    /**
+     * 가상 오피스 자산 상태 및 에이전트 목록의 변경사항을 WebSocket 채널로 실시간 브로드캐스트합니다.
+     */
+    private fun broadcastUpdates() {
+        try {
+            messagingTemplate.convertAndSend("/topic/office", getAllItems())
+            messagingTemplate.convertAndSend("/topic/agents", agentService.getAllAgents())
+        } catch (e: Exception) {
+            // 웹소켓 발행 실패 시 에러 로그 기록 (프로세스 중단 방지)
+            println("웹소켓 브로드캐스트 에러: ${e.message}")
+        }
     }
 }
+

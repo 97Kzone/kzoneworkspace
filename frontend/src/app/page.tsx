@@ -92,7 +92,8 @@ export default function VirtualOfficeBright() {
     vo.setActiveCollaborations,
     vo.setIsIntelligenceBoosted,
     vo.fetchInitialData,
-    setLiveEvaluation
+    setLiveEvaluation,
+    vo.setOfficeItems
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -661,7 +662,13 @@ export default function VirtualOfficeBright() {
           )}
 
           {vo.activeTab === 'ASSET_ALLOCATION' && vo.activeCategory === 'INTELLIGENCE' && (
-             <AssetAllocationDashboard />
+             <AssetAllocationDashboard 
+               agents={vo.agents}
+               allocatedItems={vo.officeItems}
+               setAgents={vo.setAgents}
+               setAllocatedItems={vo.setOfficeItems}
+               fetchInitialData={vo.fetchInitialData}
+             />
           )}
 
           {vo.activeTab === 'TECH_PULSE' && vo.activeCategory === 'METRICS' && (
