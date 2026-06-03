@@ -2,9 +2,10 @@ import React from "react";
 import { motion } from "framer-motion";
 import { 
   Bot, Plus, Users, Terminal, Code2, Layout, Database, 
-  Search, Activity, Trash2, Heart, Zap 
+  Search, Activity, Trash2, Heart, Zap, Cpu, Layers, ShieldCheck 
 } from "lucide-react";
 import { getAgentColor } from "../../utils/agentColors";
+import { OfficeItem } from "../../app/apiService";
 
 interface SidebarProps {
   vo: any;
@@ -127,6 +128,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ vo, onDeleteAgent, onOpenProje
                     </span>
                   ))}
                 </div>
+
+                {/* 할당된 컴퓨팅 자산 표시 */}
+                {(() => {
+                  const agentAssets = (vo.officeItems as OfficeItem[])?.filter((item: OfficeItem) => item.agentId === agent.id) || [];
+                  if (agentAssets.length === 0) return null;
+                  return (
+                    <div className="mt-2.5 flex gap-1.5 flex-wrap items-center pt-2.5 border-t border-slate-50">
+                      {agentAssets.map((asset: OfficeItem) => {
+                        let icon = null;
+                        let colorClass = "";
+                        let displayName = "";
+                        if (asset.type === "REASONING_CORE") {
+                          icon = <Cpu size={10} />;
+                          colorClass = "bg-indigo-50 text-indigo-600 border-indigo-100/50";
+                          displayName = "가속 코어";
+                        } else if (asset.type === "EXTENDED_CONTEXT") {
+                          icon = <Layers size={10} />;
+                          colorClass = "bg-purple-50 text-purple-600 border-purple-100/50";
+                          displayName = "128k 컨텍스트";
+                        } else if (asset.type === "VECTOR_SEARCH") {
+                          icon = <Search size={10} />;
+                          colorClass = "bg-emerald-50 text-emerald-600 border-emerald-100/50";
+                          displayName = "벡터 검색";
+                        } else if (asset.type === "AUXILIARY_INSTANCE") {
+                          icon = <ShieldCheck size={10} />;
+                          colorClass = "bg-amber-50 text-amber-600 border-amber-100/50";
+                          displayName = "검증 인스턴스";
+                        } else {
+                          icon = <Zap size={10} />;
+                          colorClass = "bg-slate-50 text-slate-600 border-slate-100";
+                          displayName = asset.name;
+                        }
+
+                        return (
+                          <span 
+                            key={asset.id} 
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-tight shadow-sm ${colorClass}`}
+                            title={asset.name}
+                          >
+                            {icon}
+                            {displayName}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                   <button 

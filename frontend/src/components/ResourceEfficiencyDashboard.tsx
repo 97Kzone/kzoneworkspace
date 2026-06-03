@@ -11,7 +11,10 @@ import {
   CheckCircle2, 
   AlertCircle,
   BrainCircuit,
-  Maximize2
+  Maximize2,
+  ShieldCheck,
+  Layers,
+  Search
 } from "lucide-react";
 import { 
   Radar, 
@@ -21,10 +24,11 @@ import {
   PolarRadiusAxis, 
   ResponsiveContainer 
 } from "recharts";
-import { SwarmMetrics, resourceEfficiencyService } from "../app/apiService";
+import { SwarmMetrics, resourceEfficiencyService, officeService, OfficeItem } from "../app/apiService";
 
 export const ResourceEfficiencyDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<SwarmMetrics | null>(null);
+  const [officeItems, setOfficeItems] = useState<OfficeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,8 +40,12 @@ export const ResourceEfficiencyDashboard: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await resourceEfficiencyService.getMetrics();
-      setMetrics(res.data);
+      const [metricsRes, officeRes] = await Promise.all([
+        resourceEfficiencyService.getMetrics(),
+        officeService.getAll()
+      ]);
+      setMetrics(metricsRes.data);
+      setOfficeItems(officeRes.data);
     } catch (e) {
       console.error("Failed to fetch metrics:", e);
     } finally {
@@ -191,6 +199,42 @@ export const ResourceEfficiencyDashboard: React.FC = () => {
                           </span>
                         </div>
                       </div>
+ 
+                      {/* 할당된 컴퓨팅 리소스 표시 */}
+                      {(() => {
+                        const unitAssets = officeItems.filter(item => item.agentId === agent.agentId);
+                        if (unitAssets.length === 0) return null;
+                        return (
+                          <div className="flex gap-1.5 flex-wrap items-center my-1">
+                            {unitAssets.map(asset => {
+                              let icon = null;
+                              let colorClass = "";
+                              if (asset.type === "REASONING_CORE") {
+                                icon = <Cpu size={10} />;
+                                colorClass = "text-indigo-400 bg-indigo-500/10 border-indigo-500/20";
+                              } else if (asset.type === "EXTENDED_CONTEXT") {
+                                icon = <Layers size={10} />;
+                                colorClass = "text-purple-400 bg-purple-500/10 border-purple-500/20";
+                              } else if (asset.type === "VECTOR_SEARCH") {
+                                icon = <Search size={10} />;
+                                colorClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                              } else if (asset.type === "AUXILIARY_INSTANCE") {
+                                icon = <ShieldCheck size={10} />;
+                                colorClass = "text-amber-400 bg-amber-500/10 border-amber-500/20";
+                              } else {
+                                icon = <Zap size={10} />;
+                                colorClass = "text-slate-400 bg-slate-500/10 border-slate-500/20";
+                              }
+                              return (
+                                <span key={asset.id} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-tight shadow-sm ${colorClass}`} title={asset.name}>
+                                  {icon}
+                                  {asset.name.split(' (')[0]}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">

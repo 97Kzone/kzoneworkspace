@@ -5,18 +5,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   TrendingUp, Award, History, Shield, Zap, Star, 
   ChevronRight, Activity, Target, Brain, RefreshCw, 
-  Search, BarChart3, PieChart, Layers, Gauge, Cpu, Code, ClipboardCheck, MessageCircle
+  Search, BarChart3, PieChart, Layers, Gauge, Cpu, Code, ClipboardCheck, MessageCircle, ShieldCheck
 } from "lucide-react";
 import { 
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, 
   Radar, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid 
 } from "recharts";
-import { Agent, AgentEvolutionLog, agentService, evolutionService } from "../app/apiService";
+import { Agent, AgentEvolutionLog, OfficeItem, agentService, evolutionService, officeService } from "../app/apiService";
 
 export const AgentEvolutionDashboard: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [evolutionLogs, setEvolutionLogs] = useState<AgentEvolutionLog[]>([]);
+  const [officeItems, setOfficeItems] = useState<OfficeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
 
@@ -33,10 +34,14 @@ export const AgentEvolutionDashboard: React.FC = () => {
   const fetchAgents = async () => {
     setLoading(true);
     try {
-      const res = await agentService.getAll();
-      setAgents(res.data);
-      if (res.data.length > 0 && !selectedAgentId) {
-        setSelectedAgentId(res.data[0].id);
+      const [agentRes, officeRes] = await Promise.all([
+        agentService.getAll(),
+        officeService.getAll()
+      ]);
+      setAgents(agentRes.data);
+      setOfficeItems(officeRes.data);
+      if (agentRes.data.length > 0 && !selectedAgentId) {
+        setSelectedAgentId(agentRes.data[0].id);
       }
     } catch (e) {
       console.error("Failed to fetch agents", e);
@@ -180,6 +185,41 @@ export const AgentEvolutionDashboard: React.FC = () => {
                   <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{agent.role.split(' ')[0]}</p>
                 </div>
               </div>
+
+              {/* 미니 자산 아이콘 표시 */}
+              {(() => {
+                const cardAssets = officeItems.filter(item => item.agentId === agent.id);
+                if (cardAssets.length === 0) return null;
+                return (
+                  <div className="flex gap-1 mb-3 relative z-10">
+                    {cardAssets.map(asset => {
+                      let icon = null;
+                      let colorClass = "";
+                      if (asset.type === "REASONING_CORE") {
+                        icon = <Cpu size={10} />;
+                        colorClass = "text-indigo-400";
+                      } else if (asset.type === "EXTENDED_CONTEXT") {
+                        icon = <Layers size={10} />;
+                        colorClass = "text-purple-400";
+                      } else if (asset.type === "VECTOR_SEARCH") {
+                        icon = <Search size={10} />;
+                        colorClass = "text-emerald-400";
+                      } else if (asset.type === "AUXILIARY_INSTANCE") {
+                        icon = <ShieldCheck size={10} />;
+                        colorClass = "text-amber-400";
+                      } else {
+                        icon = <Zap size={10} />;
+                        colorClass = "text-slate-400";
+                      }
+                      return (
+                        <div key={asset.id} className={`w-4.5 h-4.5 rounded bg-white/5 border border-white/10 flex items-center justify-center ${colorClass}`} title={asset.name}>
+                          {icon}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
               <div className="flex justify-between items-end relative z-10">
                 <div className="flex flex-col">
                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">인지 신뢰도</span>
@@ -206,6 +246,68 @@ export const AgentEvolutionDashboard: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               className="bg-white/5 rounded-[3rem] border border-white/10 p-8 flex flex-col gap-8"
             >
+              {/* 활성화된 성능 자산 */}
+              {(() => {
+                const activeAssets = officeItems.filter(item => item.agentId === selectedAgent.id);
+                return (
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <Cpu size={14} className="text-indigo-400" />
+                      활성화된 고성능 컴퓨팅 자산
+                    </h4>
+                    {activeAssets.length === 0 ? (
+                      <div className="bg-black/20 p-4 rounded-2xl border border-dashed border-white/5 text-slate-500 text-[10px] font-black uppercase tracking-wider text-center py-6">
+                        배치된 연산 자산이 없습니다
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {activeAssets.map(asset => {
+                          let icon = null;
+                          let textClass = "";
+                          let bgClass = "";
+                          let desc = "";
+                          if (asset.type === "REASONING_CORE") {
+                            icon = <Cpu size={14} />;
+                            textClass = "text-indigo-400";
+                            bgClass = "bg-indigo-500/10 border-indigo-500/20";
+                            desc = "GPU 가속 및 연산 깊이 향상";
+                          } else if (asset.type === "EXTENDED_CONTEXT") {
+                            icon = <Layers size={14} />;
+                            textClass = "text-purple-400";
+                            bgClass = "bg-purple-500/10 border-purple-500/20";
+                            desc = "128k 컨텍스트 확장 윈도우";
+                          } else if (asset.type === "VECTOR_SEARCH") {
+                            icon = <Search size={14} />;
+                            textClass = "text-emerald-400";
+                            bgClass = "bg-emerald-500/10 border-emerald-500/20";
+                            desc = "RAG 검색 정밀도 극대화";
+                          } else if (asset.type === "AUXILIARY_INSTANCE") {
+                            icon = <ShieldCheck size={14} />;
+                            textClass = "text-amber-400";
+                            bgClass = "bg-amber-500/10 border-amber-500/20";
+                            desc = "오류 자가 검증 인스턴스";
+                          } else {
+                            icon = <Zap size={14} />;
+                            textClass = "text-slate-400";
+                            bgClass = "bg-slate-50/10 border-slate-500/20";
+                            desc = asset.name;
+                          }
+
+                          return (
+                            <div key={asset.id} className={`p-3.5 rounded-2xl border flex flex-col gap-1.5 ${bgClass}`}>
+                              <div className={`flex items-center gap-2 text-xs font-black uppercase ${textClass}`}>
+                                {icon}
+                                <span className="truncate">{asset.name.split(' (')[0]}</span>
+                              </div>
+                              <span className="text-[9px] text-slate-400 font-bold">{desc}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Radar Chart Section */}
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
