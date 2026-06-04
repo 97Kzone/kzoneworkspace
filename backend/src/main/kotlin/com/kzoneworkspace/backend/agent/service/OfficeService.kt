@@ -50,11 +50,6 @@ class OfficeService(
         return savedItem
     }
 
-    @Deprecated("Use allocateAsset instead", ReplaceWith("allocateAsset(agentId, name, type, x, y, price)"))
-    @Transactional
-    fun buyItem(agentId: Long, name: String, type: String, x: Int, y: Int, price: Int): OfficeItem {
-        return allocateAsset(agentId, name, type, x, y, price)
-    }
 
     @Transactional
     fun deleteItem(id: Long) {

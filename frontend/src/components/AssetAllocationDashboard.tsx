@@ -54,7 +54,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   const availableAssets: ComputationalAsset[] = [
     {
       id: "reasoning_core",
-      name: "고성능 추론 코어 (Reasoning Core)",
+      name: "고성능 추론 가속 코어",
       type: "REASONING_CORE",
       description: "고부하 추론 처리를 위한 GPU 가속 컴퓨팅 코어를 추가 할당합니다.",
       price: 150,
@@ -63,7 +63,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
     },
     {
       id: "extended_context",
-      name: "대용량 컨텍스트 메모리 (Extended Context)",
+      name: "대용량 컨텍스트 메모리 확장",
       type: "EXTENDED_CONTEXT",
       description: "Context Window를 최대 128k로 확장하고 세션 캐싱 메모리를 확보합니다.",
       price: 100,
@@ -72,7 +72,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
     },
     {
       id: "vector_search",
-      name: "실시간 벡터 DB 검색 세션 (Vector DB Search)",
+      name: "실시간 벡터 지식 검색 세션",
       type: "VECTOR_SEARCH",
       description: "에이전트 단/장기 기억 검색의 정확도를 높이고 시맨틱 검색 속도를 극대화합니다.",
       price: 80,
@@ -81,7 +81,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
     },
     {
       id: "auxiliary_instance",
-      name: "보조 추론 모델 인스턴스 (Auxiliary Instance)",
+      name: "보조 추론 및 자가 치유 인스턴스",
       type: "AUXILIARY_INSTANCE",
       description: "다중 스레드 병렬 연산을 지원하여 로직 검증 및 자가 치유 레이턴시를 단축합니다.",
       price: 200,

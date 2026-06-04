@@ -48,7 +48,7 @@ import { CodeReviewDashboard } from "../components/CodeReviewDashboard";
 import { MissionHiveDashboard } from "../components/MissionHiveDashboard";
 import { ScenarioLabDashboard } from "../components/ScenarioLabDashboard";
 import { BrainstormingBoard } from "../components/BrainstormingBoard";
-import { EmotionBubble } from "../components/EmotionBubble";
+import { CognitiveModeIndicator } from "../components/CognitiveModeIndicator";
 import { MemoryInsights } from "../components/MemoryInsights";
 import { StrategicCouncilDashboard } from "../components/StrategicCouncilDashboard";
 import { ResourceEfficiencyDashboard } from "../components/ResourceEfficiencyDashboard";
@@ -758,8 +758,8 @@ export default function VirtualOfficeBright() {
       </div>
 
       {/* 실시간 플로팅 레이어 */}
-      {vo.agents.find(a => a.lastEmotion)?.lastEmotion && (
-        <EmotionBubble emotion={vo.agents.find(a => a.lastEmotion)!.lastEmotion!} />
+      {vo.agents.find(a => a.cognitiveMode)?.cognitiveMode && (
+        <CognitiveModeIndicator cognitiveMode={vo.agents.find(a => a.cognitiveMode)!.cognitiveMode!} />
       )}
       {Object.values(vo.activePreviews).find(p => p !== null) && (
         <LivePreviewBubble preview={Object.values(vo.activePreviews).find(p => p !== null)!} getAgentColor={getAgentColor} />

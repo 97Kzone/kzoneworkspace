@@ -25,18 +25,7 @@ class OfficeController(
         )
     }
 
-    @Deprecated("Use allocateAsset instead")
-    @PostMapping("/items/buy")
-    fun buyItem(@RequestBody request: BuyItemRequest): OfficeItem {
-        return officeService.allocateAsset(
-            agentId = request.agentId,
-            name = request.name,
-            type = request.type,
-            x = request.x,
-            y = request.y,
-            price = request.price
-        )
-    }
+
 
     @DeleteMapping("/items/{id}")
     fun deleteItem(@PathVariable id: Long) = officeService.deleteItem(id)
@@ -60,13 +49,5 @@ class OfficeController(
         val price: Int
     )
 
-    @Deprecated("Use AllocateAssetRequest instead")
-    data class BuyItemRequest(
-        val agentId: Long,
-        val name: String,
-        val type: String,
-        val x: Int,
-        val y: Int,
-        val price: Int
-    )
+
 }

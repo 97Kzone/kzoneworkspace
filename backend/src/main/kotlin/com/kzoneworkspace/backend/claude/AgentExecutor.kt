@@ -169,16 +169,16 @@ class AgentExecutor(
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
-            // 성공 시 포인트 지급 및 감정 업데이트
+            // 성공 시 포인트 지급 및 인지 모드 업데이트
             agent.contributionPoints += 10
-            agent.lastEmotion = "HAPPY"
+            agent.cognitiveMode = "STABLE"
             agentService.save(agent)
             
             // 실시간 상태 업데이트 전송
             val statusPayload = objectMapper.writeValueAsString(mapOf(
                 "agentId" to agent.id,
                 "points" to agent.contributionPoints,
-                "lastEmotion" to agent.lastEmotion
+                "cognitiveMode" to agent.cognitiveMode
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM) // 또는 새로운 전용 타입 사용 가능
 
@@ -201,8 +201,8 @@ class AgentExecutor(
             // 실패 시 기술적 교훈 추출 트리거
             lessonService.extractAndSaveLesson(task)
 
-            // 실패 시 감정 업데이트
-            agent.lastEmotion = "SAD"
+            // 실패 시 인지 모드 업데이트
+            agent.cognitiveMode = "ATTENTION"
             agentService.save(agent)
             
             // 성격 진화 트리거 (실패)
@@ -211,7 +211,7 @@ class AgentExecutor(
             val statusPayload = objectMapper.writeValueAsString(mapOf(
                 "agentId" to agent.id,
                 "points" to agent.contributionPoints,
-                "lastEmotion" to agent.lastEmotion
+                "cognitiveMode" to agent.cognitiveMode
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM)
         }
@@ -282,12 +282,12 @@ class AgentExecutor(
 
             // 성공 시 보상
             agent.contributionPoints += 10
-            agent.lastEmotion = "HAPPY"
+            agent.cognitiveMode = "STABLE"
             agentService.save(agent)
             
             // 실시간 상태 전송
             val statusPayload = objectMapper.writeValueAsString(mapOf(
-                "agentId" to agent.id, "points" to agent.contributionPoints, "lastEmotion" to agent.lastEmotion
+                "agentId" to agent.id, "points" to agent.contributionPoints, "cognitiveMode" to agent.cognitiveMode
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM)
 

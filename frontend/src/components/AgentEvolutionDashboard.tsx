@@ -106,25 +106,25 @@ export const AgentEvolutionDashboard: React.FC = () => {
 
     return [
       { 
-        role: "System Architecture", 
+        role: "시스템 아키텍처 검증", 
         score: Math.round((getVal("ANALYTICAL") * 0.6 + getVal("CAUTIOUS") * 0.4)),
         icon: <Layers size={14} />,
         color: "bg-indigo-500"
       },
       { 
-        role: "High-Speed Coding", 
+        role: "고속 자율 소스코드 생성", 
         score: Math.round((getVal("CREATIVE") * 0.5 + getVal("BOLD") * 0.5)),
         icon: <Code size={14} />,
         color: "bg-emerald-500"
       },
       { 
-        role: "Vulnerability Audit", 
+        role: "보안 취약점 및 결함 진단", 
         score: Math.round((getVal("CAUTIOUS") * 0.7 + getVal("ANALYTICAL") * 0.3)),
         icon: <ClipboardCheck size={14} />,
         color: "bg-amber-500"
       },
       { 
-        role: "Cross-Agent Sync", 
+        role: "에이전트 상호 정렬 및 동기화", 
         score: Math.round((getVal("EMPATHETIC") * 0.6 + getVal("BOLD") * 0.4)),
         icon: <MessageCircle size={14} />,
         color: "bg-purple-500"
@@ -151,9 +151,9 @@ export const AgentEvolutionDashboard: React.FC = () => {
           <div>
             <h3 className="text-white text-2xl font-black uppercase tracking-tight italic flex items-center gap-3">
               <TrendingUp className="text-indigo-400" size={24} />
-              Cognitive Reliability Hub
+              에이전트 인지 신뢰성 센터
               <span className="text-white/20 font-light mx-2">|</span>
-              <span className="text-indigo-400">에이전트 인지 신뢰성 분석실</span>
+              <span className="text-indigo-400">분석 통계실</span>
             </h3>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-1">개별 에이전트의 사고 정합성 성향 및 업무 신뢰성 지표 정량 분석</p>
           </div>
@@ -359,7 +359,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
               <div className="flex flex-col gap-5">
                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Gauge size={14} className="text-emerald-400" />
-                    업무 적합도 분석 (Suitability)
+                    업무 적합도 분석 (직무 적합지 지수)
                  </h4>
                  <div className="grid grid-cols-1 gap-4">
                     {roleSuitability.map((role, idx) => (

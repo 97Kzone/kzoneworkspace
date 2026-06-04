@@ -54,7 +54,7 @@ class ProjectHealthService(
         
         val agents = agentRepository.findAll()
         val agentVoices = agents.joinToString("\n") { 
-            "- ${it.name} (${it.role}): ${it.contributionPoints} pts (Contribution), Emotion: ${it.lastEmotion ?: "Neutral"}"
+            "- ${it.name} (${it.role}): ${it.contributionPoints} pts (Contribution), Cognitive Mode: ${it.cognitiveMode ?: "STABLE"}"
         }
 
         val recentLogs = activityLogRepository.findAll().sortedByDescending { it.timestamp }.take(30)

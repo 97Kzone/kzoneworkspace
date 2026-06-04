@@ -54,8 +54,8 @@ class Agent(
     @Column(name = "points", nullable = false)
     var contributionPoints: Int = 0,
 
-    @Column
-    var lastEmotion: String? = null,
+    @Column(name = "last_emotion")
+    var cognitiveMode: String? = null,
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "agent_personality_traits", joinColumns = [JoinColumn(name = "agent_id")])

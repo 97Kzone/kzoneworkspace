@@ -18,7 +18,7 @@ export interface Agent {
     model: string;
     assignedSkills: string[];
     contributionPoints: number; // 협업 기여도 지표 (Successful Collaboration Contribution Score)
-    lastEmotion: string | null;
+    cognitiveMode: string | null;
     greeting: string | null;
     currentActivity: string | null;
     personalityTraits: Record<string, number>;
@@ -325,9 +325,7 @@ export const officeService = {
     getAll: () => api.get<OfficeItem[]>('/office/items'),
     allocateAsset: (data: { agentId: number, name: string, type: string, x: number, y: number, price: number }) => 
         api.post<OfficeItem>('/office/items/allocate', data),
-    /** @deprecated Use allocateAsset instead */
-    buyItem: (data: { agentId: number, name: string, type: string, x: number, y: number, price: number }) => 
-        api.post<OfficeItem>('/office/items/allocate', data),
+
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),
     moveItem: (id: number, x: number, y: number) => api.put<OfficeItem>(`/office/items/${id}/move`, { x, y }),
 };
