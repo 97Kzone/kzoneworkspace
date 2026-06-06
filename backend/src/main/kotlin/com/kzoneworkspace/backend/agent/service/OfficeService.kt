@@ -19,7 +19,8 @@ class OfficeService(
             "REASONING_CORE" to 150,
             "EXTENDED_CONTEXT" to 100,
             "VECTOR_SEARCH" to 80,
-            "AUXILIARY_INSTANCE" to 200
+            "AUXILIARY_INSTANCE" to 200,
+            "CODE_STABILITY_SANDBOX" to 120
         )
     }
 

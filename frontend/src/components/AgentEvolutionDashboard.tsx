@@ -207,6 +207,9 @@ export const AgentEvolutionDashboard: React.FC = () => {
                       } else if (asset.type === "AUXILIARY_INSTANCE") {
                         icon = <ShieldCheck size={10} />;
                         colorClass = "text-amber-400";
+                      } else if (asset.type === "CODE_STABILITY_SANDBOX") {
+                        icon = <ShieldCheck size={10} />;
+                        colorClass = "text-emerald-400";
                       } else {
                         icon = <Zap size={10} />;
                         colorClass = "text-slate-400";
@@ -286,6 +289,11 @@ export const AgentEvolutionDashboard: React.FC = () => {
                             textClass = "text-amber-400";
                             bgClass = "bg-amber-500/10 border-amber-500/20";
                             desc = "오류 자가 검증 인스턴스";
+                          } else if (asset.type === "CODE_STABILITY_SANDBOX") {
+                            icon = <ShieldCheck size={14} />;
+                            textClass = "text-emerald-400";
+                            bgClass = "bg-emerald-500/10 border-emerald-500/20";
+                            desc = "격리 테스트 및 안정성 검증";
                           } else {
                             icon = <Zap size={14} />;
                             textClass = "text-slate-400";

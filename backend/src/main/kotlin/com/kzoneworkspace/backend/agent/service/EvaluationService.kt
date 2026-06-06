@@ -431,6 +431,11 @@ class EvaluationService(
                     latencyMultiplier *= 0.75
                     rationaleBuilders.add("보조 추론 인스턴스(Auxiliary Instance) 병렬 검증 연동")
                 }
+                "CODE_STABILITY_SANDBOX" -> {
+                    scoreBonus += 12.0
+                    latencyMultiplier *= 1.05
+                    rationaleBuilders.add("코드 안정성 검증용 자율 샌드박스(Code Stability Sandbox) 가동으로 구문 오류 예방")
+                }
             }
         }
 

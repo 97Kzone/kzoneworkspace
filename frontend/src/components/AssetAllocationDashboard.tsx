@@ -101,6 +101,15 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       price: 200,
       icon: <ShieldCheck size={20} />,
       color: "from-amber-500 to-orange-500"
+    },
+    {
+      id: "code_stability_sandbox",
+      name: "코드 안정성 검증용 자율 샌드박스",
+      type: "CODE_STABILITY_SANDBOX",
+      description: "격리된 테스트 샌드박스를 활성화하여 빌드 오류 및 런타임 결함을 예방하고, 에이전트의 안정성을 극대화합니다.",
+      price: 120,
+      icon: <ShieldCheck size={20} />,
+      color: "from-emerald-500 to-blue-500"
     }
   ];
 
@@ -277,6 +286,13 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           bg: "bg-amber-500/10 text-amber-400 border-amber-500/30",
           stroke: "#f59e0b",
           spec: "자가 치유(Self-Healing) 및 다중 스레드 병렬 코드 검증 활성화",
+          icon: <ShieldCheck size={16} />
+        };
+      case "CODE_STABILITY_SANDBOX":
+        return {
+          bg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+          stroke: "#10b981",
+          spec: "자율 실행 격리 테스트 환경 구축, 구문 검증 및 빌드 오류 사전 차단",
           icon: <ShieldCheck size={16} />
         };
       default:
@@ -684,6 +700,14 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         <span className="text-slate-400 font-bold">자가 치유 (Self-Healing)</span>
                         <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE") ? "text-amber-400 animate-pulse" : "text-slate-500"}`}>
                           {allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE") ? "병렬 보조 스레드 상시 검증 중" : "일반 추론 단독 수행"}
+                        </span>
+                      </div>
+
+                      {/* Spec item: Safe Sandbox check */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-bold">코드 격리 검증 (Sandbox)</span>
+                        <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "CODE_STABILITY_SANDBOX") ? "text-emerald-400 animate-pulse" : "text-slate-500"}`}>
+                          {allocatedItemsForAgent.some(item => item.type === "CODE_STABILITY_SANDBOX") ? "자율 격리 샌드박스 가동 중" : "로컬 직접 변경"}
                         </span>
                       </div>
                     </div>

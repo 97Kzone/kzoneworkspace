@@ -110,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ vo, onDeleteAgent, onOpenProje
                     </div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{agent.role}</p>
                     {agent.greeting && (
-                      <p className="text-[9px] font-bold text-indigo-500 mt-0.5 truncate italic">"{agent.greeting}"</p>
+                      <p className="text-[9px] font-bold text-indigo-500 mt-0.5 truncate italic">&quot;{agent.greeting}&quot;</p>
                     )}
                     {agent.currentActivity && (
                       <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-md">
@@ -155,6 +155,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ vo, onDeleteAgent, onOpenProje
                           icon = <ShieldCheck size={10} />;
                           colorClass = "bg-amber-50 text-amber-600 border-amber-100/50";
                           displayName = "검증 인스턴스";
+                        } else if (asset.type === "CODE_STABILITY_SANDBOX") {
+                          icon = <ShieldCheck size={10} />;
+                          colorClass = "bg-emerald-50 text-emerald-600 border-emerald-100/50";
+                          displayName = "안정성 샌드박스";
                         } else {
                           icon = <Zap size={10} />;
                           colorClass = "bg-slate-50 text-slate-600 border-slate-100";

@@ -89,6 +89,7 @@ class AgentExecutor(
                 "EXTENDED_CONTEXT" -> sb.append("\n- 📁 [대용량 컨텍스트 메모리]: Context Window가 128k로 확장되고 지능형 세션 캐싱이 적용되어 복잡한 전역 구조나 방대한 기술 설정을 손쉽게 파악할 수 있습니다.")
                 "VECTOR_SEARCH" -> sb.append("\n- 🔍 [실시간 벡터 DB 검색 세션]: 과거의 기억과 프로젝트 RAG 지식 검색의 정밀도가 극대화되어 있습니다. 정확한 지식 베이스를 인출하여 답변하세요.")
                 "AUXILIARY_INSTANCE" -> sb.append("\n- 🛡️ [보조 추론 모델 인스턴스]: 다중 스레드 병렬 검증 인스턴스가 가동 중이므로 자가 오류 치유 및 교차 코드 검증 능력이 대폭 향상되어 있습니다.")
+                "CODE_STABILITY_SANDBOX" -> sb.append("\n- 🧪 [코드 안정성 검증용 자율 샌드박스]: 격리된 실행 환경이 활성화되어 실제 코드에 미치는 사이드 이펙트나 구문 오류를 사전에 자율적으로 예방 및 테스트할 수 있습니다. 적극적인 빌드 검증을 시도하세요.")
             }
         }
         return sb.toString()
