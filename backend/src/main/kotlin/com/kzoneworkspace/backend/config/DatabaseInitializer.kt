@@ -24,7 +24,7 @@ class DatabaseInitializer(private val jdbcTemplate: JdbcTemplate) {
 
             // Schema Migrations for agents table
             try {
-                jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS experience_level INTEGER DEFAULT 1")
+                jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS experience_level INTEGER DEFAULT 80")
                 jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS mission_count INTEGER DEFAULT 0")
                 println("✅ agents table schema updated successfully.")
             } catch (e: Exception) {

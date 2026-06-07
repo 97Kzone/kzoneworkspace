@@ -35,9 +35,10 @@ class SchemaFix(private val jdbcTemplate: JdbcTemplate) {
             jdbcTemplate.execute("UPDATE tasks SET is_decomposed = false WHERE is_decomposed IS NULL")
             
             // agents 테이블의 새 컬럼 기본값 설정
-            jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS experience_level INTEGER DEFAULT 1")
+            jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS experience_level INTEGER DEFAULT 80")
             jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS mission_count INTEGER DEFAULT 0")
-            jdbcTemplate.execute("UPDATE agents SET experience_level = 1 WHERE experience_level IS NULL")
+            jdbcTemplate.execute("UPDATE agents SET experience_level = 80 WHERE experience_level IS NULL")
+            jdbcTemplate.execute("UPDATE agents SET experience_level = 80 WHERE experience_level = 1")
             jdbcTemplate.execute("UPDATE agents SET mission_count = 0 WHERE mission_count IS NULL")
             
             println("✅ Additional SchemaFix (persona fields) completed.")

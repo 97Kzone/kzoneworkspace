@@ -70,7 +70,7 @@ class Agent(
     ),
 
     @Column(name = "experience_level", nullable = false)
-    var reliabilityIndex: Int = 1,
+    var reliabilityIndex: Int = 80,
 
     @Column(name = "mission_count", nullable = false)
     var missionCount: Int = 0,

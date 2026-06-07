@@ -170,10 +170,15 @@ class AgentExecutor(
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
-            // 성공 시 포인트 지급 및 인지 모드 업데이트
-            agent.contributionPoints += 10
+            // 성공 시 포인트 지급 및 인지 모드 업데이트, 성격 진화 연동
             agent.cognitiveMode = "STABLE"
             agentService.save(agent)
+            agentService.evolvePersonality(agent.id, true, 2)
+            
+            // 변경된 기여도 및 신뢰도 수치 동기화
+            val updatedAgent = agentService.getAgentById(agent.id)
+            agent.contributionPoints = updatedAgent.contributionPoints
+            agent.reliabilityIndex = updatedAgent.reliabilityIndex
             
             // 실시간 상태 업데이트 전송
             val statusPayload = objectMapper.writeValueAsString(mapOf(
@@ -281,10 +286,15 @@ class AgentExecutor(
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
-            // 성공 시 보상
-            agent.contributionPoints += 10
+            // 성공 시 보상 및 성격 진화 연동
             agent.cognitiveMode = "STABLE"
             agentService.save(agent)
+            agentService.evolvePersonality(agent.id, true, 2)
+            
+            // 변경된 기여도 및 신뢰도 수치 동기화
+            val updatedAgent = agentService.getAgentById(agent.id)
+            agent.contributionPoints = updatedAgent.contributionPoints
+            agent.reliabilityIndex = updatedAgent.reliabilityIndex
             
             // 실시간 상태 전송
             val statusPayload = objectMapper.writeValueAsString(mapOf(
