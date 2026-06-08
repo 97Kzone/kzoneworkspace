@@ -277,6 +277,17 @@ export interface AgentEvolutionLog {
     createdAt: string;
 }
 
+export interface AssetUtilizationLog {
+    id: number;
+    agentId: number;
+    agentName: string;
+    assetType: string;
+    assetName: string;
+    actionType: 'ALLOCATION' | 'REVOCATION' | 'UTILIZATION';
+    description: string;
+    timestamp: string;
+}
+
 export const agentService = {
     getAll: () => api.get<Agent[]>('/agents'),
     createAgent: (agentData: any) => api.post<Agent>('/agents', agentData),
@@ -328,6 +339,7 @@ export const officeService = {
 
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),
     moveItem: (id: number, x: number, y: number) => api.put<OfficeItem>(`/office/items/${id}/move`, { x, y }),
+    getLogs: () => api.get<AssetUtilizationLog[]>('/office/logs'),
 };
 
 

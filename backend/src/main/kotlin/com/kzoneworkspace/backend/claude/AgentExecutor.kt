@@ -29,6 +29,8 @@ import com.kzoneworkspace.backend.agent.service.LessonService
 import com.kzoneworkspace.backend.agent.entity.CodebaseChunk
 import com.kzoneworkspace.backend.agent.service.MissionIntelligenceService
 import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
+import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
+import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import org.springframework.transaction.annotation.Transactional
 import java.net.URLEncoder
 
@@ -54,6 +56,7 @@ class AgentExecutor(
     private val lessonService: LessonService,
     private val missionIntelligenceService: MissionIntelligenceService,
     private val officeItemRepository: OfficeItemRepository,
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val shadowSessions = mutableMapOf<String, Long>() // roomId or sessionId mapping
@@ -105,6 +108,29 @@ class AgentExecutor(
             val messages = mutableListOf<Map<String, Any>>()
             
             val assets = officeItemRepository.findByAgentId(agent.id)
+            
+            // 자산 가동 이력 기록
+            assets.forEach { asset ->
+                val desc = when (asset.type) {
+                    "REASONING_CORE" -> "최대 추론 루프 단계 15회 확장 및 Strict Temp 0.1 모드 가속 연산 적용"
+                    "EXTENDED_CONTEXT" -> "컨텍스트 창 128k 확장 및 프로젝트 소스 코드 검색 한도 15개로 스캔 가속"
+                    "VECTOR_SEARCH" -> "장단기 기억 시맨틱 검색 깊이 10회 확장 가동"
+                    "AUXILIARY_INSTANCE" -> "다중 스레드 병렬 교차 코드 검증 모드 실행"
+                    "CODE_STABILITY_SANDBOX" -> "구문 및 빌드 오류 사전 차단을 위한 격리 실행 환경 샌드박스 가동"
+                    else -> null
+                }
+                if (desc != null) {
+                    assetUtilizationLogRepository.save(AssetUtilizationLog(
+                        agentId = agent.id,
+                        agentName = agent.name,
+                        assetType = asset.type,
+                        assetName = asset.name,
+                        actionType = "UTILIZATION",
+                        description = "${agent.name} 에이전트: [${asset.name}] 자원이 가동되었습니다. ($desc)"
+                    ))
+                }
+            }
+
             val hasExtendedContext = assets.any { it.type == "EXTENDED_CONTEXT" }
             val hasVectorSearch = assets.any { it.type == "VECTOR_SEARCH" }
 
@@ -240,6 +266,29 @@ class AgentExecutor(
             val messages = mutableListOf<Map<String, Any>>()
             
             val assets = officeItemRepository.findByAgentId(agent.id)
+            
+            // 자산 가동 이력 기록
+            assets.forEach { asset ->
+                val desc = when (asset.type) {
+                    "REASONING_CORE" -> "최대 추론 루프 단계 15회 확장 및 Strict Temp 0.1 모드 가속 연산 적용"
+                    "EXTENDED_CONTEXT" -> "컨텍스트 창 128k 확장 및 프로젝트 소스 코드 검색 한도 15개로 스캔 가속"
+                    "VECTOR_SEARCH" -> "장단기 기억 시맨틱 검색 깊이 10회 확장 가동"
+                    "AUXILIARY_INSTANCE" -> "다중 스레드 병렬 교차 코드 검증 모드 실행"
+                    "CODE_STABILITY_SANDBOX" -> "구문 및 빌드 오류 사전 차단을 위한 격리 실행 환경 샌드박스 가동"
+                    else -> null
+                }
+                if (desc != null) {
+                    assetUtilizationLogRepository.save(AssetUtilizationLog(
+                        agentId = agent.id,
+                        agentName = agent.name,
+                        assetType = asset.type,
+                        assetName = asset.name,
+                        actionType = "UTILIZATION",
+                        description = "${agent.name} 에이전트: [${asset.name}] 자원이 가동되었습니다. ($desc)"
+                    ))
+                }
+            }
+
             val hasExtendedContext = assets.any { it.type == "EXTENDED_CONTEXT" }
             val hasVectorSearch = assets.any { it.type == "VECTOR_SEARCH" }
 

@@ -93,7 +93,8 @@ export default function VirtualOfficeBright() {
     vo.setIsIntelligenceBoosted,
     vo.fetchInitialData,
     setLiveEvaluation,
-    vo.setOfficeItems
+    vo.setOfficeItems,
+    vo.setAssetLogs
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -668,6 +669,7 @@ export default function VirtualOfficeBright() {
                setAgents={vo.setAgents}
                setAllocatedItems={vo.setOfficeItems}
                fetchInitialData={vo.fetchInitialData}
+               assetLogs={vo.assetLogs}
              />
           )}
 

@@ -23,6 +23,7 @@ class EvaluationServiceAssetTest {
     private val messagingTemplate = mock(SimpMessagingTemplate::class.java)
     private val agentEvolutionRepository = mock(AgentEvolutionRepository::class.java)
     private val officeItemRepository = mock(OfficeItemRepository::class.java)
+    private val assetUtilizationLogRepository = mock(AssetUtilizationLogRepository::class.java)
 
     private val evaluationService = EvaluationService(
         benchmarkTaskRepository,
@@ -33,7 +34,8 @@ class EvaluationServiceAssetTest {
         geminiClient,
         messagingTemplate,
         agentEvolutionRepository,
-        officeItemRepository
+        officeItemRepository,
+        assetUtilizationLogRepository
     )
 
     @Test

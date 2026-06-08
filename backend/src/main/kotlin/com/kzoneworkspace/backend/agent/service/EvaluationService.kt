@@ -25,7 +25,8 @@ class EvaluationService(
     private val geminiClient: GeminiClient,
     private val messagingTemplate: SimpMessagingTemplate,
     private val agentEvolutionRepository: AgentEvolutionRepository,
-    private val officeItemRepository: OfficeItemRepository
+    private val officeItemRepository: OfficeItemRepository,
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
     private val objectMapper = jacksonObjectMapper()
@@ -404,6 +405,8 @@ class EvaluationService(
             return AssetAdjustmentResult(baseScore, baseSuccess, baseLatencyMs, baseRationale ?: "")
         }
 
+        val agent = agentService.getAgentById(agentId)
+
         var scoreBonus = 0.0
         var latencyMultiplier = 1.0
         val rationaleBuilders = mutableListOf<String>()
@@ -439,6 +442,28 @@ class EvaluationService(
             }
         }
 
+        // 평가 연동 자산 가동 로그 남김
+        assets.forEach { asset ->
+            val description = when (asset.type) {
+                "REASONING_CORE" -> "에이전트 평가 중 [고성능 추론 코어] 자원이 연동되어 평가 성능 점수 보정(+10.0) 및 레이턴시 단축(15%)이 적용되었습니다."
+                "EXTENDED_CONTEXT" -> if (benchmark.difficulty >= 2) "에이전트 평가 중 [대용량 컨텍스트 메모리] 자원이 가동되어 고난도 문제 해결력 보정(+10.0)이 적용되었습니다." else null
+                "VECTOR_SEARCH" -> if (benchmark.criteriaType == CriteriaType.SEMANTIC || benchmark.criteriaType == CriteriaType.CONTAINS) "에이전트 평가 중 [실시간 벡터 지식 검색 세션] 자원이 가동되어 의미 채점 정확도 보정(+8.0)이 적용되었습니다." else null
+                "AUXILIARY_INSTANCE" -> "에이전트 평가 중 [보조 추론 및 자가 치유 인스턴스] 자원이 연동되어 레이턴시 단축(25%)이 적용되었습니다."
+                "CODE_STABILITY_SANDBOX" -> "에이전트 평가 중 [코드 안정성 검증용 자율 샌드박스] 자원이 연동되어 구문 에러 방지 점수 보정(+12.0)이 적용되었습니다."
+                else -> null
+            }
+            if (description != null) {
+                assetUtilizationLogRepository.save(AssetUtilizationLog(
+                    agentId = agentId,
+                    agentName = agent.name,
+                    assetType = asset.type,
+                    assetName = asset.name,
+                    actionType = "UTILIZATION",
+                    description = "${agent.name} 에이전트: $description"
+                ))
+            }
+        }
+
         var finalScore = (baseScore + scoreBonus).coerceAtMost(100.0)
         var finalSuccess = baseSuccess
 
@@ -446,6 +471,15 @@ class EvaluationService(
             finalScore = (finalScore + 15.0).coerceAtMost(95.0)
             finalSuccess = true
             rationaleBuilders.add("보조 인스턴스의 자가 교차 치유(Self-Healing) 작동")
+            
+            assetUtilizationLogRepository.save(AssetUtilizationLog(
+                agentId = agentId,
+                agentName = agent.name,
+                assetType = "AUXILIARY_INSTANCE",
+                assetName = "보조 추론 및 자가 치유 인스턴스",
+                actionType = "UTILIZATION",
+                description = "${agent.name} 에이전트: 평가 실패 복구 과정에서 [보조 추론 및 자가 치유 인스턴스]의 자가 교차 치유(Self-Healing) 알고리즘이 가동되었습니다."
+            ))
         }
         
         if (finalScore >= 60.0) {

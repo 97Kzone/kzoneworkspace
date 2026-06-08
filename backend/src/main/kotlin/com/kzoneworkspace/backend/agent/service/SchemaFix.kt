@@ -29,6 +29,20 @@ class SchemaFix(private val jdbcTemplate: JdbcTemplate) {
                 )
             """)
             
+            // Add asset_utilization_logs table
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS asset_utilization_logs (
+                    id BIGINT NOT NULL PRIMARY KEY,
+                    agent_id BIGINT NOT NULL,
+                    agent_name VARCHAR(255) NOT NULL,
+                    asset_type VARCHAR(255) NOT NULL,
+                    asset_name VARCHAR(255) NOT NULL,
+                    action_type VARCHAR(255) NOT NULL,
+                    description TEXT NOT NULL,
+                    timestamp TIMESTAMP NOT NULL
+                )
+            """)
+            
             println("✅ SchemaFix completed successfully.")
 
             // tasks 테이블의 is_decomposed null 값 수정

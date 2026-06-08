@@ -1,7 +1,9 @@
 package com.kzoneworkspace.backend.agent.service
 
 import com.kzoneworkspace.backend.agent.entity.OfficeItem
+import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
+import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -11,7 +13,8 @@ import org.springframework.transaction.annotation.Transactional
 class OfficeService(
     private val officeItemRepository: OfficeItemRepository,
     private val agentService: AgentService,
-    private val messagingTemplate: SimpMessagingTemplate
+    private val messagingTemplate: SimpMessagingTemplate,
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
 ) {
     companion object {
         // 자산 타입별 기여 지표 소모량(가격) 정의
@@ -45,6 +48,17 @@ class OfficeService(
         )
         val savedItem = officeItemRepository.save(item)
 
+        // 자산 배치 로그 남김
+        val log = AssetUtilizationLog(
+            agentId = agentId,
+            agentName = agent.name,
+            assetType = type,
+            assetName = name,
+            actionType = "ALLOCATION",
+            description = "${agent.name} 에이전트에 [${name}] 자산이 신규 배치되었습니다. 성공 기여도 ${price}pts가 배정되었습니다."
+        )
+        assetUtilizationLogRepository.save(log)
+
         // 자산 상태 및 에이전트 정보 실시간 동기화 브로드캐스트
         broadcastUpdates()
 
@@ -63,6 +77,17 @@ class OfficeService(
             if (refundPrice > 0) {
                 agent.contributionPoints += refundPrice
                 agentService.save(agent)
+
+                // 자산 회수 로그 남김
+                val log = AssetUtilizationLog(
+                    agentId = item.agentId!!,
+                    agentName = agent.name,
+                    assetType = item.type,
+                    assetName = item.name,
+                    actionType = "REVOCATION",
+                    description = "${agent.name} 에이전트의 [${item.name}] 자산이 회수 및 반환 조치되었습니다. 성공 기여도 ${refundPrice}pts가 환불되었습니다."
+                )
+                assetUtilizationLogRepository.save(log)
             }
         }
 
@@ -85,6 +110,9 @@ class OfficeService(
         return savedItem
     }
 
+    fun getRecentLogs(): List<AssetUtilizationLog> =
+        assetUtilizationLogRepository.findTop50ByOrderByTimestampDesc()
+
     /**
      * 가상 오피스 자산 상태 및 에이전트 목록의 변경사항을 WebSocket 채널로 실시간 브로드캐스트합니다.
      */
@@ -92,6 +120,7 @@ class OfficeService(
         try {
             messagingTemplate.convertAndSend("/topic/office", getAllItems())
             messagingTemplate.convertAndSend("/topic/agents", agentService.getAllAgents())
+            messagingTemplate.convertAndSend("/topic/office/logs", getRecentLogs())
         } catch (e: Exception) {
             // 웹소켓 발행 실패 시 에러 로그 기록 (프로세스 중단 방지)
             println("웹소켓 브로드캐스트 에러: ${e.message}")

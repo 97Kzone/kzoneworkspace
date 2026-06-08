@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
   Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, 
-  CodeReviewResult, OfficeItem, CodebaseChunk, TechPulse, ProjectHealth, 
+  CodeReviewResult, OfficeItem, AssetUtilizationLog, CodebaseChunk, TechPulse, ProjectHealth, 
   ActionableStrategy, TeamPerformance, AgentLesson, CognitiveTrace, 
   MaintenanceIssue, MissionContext, BrainstormingSession, ScenarioSimulation, agentService, taskService, chatService, 
   skillService, activityService, schedulingService, codeReviewService, 
@@ -121,6 +121,7 @@ export const useVirtualOffice = () => {
 
   // 오피스 아이템 관련 상태
   const [officeItems, setOfficeItems] = useState<OfficeItem[]>([]);
+  const [assetLogs, setAssetLogs] = useState<AssetUtilizationLog[]>([]);
   const [isAssetAllocationOpen, setIsAssetAllocationOpen] = useState(false);
 
   /**
@@ -160,6 +161,13 @@ export const useVirtualOffice = () => {
       
       const officeRes = await officeService.getAll();
       setOfficeItems(officeRes.data);
+
+      try {
+        const logsRes = await officeService.getLogs();
+        setAssetLogs(logsRes.data);
+      } catch (e) {
+        console.error("자산 로그 로드 실패:", e);
+      }
       
       if (agentRes.data.length > 0) {
         setNewScheduledTask(prev => ({ ...prev, agentId: agentRes.data[0].id }));
@@ -237,6 +245,7 @@ export const useVirtualOffice = () => {
     isMemoriesLoading, setIsMemoriesLoading,
     activePreviews, setActivePreviews,
     officeItems, setOfficeItems,
+    assetLogs, setAssetLogs,
     isAssetAllocationOpen, setIsAssetAllocationOpen,
     isCodebaseExplorerOpen, setIsCodebaseExplorerOpen,
     codebaseResults, setCodebaseResults,

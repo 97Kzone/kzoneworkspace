@@ -8,7 +8,7 @@ import {
   Info, X, Network, List, Bot
 } from "lucide-react";
 import { 
-  agentService, officeService, Agent, OfficeItem 
+  agentService, officeService, Agent, OfficeItem, AssetUtilizationLog 
 } from "../app/apiService";
 import { getAgentColor } from "../utils/agentColors";
 
@@ -28,6 +28,7 @@ interface AssetAllocationDashboardProps {
   setAgents?: React.Dispatch<React.SetStateAction<Agent[]>>;
   setAllocatedItems?: React.Dispatch<React.SetStateAction<OfficeItem[]>>;
   fetchInitialData?: () => Promise<void>;
+  assetLogs?: AssetUtilizationLog[];
 }
 
 export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> = ({
@@ -35,10 +36,14 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   allocatedItems: propsAllocatedItems,
   setAgents: propsSetAgents,
   setAllocatedItems: propsSetAllocatedItems,
-  fetchInitialData
+  fetchInitialData,
+  assetLogs: propsAssetLogs
 }) => {
   const [localAgents, setLocalAgents] = useState<Agent[]>([]);
   const [localAllocatedItems, localSetAllocatedItems] = useState<OfficeItem[]>([]);
+  const [localAssetLogs, setLocalAssetLogs] = useState<AssetUtilizationLog[]>([]);
+  const assetLogs = propsAssetLogs !== undefined ? propsAssetLogs : localAssetLogs;
+  
   const [loading, setLoading] = useState(!propsAgents);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<number | "">("");
@@ -130,9 +135,10 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
 
     setLoading(true);
     try {
-      const [agentRes, officeRes] = await Promise.all([
+      const [agentRes, officeRes, logsRes] = await Promise.all([
         agentService.getAll(),
-        officeService.getAll()
+        officeService.getAll(),
+        officeService.getLogs()
       ]);
       
       if (propsSetAgents) {
@@ -146,6 +152,8 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       } else {
         localSetAllocatedItems(officeRes.data);
       }
+
+      setLocalAssetLogs(logsRes.data);
       
       if (agentRes.data.length > 0 && selectedAgentId === "") {
         setSelectedAgentId(agentRes.data[0].id);
@@ -775,6 +783,56 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           </div>
         </div>
 
+      </div>
+
+      {/* 실시간 컴퓨팅 자원 가동 로그 피드 */}
+      <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 relative z-10 flex flex-col gap-3 shrink-0 max-h-[180px]">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            실시간 컴퓨팅 자원 가동 로그 피드 (Computing Asset Operation Logs)
+          </span>
+          <span className="text-[9px] font-mono text-slate-500">최근 50개 연동 이력</span>
+        </div>
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar-dark space-y-2">
+          {assetLogs.length === 0 ? (
+            <p className="text-[10px] text-slate-600 text-center py-4 font-bold uppercase">가동 또는 배치 기록이 없습니다.</p>
+          ) : (
+            assetLogs.map((log) => {
+              // Action type badge style
+              let badgeColor = "bg-slate-500/10 text-slate-400 border-slate-500/20";
+              let actionLabel = "가동";
+              if (log.actionType === "ALLOCATION") {
+                badgeColor = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+                actionLabel = "배치";
+              } else if (log.actionType === "REVOCATION") {
+                badgeColor = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+                actionLabel = "회수";
+              } else if (log.actionType === "UTILIZATION") {
+                badgeColor = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                actionLabel = "가동";
+              }
+
+              return (
+                <div key={log.id} className="flex items-start justify-between gap-4 p-2.5 bg-black/10 hover:bg-black/20 border border-slate-800/50 rounded-xl transition-colors">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <span className={`px-2 py-0.5 rounded-md border text-[8px] font-black uppercase shrink-0 ${badgeColor}`}>
+                      {actionLabel}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-300 leading-normal">
+                        {log.description}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-500 shrink-0 mt-0.5">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Footer / Status Ticker */}

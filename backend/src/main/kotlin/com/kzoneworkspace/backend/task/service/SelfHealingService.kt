@@ -5,6 +5,8 @@ import com.kzoneworkspace.backend.claude.ClaudeClient
 import com.kzoneworkspace.backend.task.entity.SelfHealingLog
 import com.kzoneworkspace.backend.task.entity.Task
 import com.kzoneworkspace.backend.task.repository.SelfHealingRepository
+import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
+import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import org.springframework.stereotype.Service
 
 data class HealingStrategy(
@@ -22,7 +24,8 @@ enum class StrategyType {
 class SelfHealingService(
     private val claudeClient: ClaudeClient,
     private val selfHealingRepository: SelfHealingRepository,
-    private val officeItemRepository: com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
+    private val officeItemRepository: com.kzoneworkspace.backend.agent.repository.OfficeItemRepository,
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
 ) {
     private val objectMapper = jacksonObjectMapper()
 
@@ -30,6 +33,18 @@ class SelfHealingService(
         val hasAuxiliaryInstance = task.agent?.let { agent ->
             officeItemRepository.findByAgentId(agent.id).any { it.type == "AUXILIARY_INSTANCE" }
         } ?: false
+
+        if (hasAuxiliaryInstance && task.agent != null) {
+            val agent = task.agent!!
+            assetUtilizationLogRepository.save(AssetUtilizationLog(
+                agentId = agent.id,
+                agentName = agent.name,
+                assetType = "AUXILIARY_INSTANCE",
+                assetName = "보조 추론 및 자가 치유 인스턴스",
+                actionType = "UTILIZATION",
+                description = "${agent.name} 에이전트: 자가 치유(Self-Healing) 복구 로직 제안을 설계하는 과정에서 [보조 추론 및 자가 치유 인스턴스]의 병렬 복구 컴퓨팅 자원이 활성화되었습니다."
+            ))
+        }
 
         val auxiliaryPrompt = if (hasAuxiliaryInstance) {
             """

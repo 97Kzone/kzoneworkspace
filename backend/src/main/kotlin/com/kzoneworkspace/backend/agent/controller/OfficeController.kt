@@ -1,6 +1,7 @@
 package com.kzoneworkspace.backend.agent.controller
 
 import com.kzoneworkspace.backend.agent.entity.OfficeItem
+import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import com.kzoneworkspace.backend.agent.service.OfficeService
 import org.springframework.web.bind.annotation.*
 
@@ -12,6 +13,9 @@ class OfficeController(
 ) {
     @GetMapping("/items")
     fun getAllItems(): List<OfficeItem> = officeService.getAllItems()
+
+    @GetMapping("/logs")
+    fun getRecentLogs(): List<AssetUtilizationLog> = officeService.getRecentLogs()
 
     @PostMapping("/items/allocate")
     fun allocateAsset(@RequestBody request: AllocateAssetRequest): OfficeItem {

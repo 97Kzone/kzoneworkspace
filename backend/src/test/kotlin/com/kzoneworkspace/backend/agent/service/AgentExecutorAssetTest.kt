@@ -38,6 +38,7 @@ class AgentExecutorAssetTest {
     private val lessonService = mock(LessonService::class.java)
     private val missionIntelligenceService = mock(MissionIntelligenceService::class.java)
     private val officeItemRepository = mock(OfficeItemRepository::class.java)
+    private val assetUtilizationLogRepository = mock(AssetUtilizationLogRepository::class.java)
 
     private fun createAgentExecutor() = AgentExecutor(
         claudeClient = claudeClient,
@@ -60,6 +61,7 @@ class AgentExecutorAssetTest {
         lessonService = lessonService,
         missionIntelligenceService = missionIntelligenceService,
         officeItemRepository = officeItemRepository,
+        assetUtilizationLogRepository = assetUtilizationLogRepository,
         serperApiKey = ""
     )
 
