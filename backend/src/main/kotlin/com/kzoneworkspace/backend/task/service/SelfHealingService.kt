@@ -34,6 +34,10 @@ class SelfHealingService(
             officeItemRepository.findByAgentId(agent.id).any { it.type == "AUXILIARY_INSTANCE" }
         } ?: false
 
+        val hasSandbox = task.agent?.let { agent ->
+            officeItemRepository.findByAgentId(agent.id).any { it.type == "CODE_STABILITY_SANDBOX" }
+        } ?: false
+
         if (hasAuxiliaryInstance && task.agent != null) {
             val agent = task.agent!!
             assetUtilizationLogRepository.save(AssetUtilizationLog(
@@ -46,10 +50,29 @@ class SelfHealingService(
             ))
         }
 
+        if (hasSandbox && task.agent != null) {
+            val agent = task.agent!!
+            assetUtilizationLogRepository.save(AssetUtilizationLog(
+                agentId = agent.id,
+                agentName = agent.name,
+                assetType = "CODE_STABILITY_SANDBOX",
+                assetName = "코드 안정성 검증용 자율 샌드박스",
+                actionType = "UTILIZATION",
+                description = "${agent.name} 에이전트: 자가 치유(Self-Healing) 과정에서 [코드 안정성 검증용 자율 샌드박스]의 구문 정밀 검사 모드가 자율 연동되었습니다."
+            ))
+        }
+
         val auxiliaryPrompt = if (hasAuxiliaryInstance) {
             """
             * [고성능 장비 지원]: 현재 대상 에이전트는 '보조 추론 모델 인스턴스(AUXILIARY_INSTANCE)'가 추가 가동되어 다중 스레드로 병렬 연산 및 자가 치유 레이턴시 단축을 지원받고 있습니다. 
             더 엄밀하고 고도로 최적화된, 에러를 완벽하게 회피할 수 있는 정교한 복구 명령(suggestedCommand)을 적극적으로 설계해 제안하십시오.
+            """.trimIndent()
+        } else ""
+
+        val sandboxPrompt = if (hasSandbox) {
+            """
+            * [코드 안정성 검증용 자율 샌드박스 가동 중]: 대상 에이전트는 코드 쓰기 시 구문 및 빌드를 실시간 검사하고 오류 시 자동 롤백하는 '코드 안정성 검증용 자율 샌드박스(CODE_STABILITY_SANDBOX)'가 활성화되어 있습니다.
+            발생한 컴파일 오류 또는 타입 검증 실패 내용을 면밀히 분석하여, 문법적으로 완벽하고 컴파일 및 타입 검증을 한 번에 통과할 수 있는 정확한 정밀 코드를 작성하도록 수정된 명령(suggestedCommand)을 설계하십시오.
             """.trimIndent()
         } else ""
 
@@ -66,6 +89,8 @@ class SelfHealingService(
             4. 에이전트는 원본 할당된 에이전트(${task.agent?.name ?: "Unknown"})와 동일한 자격과 도구를 가지고 있다고 가정합니다.
             
             $auxiliaryPrompt
+            
+            $sandboxPrompt
             
             응답은 반드시 아래 JSON 형식으로만 작성하세요. 텍스트 설명은 포함하지 마세요:
             {

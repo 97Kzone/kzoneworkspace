@@ -766,7 +766,7 @@ class AgentExecutor(
                         val toolResult = when (toolName) {
                             "search_files" -> handleSearchFiles(input["pattern"] as? String ?: "", roomId)
                             "read_file" -> handleReadFile(input["path"] as? String ?: "", roomId)
-                            "write_file" -> handleWriteFile(input["path"] as? String ?: "", input["content"] as? String ?: "", roomId)
+                            "write_file" -> handleWriteFile(input["path"] as? String ?: "", input["content"] as? String ?: "", roomId, agent)
                             "list_directory" -> handleListDirectory(input["path"] as? String ?: ".", roomId)
                              "delete_file" -> handleDeleteFile(input["path"] as? String ?: "", roomId)
                             "run_command" -> handleRunCommand(input["command"] as? String ?: "", roomId)
@@ -924,13 +924,91 @@ class AgentExecutor(
         }
     }
 
-    private fun handleWriteFile(path: String, content: String, roomId: String): String {
+    private fun handleWriteFile(path: String, content: String, roomId: String, agent: Agent): String {
+        val file = if (path.startsWith("/")) File(path) else File(getBasePath(roomId), path)
+        val fileExisted = file.exists()
+        val originalContent = if (fileExisted) file.readText() else null
+
+        val assets = officeItemRepository.findByAgentId(agent.id)
+        val hasSandbox = assets.any { it.type == "CODE_STABILITY_SANDBOX" }
+
         return try {
-            val file = if (path.startsWith("/")) File(path) else File(getBasePath(roomId), path)
             file.parentFile?.mkdirs()
             file.writeText(content)
+
+            if (hasSandbox) {
+                val extension = file.extension.lowercase()
+                var isValid = true
+                var buildErrorMessage = ""
+
+                if (extension in setOf("kt", "java", "gradle", "kts")) {
+                    val isWindows = System.getProperty("os.name").lowercase().contains("win")
+                    val cmd = if (isWindows) listOf("cmd.exe", "/c", "gradlew.bat compileKotlin") else listOf("./gradlew", "compileKotlin")
+                    
+                    val processBuilder = ProcessBuilder(cmd)
+                    processBuilder.directory(File("backend").absoluteFile)
+                    val process = processBuilder.start()
+                    val errorOutput = process.errorStream.bufferedReader().readText()
+                    val standardOutput = process.inputStream.bufferedReader().readText()
+                    val exitCode = process.waitFor()
+                    
+                    if (exitCode != 0) {
+                        isValid = false
+                        buildErrorMessage = if (errorOutput.isNotBlank()) errorOutput else standardOutput
+                    }
+                } else if (extension in setOf("ts", "tsx", "js", "jsx")) {
+                    val isWindows = System.getProperty("os.name").lowercase().contains("win")
+                    val cmd = if (isWindows) listOf("cmd.exe", "/c", "npx.cmd tsc --noEmit") else listOf("npx", "tsc", "--noEmit")
+                    
+                    val processBuilder = ProcessBuilder(cmd)
+                    processBuilder.directory(File("frontend").absoluteFile)
+                    val process = processBuilder.start()
+                    val errorOutput = process.errorStream.bufferedReader().readText()
+                    val standardOutput = process.inputStream.bufferedReader().readText()
+                    val exitCode = process.waitFor()
+                    
+                    if (exitCode != 0) {
+                        isValid = false
+                        buildErrorMessage = if (errorOutput.isNotBlank()) errorOutput else standardOutput
+                    }
+                }
+
+                if (!isValid) {
+                    if (fileExisted && originalContent != null) {
+                        file.writeText(originalContent)
+                    } else {
+                        file.delete()
+                    }
+
+                    assetUtilizationLogRepository.save(AssetUtilizationLog(
+                        agentId = agent.id,
+                        agentName = agent.name,
+                        assetType = "CODE_STABILITY_SANDBOX",
+                        assetName = "코드 안정성 검증용 자율 샌드박스",
+                        actionType = "UTILIZATION",
+                        description = "${agent.name} 에이전트: [코드 안정성 검증용 자율 샌드박스] 가동 중 작성한 코드에서 빌드/구문 오류가 감지되어 변경사항이 자율 차단 및 롤백되었습니다."
+                    ))
+
+                    return "🧪 [코드 안정성 검증용 자율 샌드박스 에러]: 작성한 파일(${path})의 코드에 빌드 또는 타입/구문 오류가 감지되어 파일 쓰기가 차단 및 이전 상태로 복구되었습니다. 오류 내용을 보고 코드를 수정하세요:\n$buildErrorMessage"
+                } else {
+                    assetUtilizationLogRepository.save(AssetUtilizationLog(
+                        agentId = agent.id,
+                        agentName = agent.name,
+                        assetType = "CODE_STABILITY_SANDBOX",
+                        assetName = "코드 안정성 검증용 자율 샌드박스",
+                        actionType = "UTILIZATION",
+                        description = "${agent.name} 에이전트: [코드 안정성 검증용 자율 샌드박스] 가동. 작성한 파일(${path})의 구문 및 빌드 안정성 검증을 통과하여 최종 반영되었습니다."
+                    ))
+                }
+            }
+
             "파일 저장 완료: ${file.path}"
         } catch (e: Exception) {
+            if (fileExisted && originalContent != null) {
+                try { file.writeText(originalContent) } catch (ex: Exception) {}
+            } else {
+                try { file.delete() } catch (ex: Exception) {}
+            }
             "파일 쓰기 오류: ${e.message}"
         }
     }

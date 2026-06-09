@@ -63,7 +63,7 @@ export function SelfHealingDashboard() {
                     <span className="text-3xl font-black text-emerald-500">{successRate} <span className="text-sm text-slate-400">%</span></span>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">포기 (GIVE UP)</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">자율 복구 중단 (GIVE UP)</span>
                     <span className="text-3xl font-black text-red-500">{giveUpCount} <span className="text-sm text-slate-400">건</span></span>
                 </div>
             </div>
@@ -135,7 +135,7 @@ export function SelfHealingDashboard() {
                                                 ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
                                                 : "bg-red-50 text-red-600 border-red-100"
                                         }`}>
-                                            {selectedLog.strategyType}
+                                            {selectedLog.strategyType === "RETRY_WITH_FIX" ? "자율 복구 및 재시도 (RETRY)" : "자율 복구 중단 및 보고 (GIVE UP)"}
                                         </div>
                                         <span className="text-xs font-bold text-slate-400">Task ID: {selectedLog.taskId}</span>
                                     </div>
