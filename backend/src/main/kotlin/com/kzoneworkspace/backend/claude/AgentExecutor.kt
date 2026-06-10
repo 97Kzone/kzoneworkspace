@@ -57,6 +57,7 @@ class AgentExecutor(
     private val missionIntelligenceService: MissionIntelligenceService,
     private val officeItemRepository: OfficeItemRepository,
     private val assetUtilizationLogRepository: AssetUtilizationLogRepository,
+    private val apiTrafficService: com.kzoneworkspace.backend.agent.service.ApiTrafficService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val shadowSessions = mutableMapOf<String, Long>() // roomId or sessionId mapping
@@ -93,6 +94,8 @@ class AgentExecutor(
                 "VECTOR_SEARCH" -> sb.append("\n- 🔍 [실시간 벡터 DB 검색 세션]: 과거의 기억과 프로젝트 RAG 지식 검색의 정밀도가 극대화되어 있습니다. 정확한 지식 베이스를 인출하여 답변하세요.")
                 "AUXILIARY_INSTANCE" -> sb.append("\n- 🛡️ [보조 추론 모델 인스턴스]: 다중 스레드 병렬 검증 인스턴스가 가동 중이므로 자가 오류 치유 및 교차 코드 검증 능력이 대폭 향상되어 있습니다.")
                 "CODE_STABILITY_SANDBOX" -> sb.append("\n- 🧪 [코드 안정성 검증용 자율 샌드박스]: 격리된 실행 환경이 활성화되어 실제 코드에 미치는 사이드 이펙트나 구문 오류를 사전에 자율적으로 예방 및 테스트할 수 있습니다. 적극적인 빌드 검증을 시도하세요.")
+                "SYNERGY_BRIDGE" -> sb.append("\n- 🌐 [협업 시너지 공명 브릿지]: 에이전트 간 협업 채널 전용 대역폭이 확보되어 협업 시너지 효율이 가속되며, 작업 실패 시의 시너지 하락 리스크를 흡수 방어합니다.")
+                "COST_OPTIMIZER" -> sb.append("\n- ⚡ [실시간 API 비용 및 토큰 최적화 엔진]: 중복 컨텍스트 분석 및 프롬프트 최적화 필터가 가동되어 API 호출 시 발생하는 토큰 소모량과 추론 비용이 20% 절감됩니다.")
             }
         }
         return sb.toString()
@@ -117,6 +120,8 @@ class AgentExecutor(
                     "VECTOR_SEARCH" -> "장단기 기억 시맨틱 검색 깊이 10회 확장 가동"
                     "AUXILIARY_INSTANCE" -> "다중 스레드 병렬 교차 코드 검증 모드 실행"
                     "CODE_STABILITY_SANDBOX" -> "구문 및 빌드 오류 사전 차단을 위한 격리 실행 환경 샌드박스 가동"
+                    "SYNERGY_BRIDGE" -> "협업 성공 시 시너지 스코어 상승폭 가속 및 실패 시 감쇠 충격 완화 방어"
+                    "COST_OPTIMIZER" -> "추론 시 중복 컨텍스트 압축 및 API 비용/토큰 20% 절감 최적화"
                     else -> null
                 }
                 if (desc != null) {
@@ -275,6 +280,8 @@ class AgentExecutor(
                     "VECTOR_SEARCH" -> "장단기 기억 시맨틱 검색 깊이 10회 확장 가동"
                     "AUXILIARY_INSTANCE" -> "다중 스레드 병렬 교차 코드 검증 모드 실행"
                     "CODE_STABILITY_SANDBOX" -> "구문 및 빌드 오류 사전 차단을 위한 격리 실행 환경 샌드박스 가동"
+                    "SYNERGY_BRIDGE" -> "협업 성공 시 시너지 스코어 상승폭 가속 및 실패 시 감쇠 충격 완화 방어"
+                    "COST_OPTIMIZER" -> "추론 시 중복 컨텍스트 압축 및 API 비용/토큰 20% 절감 최적화"
                     else -> null
                 }
                 if (desc != null) {
@@ -661,6 +668,7 @@ class AgentExecutor(
 
         val assets = officeItemRepository.findByAgentId(agent.id)
         val hasReasoningCore = assets.any { it.type == "REASONING_CORE" }
+        val hasCostOptimizer = assets.any { it.type == "COST_OPTIMIZER" }
         val maxIterations = if (hasReasoningCore) 15 else 10
         val temperature = if (hasReasoningCore) 0.1 else null
 
@@ -674,6 +682,9 @@ class AgentExecutor(
             val assistantContentList = mutableListOf<Map<String, Any>>()
             var textResponseMessage = ""
 
+            var rawInputTokens = 0L
+            var rawOutputTokens = 0L
+
             when (agent.provider) {
                 AiProvider.ANTHROPIC -> {
                     val responseNode = claudeClient.sendMessageREST(
@@ -683,6 +694,10 @@ class AgentExecutor(
                         tools = tools,
                         temperature = temperature
                     )
+                    val usageNode = responseNode["usage"]
+                    rawInputTokens = usageNode?.get("input_tokens")?.asLong() ?: 0L
+                    rawOutputTokens = usageNode?.get("output_tokens")?.asLong() ?: 0L
+
                     val contentBlocks = responseNode["content"]
                     for (block in contentBlocks) {
                         val blockType = block["type"].asText()
@@ -708,6 +723,10 @@ class AgentExecutor(
                         tools = tools,
                         temperature = temperature
                     )
+                    val usage = response.usageMetadata().orElse(null)
+                    rawInputTokens = usage?.promptTokenCount()?.orElse(0)?.toLong() ?: 0L
+                    rawOutputTokens = usage?.candidatesTokenCount()?.orElse(0)?.toLong() ?: 0L
+
                     val candidates = response.candidates().orElse(null)
                     val candidate = if (candidates != null && candidates.isNotEmpty()) candidates[0] else null
                     val contentOpt = candidate?.content()
@@ -735,6 +754,18 @@ class AgentExecutor(
                 }
                 else -> throw RuntimeException("지원되지 않는 프로바이더입니다.")
             }
+
+            val inputTokens = if (hasCostOptimizer) (rawInputTokens * 0.8).toLong() else rawInputTokens
+            val outputTokens = if (hasCostOptimizer) (rawOutputTokens * 0.8).toLong() else rawOutputTokens
+
+            apiTrafficService.logTraffic(
+                agentId = agent.id,
+                agentName = agent.name,
+                provider = agent.provider,
+                model = agent.model,
+                inputTokens = inputTokens,
+                outputTokens = outputTokens
+            )
 
             messages.add(mapOf("role" to "assistant", "content" to assistantContentList))
 

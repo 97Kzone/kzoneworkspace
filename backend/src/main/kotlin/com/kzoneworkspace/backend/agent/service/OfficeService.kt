@@ -23,7 +23,9 @@ class OfficeService(
             "EXTENDED_CONTEXT" to 100,
             "VECTOR_SEARCH" to 80,
             "AUXILIARY_INSTANCE" to 200,
-            "CODE_STABILITY_SANDBOX" to 120
+            "CODE_STABILITY_SANDBOX" to 120,
+            "SYNERGY_BRIDGE" to 130,
+            "COST_OPTIMIZER" to 90
         )
     }
 

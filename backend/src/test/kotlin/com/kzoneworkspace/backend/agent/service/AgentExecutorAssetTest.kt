@@ -39,6 +39,7 @@ class AgentExecutorAssetTest {
     private val missionIntelligenceService = mock(MissionIntelligenceService::class.java)
     private val officeItemRepository = mock(OfficeItemRepository::class.java)
     private val assetUtilizationLogRepository = mock(AssetUtilizationLogRepository::class.java)
+    private val apiTrafficService = mock(com.kzoneworkspace.backend.agent.service.ApiTrafficService::class.java)
 
     private fun createAgentExecutor() = AgentExecutor(
         claudeClient = claudeClient,
@@ -62,6 +63,7 @@ class AgentExecutorAssetTest {
         missionIntelligenceService = missionIntelligenceService,
         officeItemRepository = officeItemRepository,
         assetUtilizationLogRepository = assetUtilizationLogRepository,
+        apiTrafficService = apiTrafficService,
         serperApiKey = ""
     )
 
@@ -134,5 +136,57 @@ class AgentExecutorAssetTest {
         // 호출 개수가 15와 10으로 기동되었는지 정밀 검증
         verify(codebaseIndexingService, times(1)).search(anyString(), eq(15))
         verify(memoryService, times(1)).searchSimilarMemories(eq(agent.id), anyString(), eq(10))
+    }
+
+    @Test
+    fun `비용 최적화 엔진 배치 시 API 트래픽 토큰 소모량 20퍼센트 절감 보정 테스트`() {
+        val agent = Agent(
+            id = 1L,
+            name = "Planner",
+            role = "마스터 플래너",
+            model = "claude-3-5-sonnet-20241022",
+            provider = AiProvider.ANTHROPIC
+        )
+
+        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", x = 1, y = 1, agentId = agent.id)
+        
+        `when`(officeItemRepository.findByAgentId(anyLong())).thenReturn(listOf(costOptimizer))
+        `when`(codebaseIndexingService.search(anyString(), anyInt())).thenReturn(emptyList())
+        `when`(memoryService.searchSimilarMemories(anyLong(), anyString(), anyInt())).thenReturn(emptyList())
+        `when`(projectContextService.getProjectContext()).thenReturn("Default Context")
+        
+        `when`(taskService.createTask(anyString(), anyString(), any(), any(), any(), any())).thenReturn(
+            com.kzoneworkspace.backend.task.entity.Task(roomId = "room1", command = "Test Goal", agent = agent)
+        )
+
+        // Mock Claude REST Response with Usage Block
+        val mockResponse = mock(com.fasterxml.jackson.databind.JsonNode::class.java)
+        val contentArray = mock(com.fasterxml.jackson.databind.JsonNode::class.java)
+        `when`(mockResponse.get("content")).thenReturn(contentArray)
+        `when`(contentArray.iterator()).thenReturn(Collections.emptyIterator())
+
+        val usageNode = mock(com.fasterxml.jackson.databind.JsonNode::class.java)
+        val inputTokensNode = mock(com.fasterxml.jackson.databind.JsonNode::class.java)
+        val outputTokensNode = mock(com.fasterxml.jackson.databind.JsonNode::class.java)
+        `when`(mockResponse.get("usage")).thenReturn(usageNode)
+        `when`(usageNode.get("input_tokens")).thenReturn(inputTokensNode)
+        `when`(usageNode.get("output_tokens")).thenReturn(outputTokensNode)
+        `when`(inputTokensNode.asLong()).thenReturn(1000L)
+        `when`(outputTokensNode.asLong()).thenReturn(500L)
+
+        `when`(claudeClient.sendMessageREST(anyString(), anyList(), anyString(), anyList(), any())).thenReturn(mockResponse)
+
+        val executor = createAgentExecutor()
+        executor.execute(agent, "room1", "Test Goal")
+
+        // COST_OPTIMIZER가 적용되어 1000 -> 800, 500 -> 400 으로 logTraffic이 호출되어야 함
+        verify(apiTrafficService, times(1)).logTraffic(
+            agent.id,
+            agent.name,
+            agent.provider,
+            agent.model,
+            800L,
+            400L
+        )
     }
 }

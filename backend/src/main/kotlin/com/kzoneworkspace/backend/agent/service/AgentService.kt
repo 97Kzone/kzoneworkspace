@@ -19,6 +19,9 @@ import com.kzoneworkspace.backend.agent.dto.TeamPerformanceDto
 import com.kzoneworkspace.backend.agent.dto.DailyStat
 import com.kzoneworkspace.backend.agent.dto.AgentPerformanceStat
 import com.kzoneworkspace.backend.task.entity.TaskStatus
+import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
+import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
+import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import java.time.LocalDate
 
 @Service
@@ -28,7 +31,9 @@ class AgentService(
     private val activityLogRepository: ActivityLogRepository,
     private val taskRepository: TaskRepository,
     private val synergyRepository: AgentSynergyRepository,
-    private val evolutionRepository: AgentEvolutionRepository
+    private val evolutionRepository: AgentEvolutionRepository,
+    private val officeItemRepository: OfficeItemRepository,
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
 ) {
 
     @PostConstruct
@@ -258,12 +263,59 @@ class AgentService(
             if ((t1["EMPATHETIC"] ?: 50) > 60 || (t2["EMPATHETIC"] ?: 50) > 60) bonus += 2
         }
 
+        // SYNERGY_BRIDGE 자산이 있는지 확인
+        var hasSynergyBridge = false
+        if (agent1 != null) {
+            hasSynergyBridge = hasSynergyBridge || officeItemRepository.findByAgentId(agent1.id).any { it.type == "SYNERGY_BRIDGE" }
+        }
+        if (agent2 != null) {
+            hasSynergyBridge = hasSynergyBridge || officeItemRepository.findByAgentId(agent2.id).any { it.type == "SYNERGY_BRIDGE" }
+        }
+
         if (success) {
-            synergy.synergyScore = (synergy.synergyScore + 5 + bonus).coerceAtMost(100)
-            synergy.synergyNote = "성공적인 협업을 통해 신뢰가 쌓였습니다. (Bonus: +$bonus)"
+            val successBonus = if (hasSynergyBridge) 8 else 5
+            synergy.synergyScore = (synergy.synergyScore + successBonus + bonus).coerceAtMost(100)
+            synergy.synergyNote = if (hasSynergyBridge) {
+                "성공적인 협업을 통해 신뢰가 쌓였습니다. [협업 시너지 공명 브릿지] 가동 보너스 적용 (+3, 총 +${successBonus + bonus})"
+            } else {
+                "성공적인 협업을 통해 신뢰가 쌓였습니다. (Bonus: +$bonus)"
+            }
+            
+            if (hasSynergyBridge) {
+                val activeAgent = agent1 ?: agent2
+                if (activeAgent != null) {
+                    assetUtilizationLogRepository.save(AssetUtilizationLog(
+                        agentId = activeAgent.id,
+                        agentName = activeAgent.name,
+                        assetType = "SYNERGY_BRIDGE",
+                        assetName = "협업 시너지 공명 브릿지",
+                        actionType = "UTILIZATION",
+                        description = "${activeAgent.name} 협업 시너지 분석: 양방향 협업 성공 과정에서 [협업 시너지 공명 브릿지] 자원을 활용하여 시너지 스코어 가속(+3)이 연동되었습니다."
+                    ))
+                }
+            }
         } else {
-            synergy.synergyScore = (synergy.synergyScore - 3).coerceAtLeast(0)
-            synergy.synergyNote = "작업 실패로 인해 프로세스 조정이 필요합니다."
+            val penalty = if (hasSynergyBridge) 1 else 3
+            synergy.synergyScore = (synergy.synergyScore - penalty).coerceAtLeast(0)
+            synergy.synergyNote = if (hasSynergyBridge) {
+                "작업 실패로 피드백이 수렴되었습니다. [협업 시너지 공명 브릿지]가 작동하여 시너지 하락 방어 (감점 완화: -3 -> -$penalty)"
+            } else {
+                "작업 실패로 인해 프로세스 조정이 필요합니다."
+            }
+            
+            if (hasSynergyBridge) {
+                val activeAgent = agent1 ?: agent2
+                if (activeAgent != null) {
+                    assetUtilizationLogRepository.save(AssetUtilizationLog(
+                        agentId = activeAgent.id,
+                        agentName = activeAgent.name,
+                        assetType = "SYNERGY_BRIDGE",
+                        assetName = "협업 시너지 공명 브릿지",
+                        actionType = "UTILIZATION",
+                        description = "${activeAgent.name} 협업 위험 방어: 협업 태스크 실패가 감지되었으나, [협업 시너지 공명 브릿지] 자원이 충격을 완화하여 시너지 하강 리스크를 방어했습니다."
+                    ))
+                }
+            }
         }
         
         synergy.lastCollaboratedAt = LocalDateTime.now()

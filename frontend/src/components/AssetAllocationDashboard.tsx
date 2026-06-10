@@ -31,6 +31,16 @@ interface AssetAllocationDashboardProps {
   assetLogs?: AssetUtilizationLog[];
 }
 
+const getAgentColorHex = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('analyst')) return '#4f46e5'; // indigo-600
+  if (n.includes('coder') || n.includes('dev')) return '#059669'; // emerald-600
+  if (n.includes('researcher')) return '#d97706'; // amber-600
+  if (n.includes('janitor')) return '#e11d48'; // rose-600
+  if (n.includes('qa') || n.includes('reviewer')) return '#7c3aed'; // violet-600
+  return '#475569'; // slate-600
+};
+
 export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> = ({
   agents: propsAgents,
   allocatedItems: propsAllocatedItems,
@@ -49,7 +59,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   const [selectedAgentId, setSelectedAgentId] = useState<number | "">("");
   
   // 우측 영역 탭 전환 상태 및 선택된 자산 상세 보기 상태
-  const [activeTabRight, setActiveTabRight] = useState<'topology' | 'list'>('topology');
+  const [activeTabRight, setActiveTabRight] = useState<'topology' | 'swarmGrid' | 'list'>('topology');
   const [selectedAssetDetail, setSelectedAssetDetail] = useState<OfficeItem | null>(null);
 
   // Props가 있으면 우선 사용하고 없으면 로컬 상태를 폴백으로 사용
@@ -115,6 +125,24 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       price: 120,
       icon: <ShieldCheck size={20} />,
       color: "from-emerald-500 to-blue-500"
+    },
+    {
+      id: "synergy_bridge",
+      name: "협업 시너지 공명 브릿지",
+      type: "SYNERGY_BRIDGE",
+      description: "에이전트 간의 협업 채널 전용 대역폭을 확보하여 협업 시너지를 가속하고, 업무 실패 시 발생하는 시너지 하락 리스크를 방어합니다.",
+      price: 130,
+      icon: <Network size={20} />,
+      color: "from-blue-500 to-indigo-600"
+    },
+    {
+      id: "cost_optimizer",
+      name: "실시간 API 비용 및 토큰 최적화 엔진",
+      type: "COST_OPTIMIZER",
+      description: "추론 프롬프트 및 컨텍스트를 실시간으로 압축하여 호출 시 발생하는 API 비용과 토큰 소모량을 20% 절감합니다.",
+      price: 90,
+      icon: <Zap size={20} />,
+      color: "from-yellow-500 to-amber-600"
     }
   ];
 
@@ -303,6 +331,20 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           spec: "자율 실행 격리 테스트 환경 구축, 구문 검증 및 빌드 오류 사전 차단",
           icon: <ShieldCheck size={16} />
         };
+      case "SYNERGY_BRIDGE":
+        return {
+          bg: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+          stroke: "#3b82f6",
+          spec: "협업 성공 시 시너지 스코어 상승폭 가속 (+5 -> +8), 실패 시 감점 리스크 완화 방어 (-3 -> -1)",
+          icon: <Network size={16} />
+        };
+      case "COST_OPTIMIZER":
+        return {
+          bg: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+          stroke: "#eab308",
+          spec: "API 비용 및 토큰 소모량 20% 절감 보정 필터 상시 작동",
+          icon: <Zap size={16} />
+        };
       default:
         return {
           bg: "bg-slate-500/10 text-slate-400 border-slate-500/30",
@@ -484,7 +526,14 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                 className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${activeTabRight === 'topology' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
               >
                 <Network size={10} />
-                토폴로지 맵
+                개별 토폴로지
+              </button>
+              <button 
+                onClick={() => setActiveTabRight('swarmGrid')}
+                className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${activeTabRight === 'swarmGrid' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+              >
+                <Network size={10} />
+                군집 토폴로지
               </button>
               <button 
                 onClick={() => setActiveTabRight('list')}
@@ -722,6 +771,244 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                   ) : (
                     <p className="text-[10px] text-slate-500 text-center py-4 font-bold uppercase">분석 에이전트를 상단에서 선택하십시오.</p>
                   )}
+                </div>
+              </div>
+            ) : activeTabRight === 'swarmGrid' ? (
+              <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                {/* SVG Swarm Grid Topology Visualizer */}
+                <div className="relative w-full h-[250px] bg-slate-950/40 rounded-3xl border border-slate-800/80 overflow-hidden flex items-center justify-center">
+                  {/* Grid background pattern */}
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:16px_16px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 pointer-events-none"></div>
+                  
+                  {agents.length === 0 ? (
+                    <div className="flex flex-col items-center gap-3 text-slate-600 text-center px-4">
+                      <Network size={36} className="stroke-1 animate-pulse" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">에이전트가 존재하지 않습니다.</p>
+                    </div>
+                  ) : (
+                    <svg className="w-full h-full" viewBox="0 0 400 250">
+                      {/* Definitions for gradients & markers */}
+                      <defs>
+                        <radialGradient id="swarmCenterGlow" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="#818cf8" stopOpacity="0.15" />
+                          <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
+                        </radialGradient>
+                      </defs>
+
+                      {/* Swarm Core Glow */}
+                      <circle cx="200" cy="125" r="90" fill="url(#swarmCenterGlow)" />
+
+                      {/* 1. Draw cooperation synergy flow lines between agent nodes */}
+                      {(() => {
+                        const positions = agents.map((agent, idx) => {
+                          const angle = (idx * 2 * Math.PI) / agents.length;
+                          const cx = 200 + 110 * Math.cos(angle);
+                          const cy = 125 + 75 * Math.sin(angle);
+                          return { agent, cx, cy };
+                        });
+
+                        const lines: React.ReactNode[] = [];
+                        for (let i = 0; i < positions.length; i++) {
+                          for (let j = i + 1; j < positions.length; j++) {
+                            const p1 = positions[i];
+                            const p2 = positions[j];
+                            
+                            const hasSynergyBridge = allocatedItems.some(
+                              item => item.type === "SYNERGY_BRIDGE" && (item.agentId === p1.agent.id || item.agentId === p2.agent.id)
+                            );
+
+                            lines.push(
+                              <g key={`swarm-line-${p1.agent.id}-${p2.agent.id}`}>
+                                <line 
+                                  x1={p1.cx} y1={p1.cy} x2={p2.cx} y2={p2.cy} 
+                                  stroke={hasSynergyBridge ? "#60a5fa" : "#475569"} 
+                                  strokeWidth={hasSynergyBridge ? "1.5" : "1"} 
+                                  strokeOpacity={hasSynergyBridge ? "0.4" : "0.2"} 
+                                  strokeDasharray="4 4"
+                                />
+                                {hasSynergyBridge && (
+                                  <motion.line
+                                    x1={p1.cx} y1={p1.cy} x2={p2.cx} y2={p2.cy}
+                                    stroke="#3b82f6" strokeWidth="2" strokeOpacity="0.7"
+                                    strokeDasharray="6 6"
+                                    animate={{ strokeDashoffset: [0, -24] }}
+                                    transition={{ repeat: Infinity, ease: "linear", duration: 1.5 }}
+                                  />
+                                )}
+                              </g>
+                            );
+                          }
+                        }
+                        return lines;
+                      })()}
+
+                      {/* 2. Draw Agent Orbit paths & Asset Nodes orbiting agents */}
+                      {agents.map((agent, idx) => {
+                        const angle = (idx * 2 * Math.PI) / agents.length;
+                        const cx = 200 + 110 * Math.cos(angle);
+                        const cy = 125 + 75 * Math.sin(angle);
+                        
+                        const agentAssets = allocatedItems.filter(item => item.agentId === agent.id);
+                        const isSelected = selectedAgentId === agent.id;
+                        const agentColor = getAgentColor(agent.name);
+
+                        return (
+                          <g key={`swarm-agent-group-${agent.id}`}>
+                            {agentAssets.length > 0 && (
+                              <circle 
+                                cx={cx} cy={cy} r="25" 
+                                fill="none" stroke="#334155" strokeWidth="0.75" 
+                                strokeDasharray="2 3" opacity="0.5" 
+                              />
+                            )}
+
+                            {agentAssets.map((asset, assetIdx) => {
+                              const assetAngle = (assetIdx * 2 * Math.PI) / agentAssets.length;
+                              const assetX = cx + 25 * Math.cos(assetAngle);
+                              const assetY = cy + 25 * Math.sin(assetAngle);
+                              const style = getAssetStyle(asset.type);
+
+                              return (
+                                <g key={`swarm-asset-${asset.id}`}>
+                                  <line x1={cx} y1={cy} x2={assetX} y2={assetY} stroke={style.stroke} strokeWidth="0.75" opacity="0.3" />
+                                  <motion.g
+                                    whileHover={{ scale: 1.2 }}
+                                    className="cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedAgentId(agent.id);
+                                      setSelectedAssetDetail(asset);
+                                    }}
+                                  >
+                                    <circle cx={assetX} cy={assetY} r="9" fill="#0f172a" stroke={style.stroke} strokeWidth="1.5" />
+                                    <foreignObject x={assetX - 5} y={assetY - 5} width="10" height="10" className="pointer-events-none">
+                                      <div className="w-full h-full flex items-center justify-center text-white" style={{ color: style.stroke }}>
+                                        {React.cloneElement(style.icon, { size: 8 })}
+                                      </div>
+                                    </foreignObject>
+                                  </motion.g>
+                                </g>
+                              );
+                            })}
+
+                            <motion.g
+                              whileHover={{ scale: 1.1 }}
+                              className="cursor-pointer"
+                              onClick={() => {
+                                setSelectedAgentId(agent.id);
+                                setSelectedAssetDetail(null);
+                              }}
+                            >
+                              {isSelected && (
+                                <circle cx={cx} cy={cy} r="20" fill="none" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="3 3" />
+                              )}
+                              
+                              <circle 
+                                cx={cx} cy={cy} r="14" 
+                                fill={isSelected ? "#1e1b4b" : "#0f172a"} 
+                                stroke={isSelected ? "#818cf8" : getAgentColorHex(agent.name)} 
+                                strokeWidth="2" 
+                              />
+                              
+                              <foreignObject x={cx - 7} y={cy - 7} width="14" height="14" className="pointer-events-none">
+                                <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                  <Bot size={11} />
+                                </div>
+                              </foreignObject>
+
+                              <text 
+                                x={cx} y={cy + 22} 
+                                textAnchor="middle" 
+                                fill={isSelected ? "#ffffff" : "#94a3b8"} 
+                                fontSize="7" 
+                                fontWeight="bold"
+                                className="select-none font-sans"
+                              >
+                                {agent.name}
+                              </text>
+                            </motion.g>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  )}
+
+                  <AnimatePresence>
+                    {selectedAssetDetail && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute bottom-3 left-3 right-3 bg-slate-900/95 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xl z-20"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="text-indigo-400">
+                              {getAssetStyle(selectedAssetDetail.type).icon}
+                            </div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              배치 사양 분석 (군집)
+                            </span>
+                          </div>
+                          <h5 className="text-xs font-black text-white truncate">{selectedAssetDetail.name}</h5>
+                          <p className="text-[9px] font-bold text-slate-400 leading-normal mt-1">
+                            {getAssetStyle(selectedAssetDetail.type).spec}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => {
+                              const ownerAgent = agents.find(a => a.id === selectedAssetDetail.agentId);
+                              handleRevokeAsset(
+                                selectedAssetDetail.id, 
+                                selectedAssetDetail.name, 
+                                ownerAgent?.name || "미지정"
+                              );
+                            }}
+                            className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors active:scale-95"
+                          >
+                            회수
+                          </button>
+                          <button
+                            onClick={() => setSelectedAssetDetail(null)}
+                            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg border border-slate-700 transition-colors"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* 군집 시너지 및 요약 현황 보드 */}
+                <div className="bg-slate-900/40 rounded-3xl border border-slate-800 p-5 flex flex-col gap-3 relative">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <Info size={12} className="text-indigo-400" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      군집 협업 시너지 분석 보드
+                    </span>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-bold">활성화된 시너지 공명 브릿지</span>
+                      <span className="font-bold text-blue-400 font-mono">
+                        {allocatedItems.filter(item => item.type === "SYNERGY_BRIDGE").length} 개 작동 중
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-bold">활성화된 비용 최적화 엔진</span>
+                      <span className="font-bold text-yellow-400 font-mono">
+                        {allocatedItems.filter(item => item.type === "COST_OPTIMIZER").length} 개 작동 중
+                      </span>
+                    </div>
+
+                    <div className="text-[9px] text-slate-500 font-bold leading-normal border-t border-white/5 pt-2.5">
+                      💡 군집 토폴로지 맵에서 에이전트 노드(파란색 원)를 클릭하면 해당 에이전트가 주 제어 대상으로 전환됩니다. 각 에이전트 주위를 도는 위성 노드는 배치된 컴퓨팅 자산이며, 클릭하여 실시간 사양 조회 및 강제 회수 조치가 가능합니다.
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
