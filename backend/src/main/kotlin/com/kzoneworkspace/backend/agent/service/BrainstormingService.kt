@@ -3,9 +3,7 @@ package com.kzoneworkspace.backend.agent.service
 import com.google.common.reflect.TypeToken
 import com.google.gson.Gson
 import com.kzoneworkspace.backend.agent.entity.*
-import com.kzoneworkspace.backend.agent.repository.AgentRepository
-import com.kzoneworkspace.backend.agent.repository.BrainstormingContributionRepository
-import com.kzoneworkspace.backend.agent.repository.BrainstormingRepository
+import com.kzoneworkspace.backend.agent.repository.*
 import com.kzoneworkspace.backend.claude.GeminiClient
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -19,7 +17,10 @@ class BrainstormingService(
     private val agentRepository: AgentRepository,
     private val geminiClient: GeminiClient,
     private val codebaseIndexingService: CodebaseIndexingService,
-    private val collaborationService: CollaborationService
+    private val collaborationService: CollaborationService,
+    private val synergyRepository: AgentSynergyRepository,
+    private val officeItemRepository: OfficeItemRepository,
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
 ) {
     private val log = LoggerFactory.getLogger(BrainstormingService::class.java)
     private val gson = Gson()
@@ -148,7 +149,132 @@ class BrainstormingService(
                 model = "gemini-2.0-flash" // Synthesis uses high-performance model
             )
 
-            val blueprint = extractText(response)
+            var blueprint = extractText(response)
+            
+            // --- 정량적 지표 계산 로직 시작 ---
+            val avgReliability = if (agents.isNotEmpty()) {
+                agents.map { it.reliabilityIndex }.average()
+            } else {
+                100.0
+            }
+            val totalContribution = agents.map { it.contributionPoints }.sum()
+            
+            // 에이전트 쌍 시너지 점수 수집
+            val synergyScores = mutableListOf<Int>()
+            if (agents.size > 1) {
+                for (i in 0 until agents.size) {
+                    for (j in i + 1 until agents.size) {
+                        val name1 = agents[i].name
+                        val name2 = agents[j].name
+                        val names = listOf(name1, name2).sorted()
+                        val synergy = synergyRepository.findByAgent1NameAndAgent2Name(names[0], names[1])
+                        val score = synergy?.synergyScore ?: 50
+                        synergyScores.add(score)
+                    }
+                }
+            } else {
+                synergyScores.add(100) // 단독 에이전트일 경우
+            }
+            
+            var avgSynergy = synergyScores.average()
+            
+            // 컴퓨팅 자산 정보 수집 및 자산 기여도 마크다운 작성
+            val assetContributionsMarkdown = StringBuilder()
+            var hasCostOptimizer = false
+            var hasSynergyBridge = false
+            
+            agents.forEach { agent ->
+                val assets = officeItemRepository.findByAgentId(agent.id)
+                if (assets.isEmpty()) {
+                    assetContributionsMarkdown.append("| ${agent.name} | 장착된 생산성 자산 없음 | 기본 리소스로 독립적 추론 및 제안서 작성 |\n")
+                } else {
+                    val assetDetails = assets.joinToString(", ") { "${it.name} (${it.type})" }
+                    val effectDesc = assets.joinToString(", ") { asset ->
+                        when (asset.type) {
+                            "REASONING_CORE" -> "고성능 추론 코어 가동으로 해결 전략 심층 탐색"
+                            "EXTENDED_CONTEXT" -> "컨텍스트 메모리 확장으로 대규모 지식 정보 반영"
+                            "VECTOR_SEARCH" -> "실시간 벡터 지식 검색 연동으로 고정밀 지식 검색"
+                            "AUXILIARY_INSTANCE" -> "보조 추론 및 자가 치유 인스턴스 병렬 검증 연동"
+                            "CODE_STABILITY_SANDBOX" -> "코드 안정성 샌드박스로 구문 검증 및 빌드 리스크 사전 진단"
+                            "COST_OPTIMIZER" -> {
+                                hasCostOptimizer = true
+                                "비용 및 토큰 최적화 가동으로 20% 토큰 세이빙"
+                            }
+                            "SYNERGY_BRIDGE" -> {
+                                hasSynergyBridge = true
+                                "협업 시너지 공명 브릿지 연동으로 상호 지식 정렬 강화"
+                            }
+                            else -> "배치된 자원 정상 가동"
+                        }
+                    }
+                    assetContributionsMarkdown.append("| ${agent.name} | $assetDetails | $effectDesc |\n")
+                    
+                    // 자산 로그 남기기
+                    assets.forEach { asset ->
+                        val description = when (asset.type) {
+                            "REASONING_CORE" -> "브레인스토밍 중 [고성능 추론 코어] 자원을 가동하여 고품질 해결 전략의 정밀도를 향상시켰습니다."
+                            "EXTENDED_CONTEXT" -> "브레인스토밍 중 [대용량 컨텍스트 메모리] 자원을 활성화하여 대규모 코드베이스 지식 정보를 종합 반영하였습니다."
+                            "VECTOR_SEARCH" -> "브레인스토밍 중 [실시간 벡터 지식 검색 세션] 자원이 가동되어 고정밀 의미 구조 파악에 기여했습니다."
+                            "AUXILIARY_INSTANCE" -> "브레인스토밍 중 [보조 추론 및 자가 치유 인스턴스] 가동으로 제안서 병렬 검증이 수행되었습니다."
+                            "CODE_STABILITY_SANDBOX" -> "브레인스토밍 중 [코드 안정성 검증용 자율 샌드박스] 가동으로 코드 아키텍처 구문 리스크를 사전 방지했습니다."
+                            "COST_OPTIMIZER" -> "브레인스토밍 합성 중 [API 비용 및 토큰 최적화 엔진]을 활성화하여 전체 요약 및 태스크 리포트 토큰 소모량을 20% 절감했습니다."
+                            "SYNERGY_BRIDGE" -> "브레인스토밍 합성 중 [협업 시너지 공명 브릿지] 자원을 연동하여 에이전트 간 인지 정렬 신뢰도를 높였습니다."
+                            else -> null
+                        }
+                        if (description != null) {
+                            assetUtilizationLogRepository.save(AssetUtilizationLog(
+                                agentId = agent.id,
+                                agentName = agent.name,
+                                assetType = asset.type,
+                                assetName = asset.name,
+                                actionType = "UTILIZATION",
+                                description = "${agent.name} 에이전트: $description"
+                            ))
+                        }
+                    }
+                }
+            }
+            
+            if (hasSynergyBridge) {
+                avgSynergy = (avgSynergy * 1.15).coerceAtMost(100.0)
+            }
+            
+            val tokenSavings = if (hasCostOptimizer) "20%" else "0%"
+            val synergyBridgeStatus = if (hasSynergyBridge) "활성화됨 (시너지 점수 15% 가속 적용)" else "비활성화"
+            
+            // 마크다운 보고서 생성
+            val reportMarkdown = """
+                
+                ---
+                
+                ## 🌐 [군집 지능 정량적 분석 보고서 (Swarm Intelligence Quantitative Analysis Report)]
+                
+                본 미션 블루프린트는 다중 인공지능 개체들의 정량적 지표와 협업 시너지를 바탕으로 합성되었습니다.
+                
+                ### 📊 군집 핵심 정량 지표 (Core Swarm Metrics)
+                
+                | 평가 항목 | 산출 수치 | 설명 |
+                | :--- | :--- | :--- |
+                | **군집 신뢰성 지수 평균 (Swarm Reliability)** | ${String.format("%.1f", avgReliability)}% | 참여 에이전트들의 인지 정합성 및 오류 복구 성공률 평균 |
+                | **군집 총 비즈니스 기여도 (Swarm Contribution)** | ${totalContribution} pts | 에이전트들이 지금까지 완수한 태스크의 누적 비즈니스 가치 총합 |
+                | **에이전트 협업 시너지 지수 (Collaboration Synergy)** | ${String.format("%.1f", avgSynergy)}% | 참여 에이전트 간의 상호 운용성 및 지식 공명 수준 |
+                | **예상 API 토큰 비용 절감율 (Token Savings)** | $tokenSavings | `COST_OPTIMIZER` 엔진 작동에 따른 실시간 토큰 소모 절감율 |
+                
+                ### 🛠️ 컴퓨팅 자산 가동 현황 (Computational Resource Allocation)
+                
+                | 에이전트 | 장착 생산성 컴퓨팅 자산 | 브레인스토밍 기여 효과 |
+                | :--- | :--- | :--- |
+                $assetContributionsMarkdown
+                
+                ### 🔍 정량 분석 종합 의견 (Architect's Quantitative Assessment)
+                - 본 브레인스토밍 세션은 **군집 신뢰성 ${String.format("%.1f", avgReliability)}%** 수준의 고정밀 인지 추론 환경에서 진행되었습니다.
+                - [협업 시너지] 분석 결과, 에이전트 간 시너지 지수는 **${String.format("%.1f", avgSynergy)}%** 이며, 협업 시너지 공명 브릿지는 **$synergyBridgeStatus** 상태로 분석되었습니다.
+                - 컴퓨팅 자산 배치를 통해 에이전트 성능 보정과 비용 절감(토큰 절감 $tokenSavings)의 상보적 통합 구조가 정상 가동 중입니다.
+            """.trimIndent()
+            
+            blueprint += "\n" + reportMarkdown
+            // --- 정량적 지표 계산 로직 끝 ---
+
             session.finalBlueprint = blueprint
             session.status = BrainstormingStatus.COMPLETED
             

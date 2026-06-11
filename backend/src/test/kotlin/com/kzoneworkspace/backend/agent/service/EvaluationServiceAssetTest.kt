@@ -122,4 +122,62 @@ class EvaluationServiceAssetTest {
         assertTrue(result.isSuccess)
         assertTrue(result.rationale!!.contains("자가 교차 치유(Self-Healing)"))
     }
+
+    @Test
+    fun `API 비용 및 토큰 최적화 엔진 할당 시 점수 및 레이턴시 보정 테스트`() {
+        val agentId = 1L
+        val taskId = 2L
+        val agent = Agent(id = agentId, name = "TestAgent", role = "Planner", model = "test-model")
+        val task = BenchmarkTask(
+            id = taskId,
+            name = "TestTask",
+            category = "CODING",
+            inputPrompt = "프롬프트",
+            expectedOutput = "정답", 
+            criteriaType = CriteriaType.CONTAINS,
+            difficulty = 1
+        )
+
+        `when`(agentService.getAgentById(agentId)).thenReturn(agent)
+        `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
+        `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("이것은 정답입니다.")
+        
+        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", x = 10, y = 10, agentId = agentId)
+        `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(costOptimizer))
+
+        val result = evaluationService.runQuickTest(agentId, taskId)
+
+        // 기본 점수 100점에 보너스 +5점으로 100점 제한(점수는 최대 100.0)
+        assertEquals(100.0, result.score)
+        assertTrue(result.rationale!!.contains("Cost Optimizer"))
+    }
+
+    @Test
+    fun `협업 시너지 공명 브릿지 할당 시 점수 보정 테스트`() {
+        val agentId = 1L
+        val taskId = 2L
+        val agent = Agent(id = agentId, name = "TestAgent", role = "Planner", model = "test-model")
+        val task = BenchmarkTask(
+            id = taskId,
+            name = "TestTask",
+            category = "CODING",
+            inputPrompt = "프롬프트",
+            expectedOutput = "오답", 
+            criteriaType = CriteriaType.CONTAINS,
+            difficulty = 1
+        )
+
+        `when`(agentService.getAgentById(agentId)).thenReturn(agent)
+        `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
+        `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("실패 답변")
+        
+        val synergyBridge = OfficeItem(name = "협업 시너지 브릿지", type = "SYNERGY_BRIDGE", x = 10, y = 10, agentId = agentId)
+        `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(synergyBridge))
+
+        val result = evaluationService.runQuickTest(agentId, taskId)
+
+        // 원래 실패하여 0점이었던 항목이 시너지 브릿지 보너스 +5점을 받음
+        assertEquals(5.0, result.score)
+        assertTrue(result.rationale!!.contains("Synergy Bridge"))
+    }
 }

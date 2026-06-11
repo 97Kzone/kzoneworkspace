@@ -439,6 +439,15 @@ class EvaluationService(
                     latencyMultiplier *= 1.05
                     rationaleBuilders.add("코드 안정성 검증용 자율 샌드박스(Code Stability Sandbox) 가동으로 구문 오류 예방")
                 }
+                "COST_OPTIMIZER" -> {
+                    scoreBonus += 5.0
+                    latencyMultiplier *= 0.90
+                    rationaleBuilders.add("실시간 API 비용 및 토큰 최적화 엔진(Cost Optimizer) 가동으로 컨텍스트 압축 및 레이턴시 단축")
+                }
+                "SYNERGY_BRIDGE" -> {
+                    scoreBonus += 5.0
+                    rationaleBuilders.add("협업 시너지 공명 브릿지(Synergy Bridge) 연동으로 에이전트 인지 정렬도 상승")
+                }
             }
         }
 
@@ -450,6 +459,8 @@ class EvaluationService(
                 "VECTOR_SEARCH" -> if (benchmark.criteriaType == CriteriaType.SEMANTIC || benchmark.criteriaType == CriteriaType.CONTAINS) "에이전트 평가 중 [실시간 벡터 지식 검색 세션] 자원이 가동되어 의미 채점 정확도 보정(+8.0)이 적용되었습니다." else null
                 "AUXILIARY_INSTANCE" -> "에이전트 평가 중 [보조 추론 및 자가 치유 인스턴스] 자원이 연동되어 레이턴시 단축(25%)이 적용되었습니다."
                 "CODE_STABILITY_SANDBOX" -> "에이전트 평가 중 [코드 안정성 검증용 자율 샌드박스] 자원이 연동되어 구문 에러 방지 점수 보정(+12.0)이 적용되었습니다."
+                "COST_OPTIMIZER" -> "에이전트 평가 중 [실시간 API 비용 및 토큰 최적화 엔진] 자원이 가동되어 평가 성능 점수 보정(+5.0) 및 레이턴시 단축(10%)이 적용되었습니다."
+                "SYNERGY_BRIDGE" -> "에이전트 평가 중 [협업 시너지 공명 브릿지] 자원이 연동되어 인지 정렬도 및 성능 보정(+5.0)이 적용되었습니다."
                 else -> null
             }
             if (description != null) {
