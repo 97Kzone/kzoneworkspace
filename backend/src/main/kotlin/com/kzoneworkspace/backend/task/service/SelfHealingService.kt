@@ -64,7 +64,7 @@ class SelfHealingService(
 
         val auxiliaryPrompt = if (hasAuxiliaryInstance) {
             """
-            * [고성능 장비 지원]: 현재 대상 에이전트는 '보조 추론 모델 인스턴스(AUXILIARY_INSTANCE)'가 추가 가동되어 다중 스레드로 병렬 연산 및 자가 치유 레이턴시 단축을 지원받고 있습니다. 
+            * [고성능 컴퓨팅 자원 지원]: 현재 대상 에이전트는 '보조 추론 모델 인스턴스(AUXILIARY_INSTANCE)'가 추가 가동되어 다중 스레드로 병렬 연산 및 자가 치유 레이턴시 단축을 지원받고 있습니다. 
             더 엄밀하고 고도로 최적화된, 에러를 완벽하게 회피할 수 있는 정교한 복구 명령(suggestedCommand)을 적극적으로 설계해 제안하십시오.
             """.trimIndent()
         } else ""

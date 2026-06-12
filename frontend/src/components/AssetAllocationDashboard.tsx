@@ -547,7 +547,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
 
           <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
             {activeTabRight === 'topology' ? (
-              <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+              <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar-dark">
                 {/* SVG Topology Visualization Container */}
                 <div className="relative w-full h-[220px] bg-slate-950/40 rounded-3xl border border-slate-800/80 overflow-hidden flex items-center justify-center">
                   {/* Grid overlay for tech look */}
@@ -766,6 +766,86 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "CODE_STABILITY_SANDBOX") ? "text-emerald-400 animate-pulse" : "text-slate-500"}`}>
                           {allocatedItemsForAgent.some(item => item.type === "CODE_STABILITY_SANDBOX") ? "자율 격리 샌드박스 가동 중" : "로컬 직접 변경"}
                         </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-500 text-center py-4 font-bold uppercase">분석 에이전트를 상단에서 선택하십시오.</p>
+                  )}
+                </div>
+
+                {/* 스케일 아웃 제어 패널 (Scale-Out Control Panel) */}
+                <div className="bg-slate-900/40 rounded-3xl border border-slate-800 p-5 flex flex-col gap-4 relative">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Server size={12} className="text-indigo-400 animate-pulse" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        스케일 아웃(Scale-Out) 제어 본부
+                      </span>
+                    </div>
+                    {selectedAgent && (
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border ${
+                        allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE")
+                          ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                          : "text-slate-400 bg-slate-500/10 border-slate-500/20"
+                      }`}>
+                        {allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE") ? "병렬 분산 작동 중" : "단일 노드 가동 중"}
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedAgent ? (
+                    <div className="flex flex-col gap-3.5">
+                      <div className="text-[10px] text-slate-400 leading-normal">
+                        성공 기여도 지표를 사용하여 에이전트의 스케일 아웃을 실시간 제어합니다. 스케일 아웃 시 <strong>보조 추론 모델 인스턴스</strong>가 추가 배치되어 병렬 연산 및 에러 자가 치유 능력이 극대화됩니다.
+                      </div>
+                      
+                      <div className="flex items-center justify-between bg-black/20 p-3.5 rounded-2xl border border-white/5">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-slate-500 uppercase">현재 스케일 강도</span>
+                          <span className="text-xs font-bold text-white mt-1">
+                            {allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE")
+                              ? "2 Nodes (Planner + Auxiliary)"
+                              : "1 Node (Primary Agent)"}
+                          </span>
+                        </div>
+                        
+                        {allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE") ? (
+                          <button
+                            onClick={() => {
+                              const auxItem = allocatedItemsForAgent.find(item => item.type === "AUXILIARY_INSTANCE");
+                              if (auxItem) {
+                                handleRevokeAsset(
+                                  auxItem.id,
+                                  auxItem.name,
+                                  selectedAgent.name
+                                );
+                              }
+                            }}
+                            disabled={actionLoading}
+                            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            스케일 인 (Scale-In)
+                            <ArrowRight size={10} className="rotate-180" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              const scaleAsset = availableAssets.find(a => a.type === "AUXILIARY_INSTANCE");
+                              if (scaleAsset) {
+                                handleAllocateAsset(scaleAsset);
+                              }
+                            }}
+                            disabled={actionLoading || selectedAgent.contributionPoints < 200}
+                            className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                              selectedAgent.contributionPoints >= 200
+                                ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg active:scale-95 cursor-pointer"
+                                : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
+                            }`}
+                          >
+                            스케일 아웃 (Scale-Out: 200 pts)
+                            <ArrowRight size={10} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (
