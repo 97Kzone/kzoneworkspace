@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import java.time.Duration
 import kotlin.random.Random
+import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
  
 data class PipelineStage(
     val id: String,
@@ -46,7 +47,8 @@ class WorkflowPipelineService(
     private val messagingTemplate: SimpMessagingTemplate,
     private val agentService: AgentService,
     private val officeService: OfficeService,
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val officeItemRepository: OfficeItemRepository
 ) {
  
     @Transactional
@@ -68,7 +70,7 @@ class WorkflowPipelineService(
             )
         }
 
-        if (title.contains("스케일 아웃") || title.contains("제안")) {
+        if (title.contains("스케일 아웃")) {
             // 스케일 아웃 전략 적용: 성공 기여도 200 pts 필요 및 보조 인스턴스 자동 배치
             val cost = 200
             if (agent.contributionPoints < cost) {
@@ -112,6 +114,221 @@ class WorkflowPipelineService(
                 return ApplyOptimizationResult(
                     success = true,
                     message = "'${agent.name}' 에이전트에 대한 스케일 아웃 및 보조 인스턴스 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
+        } else if (title.contains("추론 속도 가속")) {
+            val cost = 150
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 고성능 추론 가속 코어 배치를 위해서는 최소 150 pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "고성능 추론 가속 코어 (${agent.name} 탑재)",
+                    type = "REASONING_CORE",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    price = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "추론 가속 최적화 적용: '${agent.name}' 에이전트에 고성능 추론 가속 코어 자동 배치 완료 (성공 기여도 150 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 연산 지연 해소를 위한 **고성능 추론 가속 코어** 조치 완료! Strict Temp 0.1 모드 가속 연산이 실시간 자동 적용되었습니다. (성공 기여도 150 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 고성능 추론 가속 코어 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
+        } else if (title.contains("코드 안정성")) {
+            val cost = 120
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 코드 안정성 검증용 자율 샌드박스 배치를 위해서는 최소 120 pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "코드 안정성 검증용 자율 샌드박스 (${agent.name} 보안)",
+                    type = "CODE_STABILITY_SANDBOX",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    price = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "코드 안정성 최적화 적용: '${agent.name}' 에이전트에 코드 안정성 검증용 자율 샌드박스 자동 배치 완료 (성공 기여도 120 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 코드 구문 및 빌드 에러 차단을 위한 **코드 안정성 검증용 자율 샌드박스** 조치 완료! 격리 실행 환경이 실시간 자동 연동되었습니다. (성공 기여도 120 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 코드 안정성 검증용 자율 샌드박스 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
+        } else if (title.contains("비용 최적화")) {
+            val cost = 90
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. API 비용 및 토큰 최적화 엔진 배치를 위해서는 최소 90 pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "실시간 API 비용 및 토큰 최적화 엔진 (${agent.name} 최적화)",
+                    type = "COST_OPTIMIZER",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    price = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "API 비용 최적화 적용: '${agent.name}' 에이전트에 실시간 API 비용 및 토큰 최적화 엔진 자동 배치 완료 (성공 기여도 90 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 API 비용 절감을 위한 **실시간 API 비용 및 토큰 최적화 엔진** 조치 완료! 추론 시 토큰 소모량 20% 절감 보정이 실시간 자동 적용되었습니다. (성공 기여도 90 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 실시간 API 비용 및 토큰 최적화 엔진 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
+        } else if (title.contains("시너지 공명") || title.contains("협업 시너지")) {
+            val cost = 130
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 협업 시너지 공명 브릿지 배치를 위해서는 최소 130 pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "협업 시너지 공명 브릿지 (${agent.name} 연결)",
+                    type = "SYNERGY_BRIDGE",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    price = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "시너지 공명 최적화 적용: '${agent.name}' 에이전트에 협업 시너지 공명 브릿지 자동 배치 완료 (성공 기여도 130 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 협업 시너지 개선을 위한 **협업 시너지 공명 브릿지** 조치 완료! 시너지 가속화 및 리스크 방어가 실시간 자동 적용되었습니다. (성공 기여도 130 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 협업 시너지 공명 브릿지 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
+        } else if (title.contains("지식 검색") || title.contains("벡터 지식")) {
+            val cost = 80
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 실시간 벡터 지식 검색 세션 배치를 위해서는 최소 80 pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "실시간 벡터 지식 검색 세션 (${agent.name} 지식)",
+                    type = "VECTOR_SEARCH",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    price = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "벡터 검색 최적화 적용: '${agent.name}' 에이전트에 실시간 벡터 지식 검색 세션 자동 배치 완료 (성공 기여도 80 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 인지 정밀 탐색을 위한 **실시간 벡터 지식 검색 세션** 조치 완료! RAG 스캔 깊이 확대 및 시맨틱 벡터 가속이 자동 적용되었습니다. (성공 기여도 80 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 실시간 벡터 지식 검색 세션 자동 할당이 완료되었습니다."
                 )
             } catch (e: Exception) {
                 return ApplyOptimizationResult(
@@ -237,24 +454,103 @@ class WorkflowPipelineService(
         // 3. 병목 구간 식별 및 권장 사항 생성
         val recommendations = mutableListOf<OptimizationRecommendation>()
         
-        val bottleneckStage = stages.maxByOrNull { it.bottleneckScore }
-        if (bottleneckStage != null && bottleneckStage.bottleneckScore > 65) {
-            recommendations.add(
-                OptimizationRecommendation(
-                    title = "스케일 아웃 제안: ${bottleneckStage.name}",
-                    description = "[병목 감지] '${bottleneckStage.agentName}' 에이전트의 대기열이 집중되어 지연이 발생하고 있습니다. 병렬 보조 추론 모델 인스턴스(Auxiliary Instance) 자원을 즉시 배치하여 태스크 처리를 가속하세요.",
-                    targetStageId = bottleneckStage.id,
-                    impact = "HIGH"
-                )
-            )
+        stages.forEach { stage ->
+            val stageAgent = when (stage.id) {
+                "STAGE_PLAN" -> planner
+                "STAGE_DEV" -> coder
+                "STAGE_REVIEW" -> reviewer
+                else -> qaAgent
+            }
+            if (stageAgent != null) {
+                val agentItems = officeItemRepository.findByAgentId(stageAgent.id)
+                val hasAux = agentItems.any { it.type == "AUXILIARY_INSTANCE" }
+                val hasCore = agentItems.any { it.type == "REASONING_CORE" }
+                val hasSandbox = agentItems.any { it.type == "CODE_STABILITY_SANDBOX" }
+                val hasCost = agentItems.any { it.type == "COST_OPTIMIZER" }
+                val hasBridge = agentItems.any { it.type == "SYNERGY_BRIDGE" }
+                val hasVector = agentItems.any { it.type == "VECTOR_SEARCH" }
+
+                // 1. Scale-out (Auxiliary Instance): if bottleneck score is high & not yet allocated
+                if (stage.bottleneckScore > 65 && !hasAux) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "스케일 아웃 제안: ${stage.name}",
+                            description = "[병목 감지] '${stage.agentName}' 에이전트의 대기열이 집중되어 지연이 발생하고 있습니다. 병렬 보조 추론 모델 인스턴스(Auxiliary Instance, 200 pts) 자원을 즉시 배치하여 태스크 처리를 가속하세요.",
+                            targetStageId = stage.id,
+                            impact = "HIGH"
+                        )
+                    )
+                }
+
+                // 2. Reasoning Core: if processing time is long (> 100s) & not yet allocated
+                if (stage.avgTimeSec > 100 && !hasCore) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "추론 속도 가속 제안: ${stage.name}",
+                            description = "[연산 속도 개선] '${stage.agentName}' 에이전트의 평균 처리 레이턴시가 100초를 초과했습니다. 고성능 추론 가속 코어(REASONING_CORE, 150 pts)를 할당하여 추론 속도 및 엄밀함을 향상시키세요.",
+                            targetStageId = stage.id,
+                            impact = "HIGH"
+                        )
+                    )
+                }
+
+                // 3. Code Stability Sandbox: if success rate is low (< 90%) & not yet allocated
+                if (stage.successRate < 90.0 && !hasSandbox) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "코드 안정성 샌드박스 제안: ${stage.name}",
+                            description = "[완수율 개선] '${stage.agentName}' 에이전트의 구문 및 빌드 성공률이 낮습니다. 코드 안정성 검증용 자율 샌드박스(CODE_STABILITY_SANDBOX, 120 pts)를 연동하여 구문 검증을 자동화하고 실패를 예방하세요.",
+                            targetStageId = stage.id,
+                            impact = "MEDIUM"
+                        )
+                    )
+                }
+
+                // 4. API Cost Optimizer: if it is development/review and not allocated
+                if ((stage.id == "STAGE_DEV" || stage.id == "STAGE_REVIEW") && !hasCost) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "API 비용 최적화 제안: ${stage.name}",
+                            description = "[비용 절감] '${stage.agentName}' 에이전트의 추론 토큰 소모량이 누적되고 있습니다. 실시간 API 비용 및 토큰 최적화 엔진(COST_OPTIMIZER, 90 pts)을 배치하여 비용을 20% 절감하세요.",
+                            targetStageId = stage.id,
+                            impact = "LOW"
+                        )
+                    )
+                }
+
+                // 5. Synergy Bridge: if review or QA and not allocated
+                if ((stage.id == "STAGE_REVIEW" || stage.id == "STAGE_QA") && !hasBridge) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "협업 시너지 공명 브릿지 제안: ${stage.name}",
+                            description = "[협업 조율] 타 에이전트와의 의존성 공유가 빈번하게 이루어지는 단계입니다. 협업 시너지 공명 브릿지(SYNERGY_BRIDGE, 130 pts)를 배치하여 시너지 효율을 가속하고 실패 패널티를 방어하세요.",
+                            targetStageId = stage.id,
+                            impact = "MEDIUM"
+                        )
+                    )
+                }
+
+                // 6. Vector Search: if plan or review where semantic lookup is critical, and not allocated
+                if ((stage.id == "STAGE_PLAN" || stage.id == "STAGE_REVIEW") && !hasVector) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "실시간 벡터 지식 검색 제안: ${stage.name}",
+                            description = "[지능 검색 강화] 풍부한 코드베이스 및 기억 정보 탐색이 중요합니다. 실시간 벡터 지식 검색 세션(VECTOR_SEARCH, 80 pts)을 연동하여 RAG 검색 속도와 정확도를 향상시키세요.",
+                            targetStageId = stage.id,
+                            impact = "MEDIUM"
+                        )
+                    )
+                }
+            }
         }
 
-        if (stages.any { it.successRate < 90.0 }) {
+        // 7. Fallback Context Boost if no recommendations or fallback trigger (just like the original successRate check)
+        if (recommendations.isEmpty() && stages.any { it.successRate < 90.0 }) {
             val weakStage = stages.first { it.successRate < 90.0 }
             recommendations.add(
                 OptimizationRecommendation(
-                    title = "컨텍스트 보강 필요: ${weakStage.name}",
-                    description = "[완수율 저하] '${weakStage.agentName}' 에이전트의 최근 정합성 성공률이 기준치 미달입니다. 실시간 프롬프트 튜닝과 논리적 컨텍스트 강화를 통해 인지 정확도를 높이세요.",
+                    title = "컨텍스트 보강 제안: ${weakStage.name}",
+                    description = "[완수율 저하] '${weakStage.agentName}' 에이전트의 정합성 향상을 위해 실시간 프롬프트 튜닝과 논리적 컨텍스트 강화를 즉시 적용해 주십시오.",
                     targetStageId = weakStage.id,
                     impact = "MEDIUM"
                 )
