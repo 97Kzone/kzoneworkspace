@@ -69,6 +69,7 @@ import { WorkloadBalancerDashboard } from "../components/WorkloadBalancerDashboa
 import { SwarmDocsDashboard } from "../components/SwarmDocsDashboard";
 import { WorkflowPipelineDashboard } from "../components/WorkflowPipelineDashboard";
 import { AssetAllocationDashboard } from "../components/AssetAllocationDashboard";
+import { KanbanBoard } from "../components/KanbanBoard";
 
 
 export default function VirtualOfficeBright() {
@@ -501,6 +502,10 @@ export default function VirtualOfficeBright() {
                   </div>
                )}
             </div>
+          )}
+
+          {vo.activeTab === 'KANBAN' && vo.activeCategory === 'PROCESS' && (
+             <KanbanBoard tasks={vo.tasks} agents={vo.agents} />
           )}
 
           {vo.activeTab === 'REASONING' && vo.activeCategory === 'INTELLIGENCE' && (
