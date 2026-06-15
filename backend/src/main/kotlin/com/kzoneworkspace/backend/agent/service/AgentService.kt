@@ -4,6 +4,7 @@ import com.kzoneworkspace.backend.agent.entity.Agent
 import com.kzoneworkspace.backend.agent.entity.AgentStatus
 import com.kzoneworkspace.backend.agent.repository.AgentRepository
 import jakarta.annotation.PostConstruct
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -33,8 +34,17 @@ class AgentService(
     private val synergyRepository: AgentSynergyRepository,
     private val evolutionRepository: AgentEvolutionRepository,
     private val officeItemRepository: OfficeItemRepository,
-    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository,
+    private val messagingTemplate: SimpMessagingTemplate
 ) {
+
+    private fun broadcastAgents() {
+        try {
+            messagingTemplate.convertAndSend("/topic/agents", getAllAgents())
+        } catch (e: Exception) {
+            println("웹소켓 브로드캐스트 에러 (agents): ${e.message}")
+        }
+    }
 
     @PostConstruct
     @Transactional
@@ -85,7 +95,11 @@ class AgentService(
     }
 
     @Transactional
-    fun createAgent(agent: Agent): Agent = agentRepository.save(agent)
+    fun createAgent(agent: Agent): Agent {
+        val saved = agentRepository.save(agent)
+        broadcastAgents()
+        return saved
+    }
 
     @Transactional
     fun updateAgent(id: Long, updated: Agent): Agent {
@@ -102,7 +116,9 @@ class AgentService(
         agent.reliabilityIndex = updated.reliabilityIndex
         agent.missionCount = updated.missionCount
         agent.updatedAt = LocalDateTime.now()
-        return agentRepository.save(agent)
+        val saved = agentRepository.save(agent)
+        broadcastAgents()
+        return saved
     }
 
     @Transactional
@@ -152,6 +168,7 @@ class AgentService(
             personalityTraits = savedAgent.personalityTraits.toMap(),
             achievement = achievement
         ))
+        broadcastAgents()
     }
 
     fun getEvolutionHistory(agentId: Long): List<AgentEvolutionLog> =
@@ -163,7 +180,9 @@ class AgentService(
     @Transactional
     fun save(agent: Agent): Agent {
         agent.updatedAt = LocalDateTime.now()
-        return agentRepository.save(agent)
+        val saved = agentRepository.save(agent)
+        broadcastAgents()
+        return saved
     }
 
     @Transactional
@@ -171,11 +190,16 @@ class AgentService(
         val agent = getAgentById(id)
         agent.status = status
         agent.updatedAt = LocalDateTime.now()
-        return agentRepository.save(agent)
+        val saved = agentRepository.save(agent)
+        broadcastAgents()
+        return saved
     }
 
     @Transactional
-    fun deleteAgent(id: Long) = agentRepository.deleteById(id)
+    fun deleteAgent(id: Long) {
+        agentRepository.deleteById(id)
+        broadcastAgents()
+    }
 
     fun getTeamPerformanceMetrics(): TeamPerformanceDto {
         val now = LocalDateTime.now()

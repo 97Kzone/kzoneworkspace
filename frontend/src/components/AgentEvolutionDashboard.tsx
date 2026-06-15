@@ -92,7 +92,7 @@ export const AgentEvolutionDashboard: React.FC = () => {
   const trendData = useMemo(() => {
     return [...evolutionLogs].reverse().map(log => ({
       time: new Date(log.createdAt).toLocaleDateString(),
-      level: log.reliabilityIndex,
+      reliability: log.reliabilityIndex,
       missions: log.missionCount,
       ...log.personalityTraits
     }));
@@ -434,7 +434,8 @@ export const AgentEvolutionDashboard: React.FC = () => {
                       />
                       <Area 
                         type="monotone" 
-                        dataKey="level" 
+                        dataKey="reliability" 
+                        name="인지 신뢰도 지수"
                         stroke="#6366f1" 
                         fillOpacity={1} 
                         fill="url(#colorLevel)" 

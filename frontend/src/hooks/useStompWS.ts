@@ -55,15 +55,19 @@ export const useStompWS = (
       // 에이전트 상태 업데이트 구독
       stompClientRef.current.subscribe('/topic/agents', (msg: any) => {
         const body = JSON.parse(msg.body);
-        setAgents((prev: any) => {
-          const idx = prev.findIndex((a: any) => a.id === body.id);
-          if (idx !== -1) {
-              const newAgents = [...prev];
-              newAgents[idx] = body;
-              return newAgents;
-          }
-          return [...prev, body];
-        });
+        if (Array.isArray(body)) {
+          setAgents(body);
+        } else {
+          setAgents((prev: any) => {
+            const idx = prev.findIndex((a: any) => a.id === body.id);
+            if (idx !== -1) {
+                const newAgents = [...prev];
+                newAgents[idx] = body;
+                return newAgents;
+            }
+            return [...prev, body];
+          });
+        }
       });
 
       // 에이전트 활동 로그 구독
