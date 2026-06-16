@@ -180,4 +180,33 @@ class EvaluationServiceAssetTest {
         assertEquals(5.0, result.score)
         assertTrue(result.rationale!!.contains("Synergy Bridge"))
     }
+
+    @Test
+    fun `실시간 보안 및 취약점 검증 쉴드 할당 시 점수 및 레이턴시 보정 테스트`() {
+        val agentId = 1L
+        val taskId = 2L
+        val agent = Agent(id = agentId, name = "TestAgent", role = "Planner", model = "test-model")
+        val task = BenchmarkTask(
+            id = taskId,
+            name = "TestTask",
+            category = "CODING",
+            inputPrompt = "프롬프트",
+            expectedOutput = "정답", 
+            criteriaType = CriteriaType.CONTAINS,
+            difficulty = 1
+        )
+
+        `when`(agentService.getAgentById(agentId)).thenReturn(agent)
+        `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
+        `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("이것은 정답입니다.")
+        
+        val vulnerabilityShield = OfficeItem(name = "보안 쉴드", type = "VULNERABILITY_SHIELD", x = 10, y = 10, agentId = agentId)
+        `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(vulnerabilityShield))
+
+        val result = evaluationService.runQuickTest(agentId, taskId)
+
+        // 기본 점수 100점에 보너스 +7점으로 100점 제한(점수는 최대 100.0)
+        assertEquals(100.0, result.score)
+        assertTrue(result.rationale!!.contains("Vulnerability Shield"))
+    }
 }

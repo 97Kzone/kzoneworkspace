@@ -336,6 +336,49 @@ class WorkflowPipelineService(
                     message = "자산 자동 할당 중 오류 발생: ${e.message}"
                 )
             }
+        } else if (title.contains("보안 쉴드") || title.contains("취약점 검증") || title.contains("보안 및 취약점")) {
+            val cost = 110
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 실시간 보안 및 취약점 검증 쉴드 배치를 위해서는 최소 110 pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "실시간 보안 및 취약점 검증 쉴드 (${agent.name} 보안)",
+                    type = "VULNERABILITY_SHIELD",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    price = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "보안 최적화 적용: '${agent.name}' 에이전트에 실시간 보안 및 취약점 검증 쉴드 자동 배치 완료 (성공 기여도 110 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 코드 보안성 강화를 위한 **실시간 보안 및 취약점 검증 쉴드** 조치 완료! 보안 결함 사전 스캔 및 OWASP 차단 필터가 실시간 자동 가동되었습니다. (성공 기여도 110 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 실시간 보안 및 취약점 검증 쉴드 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
         } else {
             // 컨텍스트 보강 전략 적용: 시스템 프롬프트 자동 튜닝 및 인지 신뢰도 약간 상승
             val optimizePrompt = "\n\n[AI 최적화 지침: 입력 요구사항 명세에 대한 엄밀한 분석을 우선 시행하고, 논리 정합성 자가 검증 루프를 필히 통과시키십시오.]"
@@ -469,6 +512,7 @@ class WorkflowPipelineService(
                 val hasCost = agentItems.any { it.type == "COST_OPTIMIZER" }
                 val hasBridge = agentItems.any { it.type == "SYNERGY_BRIDGE" }
                 val hasVector = agentItems.any { it.type == "VECTOR_SEARCH" }
+                val hasShield = agentItems.any { it.type == "VULNERABILITY_SHIELD" }
 
                 // 1. Scale-out (Auxiliary Instance): if bottleneck score is high & not yet allocated
                 if (stage.bottleneckScore > 65 && !hasAux) {
@@ -536,6 +580,18 @@ class WorkflowPipelineService(
                         OptimizationRecommendation(
                             title = "실시간 벡터 지식 검색 제안: ${stage.name}",
                             description = "[지능 검색 강화] 풍부한 코드베이스 및 기억 정보 탐색이 중요합니다. 실시간 벡터 지식 검색 세션(VECTOR_SEARCH, 80 pts)을 연동하여 RAG 검색 속도와 정확도를 향상시키세요.",
+                            targetStageId = stage.id,
+                            impact = "MEDIUM"
+                        )
+                    )
+                }
+
+                // 8. Vulnerability Shield: if review or QA and no shield allocated
+                if ((stage.id == "STAGE_REVIEW" || stage.id == "STAGE_QA") && !hasShield) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "실시간 보안 및 취약점 검증 쉴드 제안: ${stage.name}",
+                            description = "[보안성 강화] '${stage.agentName}' 에이전트가 배포 전 보안 결함을 검출하기 위해 실시간 보안 및 취약점 검증 쉴드(VULNERABILITY_SHIELD, 110 pts)를 할당하여 안전한 코드 생성을 확보하세요.",
                             targetStageId = stage.id,
                             impact = "MEDIUM"
                         )

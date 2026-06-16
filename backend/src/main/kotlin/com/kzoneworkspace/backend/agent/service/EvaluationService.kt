@@ -448,6 +448,11 @@ class EvaluationService(
                     scoreBonus += 5.0
                     rationaleBuilders.add("협업 시너지 공명 브릿지(Synergy Bridge) 연동으로 에이전트 인지 정렬도 상승")
                 }
+                "VULNERABILITY_SHIELD" -> {
+                    scoreBonus += 7.0
+                    latencyMultiplier *= 1.02
+                    rationaleBuilders.add("실시간 보안 및 취약점 검증 쉴드(Vulnerability Shield) 가동으로 잠재 보안 결함 차단")
+                }
             }
         }
 
@@ -461,6 +466,7 @@ class EvaluationService(
                 "CODE_STABILITY_SANDBOX" -> "에이전트 평가 중 [코드 안정성 검증용 자율 샌드박스] 자원이 연동되어 구문 에러 방지 점수 보정(+12.0)이 적용되었습니다."
                 "COST_OPTIMIZER" -> "에이전트 평가 중 [실시간 API 비용 및 토큰 최적화 엔진] 자원이 가동되어 평가 성능 점수 보정(+5.0) 및 레이턴시 단축(10%)이 적용되었습니다."
                 "SYNERGY_BRIDGE" -> "에이전트 평가 중 [협업 시너지 공명 브릿지] 자원이 연동되어 인지 정렬도 및 성능 보정(+5.0)이 적용되었습니다."
+                "VULNERABILITY_SHIELD" -> "에이전트 평가 중 [실시간 보안 및 취약점 검증 쉴드] 자원이 연동되어 보안성 보너스 점수 보정(+7.0) 및 레이턴시 보정(2% 지연)이 적용되었습니다."
                 else -> null
             }
             if (description != null) {

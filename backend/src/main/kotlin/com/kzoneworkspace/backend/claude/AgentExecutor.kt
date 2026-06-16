@@ -96,6 +96,7 @@ class AgentExecutor(
                 "CODE_STABILITY_SANDBOX" -> sb.append("\n- 🧪 [코드 안정성 검증용 자율 샌드박스]: 격리된 실행 환경이 활성화되어 실제 코드에 미치는 사이드 이펙트나 구문 오류를 사전에 자율적으로 예방 및 테스트할 수 있습니다. 적극적인 빌드 검증을 시도하세요.")
                 "SYNERGY_BRIDGE" -> sb.append("\n- 🌐 [협업 시너지 공명 브릿지]: 에이전트 간 협업 채널 전용 대역폭이 확보되어 협업 시너지 효율이 가속되며, 작업 실패 시의 시너지 하락 리스크를 흡수 방어합니다.")
                 "COST_OPTIMIZER" -> sb.append("\n- ⚡ [실시간 API 비용 및 토큰 최적화 엔진]: 중복 컨텍스트 분석 및 프롬프트 최적화 필터가 가동되어 API 호출 시 발생하는 토큰 소모량과 추론 비용이 20% 절감됩니다.")
+                "VULNERABILITY_SHIELD" -> sb.append("\n- 🛡️ [실시간 보안 및 취약점 검증 쉴드]: 코드 작성 시 보안 취약점이나 악성 종속성을 자율 검증 및 스캔하는 가상의 보안 쉴드가 활성화되어 있습니다. OWASP Top 10 가이드라인을 준수하며 가장 안전하고 검증된 구현 패턴을 사용하여 코딩하세요.")
             }
         }
         return sb.toString()
@@ -122,6 +123,7 @@ class AgentExecutor(
                     "CODE_STABILITY_SANDBOX" -> "구문 및 빌드 오류 사전 차단을 위한 격리 실행 환경 샌드박스 가동"
                     "SYNERGY_BRIDGE" -> "협업 성공 시 시너지 스코어 상승폭 가속 및 실패 시 감쇠 충격 완화 방어"
                     "COST_OPTIMIZER" -> "추론 시 중복 컨텍스트 압축 및 API 비용/토큰 20% 절감 최적화"
+                    "VULNERABILITY_SHIELD" -> "코드 변경 시 취약점 정밀 검사 및 보안 결함 사전 스캔 차단 필터 상시 가동"
                     else -> null
                 }
                 if (desc != null) {
@@ -282,6 +284,7 @@ class AgentExecutor(
                     "CODE_STABILITY_SANDBOX" -> "구문 및 빌드 오류 사전 차단을 위한 격리 실행 환경 샌드박스 가동"
                     "SYNERGY_BRIDGE" -> "협업 성공 시 시너지 스코어 상승폭 가속 및 실패 시 감쇠 충격 완화 방어"
                     "COST_OPTIMIZER" -> "추론 시 중복 컨텍스트 압축 및 API 비용/토큰 20% 절감 최적화"
+                    "VULNERABILITY_SHIELD" -> "코드 변경 시 취약점 정밀 검사 및 보안 결함 사전 스캔 차단 필터 상시 가동"
                     else -> null
                 }
                 if (desc != null) {

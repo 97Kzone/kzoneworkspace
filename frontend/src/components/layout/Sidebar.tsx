@@ -159,6 +159,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ vo, onDeleteAgent, onOpenProje
                           icon = <ShieldCheck size={10} />;
                           colorClass = "bg-emerald-50 text-emerald-600 border-emerald-100/50";
                           displayName = "안정성 샌드박스";
+                        } else if (asset.type === "VULNERABILITY_SHIELD") {
+                          icon = <ShieldCheck size={10} />;
+                          colorClass = "bg-rose-50 text-rose-600 border-rose-100/50";
+                          displayName = "보안 쉴드";
                         } else {
                           icon = <Zap size={10} />;
                           colorClass = "bg-slate-50 text-slate-600 border-slate-100";

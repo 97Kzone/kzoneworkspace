@@ -25,7 +25,8 @@ class OfficeService(
             "AUXILIARY_INSTANCE" to 200,
             "CODE_STABILITY_SANDBOX" to 120,
             "SYNERGY_BRIDGE" to 130,
-            "COST_OPTIMIZER" to 90
+            "COST_OPTIMIZER" to 90,
+            "VULNERABILITY_SHIELD" to 110
         )
     }
 

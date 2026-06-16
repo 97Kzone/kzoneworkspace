@@ -224,6 +224,9 @@ export const ResourceEfficiencyDashboard: React.FC = () => {
                               } else if (asset.type === "CODE_STABILITY_SANDBOX") {
                                 icon = <ShieldCheck size={10} />;
                                 colorClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                              } else if (asset.type === "VULNERABILITY_SHIELD") {
+                                icon = <ShieldCheck size={10} />;
+                                colorClass = "text-rose-400 bg-rose-500/10 border-rose-500/20";
                               } else {
                                 icon = <Zap size={10} />;
                                 colorClass = "text-slate-400 bg-slate-500/10 border-slate-500/20";

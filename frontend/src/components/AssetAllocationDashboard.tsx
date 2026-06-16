@@ -143,6 +143,15 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       price: 90,
       icon: <Zap size={20} />,
       color: "from-yellow-500 to-amber-600"
+    },
+    {
+      id: "vulnerability_shield",
+      name: "실시간 보안 및 취약점 검증 쉴드",
+      type: "VULNERABILITY_SHIELD",
+      description: "에이전트가 코드를 변경하거나 패키지를 추가할 때 보안 결함이나 알려진 취약점을 실시간 스캔하여 차단하고, 프로젝트의 안전성을 극대화합니다.",
+      price: 110,
+      icon: <ShieldCheck size={20} />,
+      color: "from-rose-500 to-amber-500"
     }
   ];
 
@@ -344,6 +353,13 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           stroke: "#eab308",
           spec: "API 비용 및 토큰 소모량 20% 절감 보정 필터 상시 작동",
           icon: <Zap size={16} />
+        };
+      case "VULNERABILITY_SHIELD":
+        return {
+          bg: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+          stroke: "#f43f5e",
+          spec: "코드 변경 시 취약점 정밀 검사, OWASP Top 10 차단 필터 상시 가동",
+          icon: <ShieldCheck size={16} />
         };
       default:
         return {
@@ -765,6 +781,14 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         <span className="text-slate-400 font-bold">코드 격리 검증 (Sandbox)</span>
                         <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "CODE_STABILITY_SANDBOX") ? "text-emerald-400 animate-pulse" : "text-slate-500"}`}>
                           {allocatedItemsForAgent.some(item => item.type === "CODE_STABILITY_SANDBOX") ? "자율 격리 샌드박스 가동 중" : "로컬 직접 변경"}
+                        </span>
+                      </div>
+
+                      {/* Spec item: Vulnerability Shield check */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-bold">보안 및 취약점 검증 (Shield)</span>
+                        <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "VULNERABILITY_SHIELD") ? "text-rose-400 animate-pulse" : "text-slate-500"}`}>
+                          {allocatedItemsForAgent.some(item => item.type === "VULNERABILITY_SHIELD") ? "실시간 취약점 쉴드 가동 중" : "보안 스캔 미활성"}
                         </span>
                       </div>
                     </div>
