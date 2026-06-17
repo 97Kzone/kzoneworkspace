@@ -7,7 +7,8 @@ import {
   Bot, User, MessageSquare, X, Users, Terminal, Code2, Layout, Database, 
   Send, Command, Sparkles, Coffee, GripVertical, Maximize2, 
   BarChart3, BarChart2, Brain, ChevronRight, Pause, Play, 
-  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History, Shield, Cpu, Book, BookOpen, Workflow, Server
+  Trash2, Search, Leaf, ShoppingBag, Heart, ShieldAlert, TrendingUp, History, Shield, Cpu, Book, BookOpen, Workflow, Server,
+  RefreshCw
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
@@ -15,7 +16,7 @@ import ReactMarkdown from 'react-markdown';
 import { 
   agentService, taskService, chatService, schedulingService, codeReviewService, 
   memoryService, codebaseService, briefingService, projectHealthService, 
-  scenarioService, janitorService, ActionableStrategy 
+  scenarioService, janitorService, ActionableStrategy, techPulseService
 } from "./apiService";
 
 // 유틸리티
@@ -76,6 +77,7 @@ export default function VirtualOfficeBright() {
   const vo = useVirtualOffice();
   const [liveEvaluation, setLiveEvaluation] = useState<any>(null);
   const stompClient = useRef<any>(null);
+  const [isRefreshingPulses, setIsRefreshingPulses] = useState(false);
 
   // WebSocket 연결 및 초기 데이터 로드
   useStompWS(
@@ -282,6 +284,41 @@ export default function VirtualOfficeBright() {
       console.error("브리핑 로드 실패:", e);
     } finally {
       vo.setIsBriefingLoading(false);
+    }
+  };
+
+  const handleRefreshTechPulses = async () => {
+    setIsRefreshingPulses(true);
+    try {
+      const res = await techPulseService.refresh();
+      vo.setTechPulses(res.data);
+      alert("기술 트렌드 분석 스캔이 완료되었습니다.");
+    } catch (e) {
+      console.error("기술 트렌드 갱신 실패:", e);
+      alert("기술 트렌드 갱신 중 실패가 발생했습니다.");
+    } finally {
+      setIsRefreshingPulses(false);
+    }
+  };
+
+  const handleLaunchTechPulseMission = async (pulseId: number) => {
+    try {
+      const res = await techPulseService.convertToTask(pulseId);
+      if (res.data.status === "success") {
+        alert(`성공적으로 기술 대응 자율 미션(#${res.data.missionId})이 개시되었습니다.`);
+        // Refresh pulses list to get missionId updated
+        const pulsesRes = await techPulseService.getAll();
+        vo.setTechPulses(pulsesRes.data);
+        // Switch to MISSION tab
+        vo.setActiveTab('MISSION');
+        vo.setActiveCategory('PROCESS');
+      } else {
+        alert(`미션 개시 실패: ${res.data.message}`);
+      }
+    } catch (e: any) {
+      console.error("미션 개시 중 오류:", e);
+      const errMsg = e.response?.data?.message || "서버 통신 오류가 발생했습니다.";
+      alert(`미션 개시 실패: ${errMsg}`);
     }
   };
 
@@ -692,13 +729,31 @@ export default function VirtualOfficeBright() {
                    </div>
                    <div className="flex items-center gap-4">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">마지막 업데이트: {new Date().toLocaleTimeString()}</span>
+                      <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleRefreshTechPulses}
+                        disabled={isRefreshingPulses}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-indigo-100/30"
+                      >
+                        <RefreshCw size={12} className={isRefreshingPulses ? "animate-spin" : ""} />
+                        트렌드 분석 갱신
+                      </motion.button>
                    </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-10">
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {vo.techPulses.map(pulse => (
-                         <TechPulseCard key={pulse.id} pulse={pulse} />
+                         <TechPulseCard 
+                            key={pulse.id} 
+                            pulse={pulse} 
+                            onLaunchMission={handleLaunchTechPulseMission}
+                            onViewMission={(missionId) => {
+                               vo.setActiveTab('MISSION');
+                               vo.setActiveCategory('PROCESS');
+                            }}
+                         />
                       ))}
                       {vo.techPulses.length === 0 && (
                         <div className="col-span-full h-64 border-2 border-dashed border-slate-100 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-300 gap-4">

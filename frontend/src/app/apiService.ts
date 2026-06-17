@@ -375,6 +375,7 @@ export interface TechPulse {
     projectImpact: string;
     sourceUrl: string | null;
     createdAt: string;
+    missionId?: number | null;
 }
 
 export interface ActionableStrategy {
@@ -398,6 +399,7 @@ export interface ProjectHealth {
 export const techPulseService = {
     getAll: () => api.get<TechPulse[]>('/tech-pulses'),
     refresh: () => api.post<TechPulse[]>('/tech-pulses/refresh'),
+    convertToTask: (id: number) => api.post<{ status: string; missionId?: number; message?: string }>(`/tech-pulses/${id}/convert-to-task`),
 };
 
 export const briefingService = {
