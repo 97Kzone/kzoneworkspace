@@ -16,6 +16,8 @@ import com.kzoneworkspace.backend.agent.repository.AgentSynergyRepository
 import com.kzoneworkspace.backend.agent.repository.AgentEvolutionRepository
 import com.kzoneworkspace.backend.agent.repository.ActivityLogRepository
 import com.kzoneworkspace.backend.task.repository.TaskRepository
+import com.kzoneworkspace.backend.task.repository.SelfHealingRepository
+import com.kzoneworkspace.backend.agent.repository.CognitiveTraceRepository
 import com.kzoneworkspace.backend.agent.dto.TeamPerformanceDto
 import com.kzoneworkspace.backend.agent.dto.DailyStat
 import com.kzoneworkspace.backend.agent.dto.AgentPerformanceStat
@@ -35,6 +37,8 @@ class AgentService(
     private val evolutionRepository: AgentEvolutionRepository,
     private val officeItemRepository: OfficeItemRepository,
     private val assetUtilizationLogRepository: AssetUtilizationLogRepository,
+    private val selfHealingRepository: SelfHealingRepository,
+    private val cognitiveTraceRepository: CognitiveTraceRepository,
     private val messagingTemplate: SimpMessagingTemplate
 ) {
 
@@ -122,29 +126,89 @@ class AgentService(
     }
 
     @Transactional
-    fun evolvePersonality(agentId: Long, missionSuccess: Boolean, complexity: Int) {
+    fun evolvePersonality(agentId: Long, missionSuccess: Boolean, complexity: Int, taskId: Long? = null) {
         val agent = getAgentById(agentId)
         agent.missionCount += 1
-        
+
+        val targetTaskId = taskId ?: taskRepository.findByAgentId(agentId)
+            .maxByOrNull { it.updatedAt }?.id
+
+        var selfHealingBonus = 0
+        var collaborationBonus = 0
+
+        if (targetTaskId != null) {
+            // 자율 오류 해결 능력 반영
+            val healingLogs = selfHealingRepository.findByTaskId(targetTaskId)
+            if (healingLogs.isNotEmpty() && missionSuccess) {
+                selfHealingBonus = healingLogs.size * 15
+            }
+
+            // 협업 강도 반영
+            val task = taskRepository.findById(targetTaskId).orElse(null)
+            if (task != null) {
+                val hasDependencies = !task.dependsOnIds.isNullOrBlank()
+                val isSubtask = task.parentId != null
+                if (hasDependencies || isSubtask) {
+                    collaborationBonus += 8
+                }
+            }
+            
+            // 협업 시너지 브릿지 연동 반영
+            val hasSynergyBridge = officeItemRepository.findByAgentId(agentId).any { it.type == "SYNERGY_BRIDGE" }
+            if (hasSynergyBridge) {
+                collaborationBonus += 7
+            }
+        }
+
         // 지능 신뢰도 지수 및 기여 스코어 연산 (게임성 제거 및 전문 메트릭화)
         if (missionSuccess) {
-            // 성공 시: 기여도 점진 상승 및 신뢰도 회복 (최대 100%)
-            agent.contributionPoints += complexity * 5
-            agent.reliabilityIndex = (agent.reliabilityIndex + complexity * 2).coerceAtMost(100)
-        } else {
-            // 실패 시: 신뢰도 지수 대폭 타격 (최소 30% 보장)
-            agent.reliabilityIndex = (agent.reliabilityIndex - (15 - complexity)).coerceAtLeast(30)
+            // 성공 시: 기여도 점진 상승
+            val baseValue = complexity * 10
+            agent.contributionPoints += (baseValue + selfHealingBonus + collaborationBonus)
         }
+
+        // 인지 신뢰도 지수 동적 계산 (추론 정확성, 자가 복구 성공률, 인지 일관성)
+        val agentTasks = taskRepository.findByAgentId(agentId)
+        val totalTasks = agentTasks.size
+        
+        val taskSuccessRate = if (totalTasks > 0) {
+            (agentTasks.count { it.status == TaskStatus.COMPLETED }.toDouble() / totalTasks) * 100.0
+        } else {
+            80.0
+        }
+
+        val healingTasks = agentTasks.filter {
+            selfHealingRepository.findByTaskId(it.id).isNotEmpty()
+        }
+        val successfulHealingTasks = healingTasks.count { it.status == TaskStatus.COMPLETED }
+        val healingSuccessRate = if (healingTasks.isNotEmpty()) {
+            (successfulHealingTasks.toDouble() / healingTasks.size) * 100.0
+        } else {
+            90.0
+        }
+
+        val traces = cognitiveTraceRepository.findByAgentIdOrderByTimestampAsc(agentId)
+        val avgConfidence = if (traces.isNotEmpty()) {
+            traces.map { it.confidence }.average() * 100.0
+        } else {
+            85.0
+        }
+
+        val calculatedReliability = (0.5 * taskSuccessRate + 0.3 * healingSuccessRate + 0.2 * avgConfidence).toInt()
+        val finalReliability = if (missionSuccess) {
+            calculatedReliability.coerceIn(30, 100)
+        } else {
+            (calculatedReliability - 10).coerceIn(30, 100)
+        }
+        agent.reliabilityIndex = finalReliability
 
         // 성격 진화 로직 (간단한 규칙)
         val traits = agent.personalityTraits
         if (missionSuccess) {
-            // 성공 시 성격 변화: 분석력과 자신감(Bold) 상승
             traits["ANALYTICAL"] = (traits["ANALYTICAL"] ?: 50) + 2
             traits["BOLD"] = (traits["BOLD"] ?: 50) + 1
             traits["CAUTIOUS"] = (traits["CAUTIOUS"] ?: 50) - 1
         } else {
-            // 실패 시 성격 변화: 신중함 상승, 자신감 하락
             traits["CAUTIOUS"] = (traits["CAUTIOUS"] ?: 50) + 3
             traits["BOLD"] = (traits["BOLD"] ?: 50) - 2
             traits["ANALYTICAL"] = (traits["ANALYTICAL"] ?: 50) + 1
@@ -159,7 +223,14 @@ class AgentService(
         val savedAgent = agentRepository.save(agent)
 
         // 신뢰성 변화 이력 기록
-        val achievement = if (missionSuccess) "태스크 수행 성공: 복잡도 $complexity 해결 기여" else "태스크 한계 분석 및 인지 정렬 학습"
+        val healingDesc = if (selfHealingBonus > 0) " (자율 자가치유 보너스 +${selfHealingBonus}pts)" else ""
+        val collabDesc = if (collaborationBonus > 0) " (협업 시너지 보너스 +${collaborationBonus}pts)" else ""
+        val achievement = if (missionSuccess) {
+            "비즈니스 태스크 완료 기여: 복잡도 $complexity 해결${healingDesc}${collabDesc}. [정량 분석 요약: 누적 태스크 성공률 ${taskSuccessRate.toInt()}%, 자가복구율 ${healingSuccessRate.toInt()}%, 평균 추론 신뢰도 ${avgConfidence.toInt()}%]"
+        } else {
+            "태스크 수행 중 한계 분석 및 인지 정렬. [정량 분석 요약: 누적 태스크 성공률 ${taskSuccessRate.toInt()}%, 자가복구율 ${healingSuccessRate.toInt()}%, 평균 추론 신뢰도 ${avgConfidence.toInt()}%]"
+        }
+
         evolutionRepository.save(AgentEvolutionLog(
             agentId = savedAgent.id,
             agentName = savedAgent.name,

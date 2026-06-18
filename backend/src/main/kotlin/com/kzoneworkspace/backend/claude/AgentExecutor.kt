@@ -206,7 +206,7 @@ class AgentExecutor(
             // 성공 시 포인트 지급 및 인지 모드 업데이트, 성격 진화 연동
             agent.cognitiveMode = "STABLE"
             agentService.save(agent)
-            agentService.evolvePersonality(agent.id, true, 2)
+            agentService.evolvePersonality(agent.id, true, 2, task.id)
             
             // 변경된 기여도 및 신뢰도 수치 동기화
             val updatedAgent = agentService.getAgentById(agent.id)
@@ -245,7 +245,7 @@ class AgentExecutor(
             agentService.save(agent)
             
             // 성격 진화 트리거 (실패)
-            agentService.evolvePersonality(agent.id, false, 2)
+            agentService.evolvePersonality(agent.id, false, 2, task.id)
             
             val statusPayload = objectMapper.writeValueAsString(mapOf(
                 "agentId" to agent.id,
@@ -348,7 +348,7 @@ class AgentExecutor(
             // 성공 시 보상 및 성격 진화 연동
             agent.cognitiveMode = "STABLE"
             agentService.save(agent)
-            agentService.evolvePersonality(agent.id, true, 2)
+            agentService.evolvePersonality(agent.id, true, 2, task.id)
             
             // 변경된 기여도 및 신뢰도 수치 동기화
             val updatedAgent = agentService.getAgentById(agent.id)

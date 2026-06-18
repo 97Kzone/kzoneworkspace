@@ -15,4 +15,5 @@ interface TaskRepository : JpaRepository<Task, Long> {
     fun findByMissionId(missionId: Long): List<Task>
     fun findByRoomIdAndParentIdIsNullOrderByCreatedAtDesc(roomId: String): List<Task>
     fun findByCreatedAtAfter(timestamp: LocalDateTime): List<Task>
+    fun findByAgentId(agentId: Long): List<Task>
 }
