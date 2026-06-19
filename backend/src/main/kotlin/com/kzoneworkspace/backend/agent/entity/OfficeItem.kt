@@ -14,13 +14,13 @@ class OfficeItem(
     var name: String,
 
     @Column(nullable = false)
-    var type: String, // e.g., "COFFEE_MACHINE", "PLANT", "SERVER_RACK"
+    var type: String, // e.g., "REASONING_CORE", "EXTENDED_CONTEXT", "VECTOR_SEARCH"
 
     @Column(nullable = false)
-    var x: Int,
+    var x: Int = 0,
 
     @Column(nullable = false)
-    var y: Int,
+    var y: Int = 0,
 
     @Column
     var agentId: Long? = null, // Optional: owner of the item

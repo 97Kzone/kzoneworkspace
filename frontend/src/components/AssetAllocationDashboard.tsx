@@ -242,8 +242,6 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
         agentId: Number(selectedAgentId),
         name: asset.name,
         type: asset.type,
-        x: Math.floor(Math.random() * 100), // 가상 좌표
-        y: Math.floor(Math.random() * 100),
         price: asset.price
       });
 

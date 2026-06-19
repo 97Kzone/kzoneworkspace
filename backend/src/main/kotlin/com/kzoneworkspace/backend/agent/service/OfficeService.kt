@@ -33,7 +33,7 @@ class OfficeService(
     fun getAllItems(): List<OfficeItem> = officeItemRepository.findAll()
 
     @Transactional
-    fun allocateAsset(agentId: Long, name: String, type: String, x: Int, y: Int, price: Int): OfficeItem {
+    fun allocateAsset(agentId: Long, name: String, type: String, x: Int = 0, y: Int = 0, price: Int): OfficeItem {
         val agent = agentService.getAgentById(agentId)
         if (agent.contributionPoints < price) {
             throw RuntimeException("생산성 컴퓨팅 자산 배치를 위한 성공 기여도가 부족합니다. (Not enough contribution points to allocate this asset)")
@@ -100,18 +100,6 @@ class OfficeService(
         broadcastUpdates()
     }
 
-    @Transactional
-    fun moveItem(id: Long, x: Int, y: Int): OfficeItem {
-        val item = officeItemRepository.findById(id).orElseThrow { RuntimeException("Item not found") }
-        item.x = x
-        item.y = y
-        val savedItem = officeItemRepository.save(item)
-
-        // 자산 위치 변경에 따른 실시간 동기화 브로드캐스트
-        broadcastUpdates()
-
-        return savedItem
-    }
 
     fun getRecentLogs(): List<AssetUtilizationLog> =
         assetUtilizationLogRepository.findTop50ByOrderByTimestampDesc()

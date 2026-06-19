@@ -334,11 +334,10 @@ export const schedulingService = {
 
 export const officeService = {
     getAll: () => api.get<OfficeItem[]>('/office/items'),
-    allocateAsset: (data: { agentId: number, name: string, type: string, x: number, y: number, price: number }) => 
+    allocateAsset: (data: { agentId: number, name: string, type: string, x?: number, y?: number, price: number }) => 
         api.post<OfficeItem>('/office/items/allocate', data),
 
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),
-    moveItem: (id: number, x: number, y: number) => api.put<OfficeItem>(`/office/items/${id}/move`, { x, y }),
     getLogs: () => api.get<AssetUtilizationLog[]>('/office/logs'),
 };
 

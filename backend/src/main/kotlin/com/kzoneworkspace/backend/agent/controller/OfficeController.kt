@@ -34,22 +34,13 @@ class OfficeController(
     @DeleteMapping("/items/{id}")
     fun deleteItem(@PathVariable id: Long) = officeService.deleteItem(id)
 
-    @PutMapping("/items/{id}/move")
-    fun moveItem(@PathVariable id: Long, @RequestBody request: MoveItemRequest): OfficeItem {
-        return officeService.moveItem(id, request.x, request.y)
-    }
-
-    data class MoveItemRequest(
-        val x: Int,
-        val y: Int
-    )
 
     data class AllocateAssetRequest(
         val agentId: Long,
         val name: String,
         val type: String,
-        val x: Int,
-        val y: Int,
+        val x: Int = 0,
+        val y: Int = 0,
         val price: Int
     )
 
