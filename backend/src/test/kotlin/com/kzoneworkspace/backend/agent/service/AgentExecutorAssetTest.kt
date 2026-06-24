@@ -9,6 +9,7 @@ import com.kzoneworkspace.backend.tools.BrowserService
 import com.kzoneworkspace.backend.tools.GitService
 import com.kzoneworkspace.backend.tools.CodeReviewService
 import com.kzoneworkspace.backend.task.service.SchedulingService
+import com.kzoneworkspace.backend.agent.service.CognitiveTraceService
 import java.util.Collections
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -32,6 +33,7 @@ class AgentExecutorAssetTest {
     private val collaborationService = mock(CollaborationService::class.java)
     private val codeReviewService = mock(CodeReviewService::class.java)
     private val activityLogService = mock(ActivityLogService::class.java)
+    private val cognitiveTraceService = mock(CognitiveTraceService::class.java)
     private val schedulingService = mock(SchedulingService::class.java)
     private val codebaseIndexingService = mock(CodebaseIndexingService::class.java)
     private val shadowWorkspaceService = mock(ShadowWorkspaceService::class.java)
@@ -56,6 +58,7 @@ class AgentExecutorAssetTest {
         collaborationService = collaborationService,
         codeReviewService = codeReviewService,
         activityLogService = activityLogService,
+        cognitiveTraceService = cognitiveTraceService,
         schedulingService = schedulingService,
         codebaseIndexingService = codebaseIndexingService,
         shadowWorkspaceService = shadowWorkspaceService,

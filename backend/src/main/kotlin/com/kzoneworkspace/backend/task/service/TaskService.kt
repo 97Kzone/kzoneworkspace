@@ -4,6 +4,7 @@ import com.kzoneworkspace.backend.agent.entity.Agent
 import com.kzoneworkspace.backend.task.entity.Task
 import com.kzoneworkspace.backend.task.entity.TaskStatus
 import com.kzoneworkspace.backend.task.repository.TaskRepository
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -11,8 +12,17 @@ import java.time.LocalDateTime
 @Service
 @Transactional(readOnly = true)
 class TaskService (
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val messagingTemplate: SimpMessagingTemplate
 ) {
+    private fun broadcastTask(task: Task) {
+        try {
+            messagingTemplate.convertAndSend("/topic/tasks", task)
+        } catch (e: Exception) {
+            println("Failed to broadcast task update: ${e.message}")
+        }
+    }
+
     fun getTasksByRoom(roomId: String): List<Task> =
         taskRepository.findByRoomIdOrderByCreatedAtDesc(roomId)
 
@@ -20,12 +30,18 @@ class TaskService (
         taskRepository.findById(id).orElseThrow { RuntimeException("Task not found: $id") }
 
     @Transactional
-    fun createTask(roomId: String, command: String, agent: Agent?, parentId: Long? = null, dependsOnIds: String? = null, missionId: Long? = null): Task =
-        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds, missionId = missionId))
+    fun createTask(roomId: String, command: String, agent: Agent?, parentId: Long? = null, dependsOnIds: String? = null, missionId: Long? = null): Task {
+        val task = taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds, missionId = missionId))
+        broadcastTask(task)
+        return task
+    }
 
     @Transactional
-    fun createSubTask(parentId: Long, roomId: String, command: String, agent: Agent?, dependsOnIds: String? = null, missionId: Long? = null): Task =
-        taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds, missionId = missionId))
+    fun createSubTask(parentId: Long, roomId: String, command: String, agent: Agent?, dependsOnIds: String? = null, missionId: Long? = null): Task {
+        val task = taskRepository.save(Task(roomId = roomId, command = command, agent = agent, parentId = parentId, dependsOnIds = dependsOnIds, missionId = missionId))
+        broadcastTask(task)
+        return task
+    }
 
     fun getSubTasks(parentId: Long): List<Task> = taskRepository.findByParentId(parentId)
 
@@ -35,7 +51,8 @@ class TaskService (
     fun setDecomposed(id: Long, decomposed: Boolean) {
         val task = getTaskById(id)
         task.isDecomposed = decomposed
-        taskRepository.save(task)
+        val saved = taskRepository.save(task)
+        broadcastTask(saved)
     }
 
     @Transactional
@@ -62,6 +79,8 @@ class TaskService (
             }
         }
         
-        return taskRepository.save(task)
+        val saved = taskRepository.save(task)
+        broadcastTask(saved)
+        return saved
     }
 }

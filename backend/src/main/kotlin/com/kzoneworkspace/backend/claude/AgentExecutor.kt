@@ -3,6 +3,7 @@ package com.kzoneworkspace.backend.claude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.kzoneworkspace.backend.agent.entity.Agent
 import com.kzoneworkspace.backend.agent.entity.AiProvider
+import com.kzoneworkspace.backend.agent.entity.CognitiveStepType
 import com.kzoneworkspace.backend.agent.service.AgentService
 import com.kzoneworkspace.backend.task.entity.TaskStatus
 import com.kzoneworkspace.backend.task.service.TaskService
@@ -22,6 +23,7 @@ import com.kzoneworkspace.backend.tools.GitService
 import com.kzoneworkspace.backend.tools.CodeReviewService
 import com.kzoneworkspace.backend.agent.service.ActivityLogService
 import com.kzoneworkspace.backend.agent.service.CollaborationService
+import com.kzoneworkspace.backend.agent.service.CognitiveTraceService
 import com.kzoneworkspace.backend.task.service.SchedulingService
 import com.kzoneworkspace.backend.agent.service.CodebaseIndexingService
 import com.kzoneworkspace.backend.agent.service.ShadowWorkspaceService
@@ -50,6 +52,7 @@ class AgentExecutor(
     private val collaborationService: CollaborationService,
     private val codeReviewService: CodeReviewService,
     private val activityLogService: ActivityLogService,
+    private val cognitiveTraceService: CognitiveTraceService,
     private val schedulingService: SchedulingService,
     private val codebaseIndexingService: CodebaseIndexingService,
     private val shadowWorkspaceService: ShadowWorkspaceService,
@@ -107,6 +110,7 @@ class AgentExecutor(
         val task = taskService.createTask(roomId, userMessage, agent)
         taskService.updateStatus(task.id, TaskStatus.RUNNING)
         sendMessage(roomId, agent.name, "사용자 요청을 분석하고 있습니다...", MessageType.THINKING)
+        cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.PLANNING, "사용자 요청 분석 및 작업 계획 수립 단계 진입: ${userMessage.take(100)}...", 0.9)
 
         try {
             val messages = mutableListOf<Map<String, Any>>()
@@ -168,6 +172,17 @@ class AgentExecutor(
                 
                 // 지능 강화 알림 UI 전송
                 sendMessage(roomId, agent.name, "intelligence_boosted", MessageType.SYSTEM)
+                cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.OBSERVATION, "기억 및 프로젝트 소스코드 시맨틱 검색 완료 (지능 강화 연동)", 0.95)
+                try {
+                    val boostPayload = objectMapper.writeValueAsString(mapOf(
+                        "agentName" to agent.name,
+                        "roomId" to roomId,
+                        "status" to "BOOSTED"
+                    ))
+                    messagingTemplate.convertAndSend("/topic/intelligence-boost", boostPayload)
+                } catch (e: Exception) {
+                    println("Failed to broadcast intelligence boost: ${e.message}")
+                }
             }
 
             // 프로젝트 컨텍스트 + 기술적 교훈 주입 (ATR)
@@ -236,6 +251,7 @@ class AgentExecutor(
             sendMessage(roomId, agent.name, errorMsg, MessageType.AGENT)
             e.printStackTrace()
             taskService.updateStatus(task.id, TaskStatus.FAILED, errorMsg)
+            cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.CORRECTION, "태스크 수행 중 오류 감지: ${e.message}", 0.7)
             
             // 실패 시 기술적 교훈 추출 트리거
             lessonService.extractAndSaveLesson(task)
@@ -268,6 +284,7 @@ class AgentExecutor(
         if (taskId == null) taskService.updateStatus(task.id, TaskStatus.RUNNING)
         
         sendMessage(roomId, agent.name, "사용자 요청 분석 및 지능적 작업을 시작합니다...", MessageType.THINKING)
+        cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.PLANNING, "자가 치유 워크플로우에 따른 태스크 복구 시도 시작: ${userMessage.take(100)}...", 0.85)
 
         try {
             val messages = mutableListOf<Map<String, Any>>()
@@ -322,6 +339,17 @@ class AgentExecutor(
                 }
                 messages.add(mapOf("role" to "user", "content" to "[System Context: Relevant Project Snippets]\n$codeContext"))
                 sendMessage(roomId, agent.name, "intelligence_boosted", MessageType.SYSTEM)
+                cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.OBSERVATION, "복구 관련 컨텍스트 및 코드 RAG 분석 완료", 0.9)
+                try {
+                    val boostPayload = objectMapper.writeValueAsString(mapOf(
+                        "agentName" to agent.name,
+                        "roomId" to roomId,
+                        "status" to "BOOSTED"
+                    ))
+                    messagingTemplate.convertAndSend("/topic/intelligence-boost", boostPayload)
+                } catch (e: Exception) {
+                    println("Failed to broadcast intelligence boost: ${e.message}")
+                }
             }
 
             // 프로젝트 구조 컨텍스트
@@ -370,6 +398,7 @@ class AgentExecutor(
 
         } catch (e: Exception) {
             // 자가 치유를 위해 예외를 밖으로 던짐
+            cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.CORRECTION, "자가 치유 수행 도중 에러 발생: ${e.message}", 0.6)
             throw e
         }
     }
@@ -681,6 +710,7 @@ class AgentExecutor(
 
         while (loop && iteration < maxIterations) {
             iteration++
+            cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.INFERENCE, "LLM 추론 분석 중 (반복 회차: $iteration)", 0.85)
             val toolUseBlocks = mutableListOf<Map<String, Any>>()
             val assistantContentList = mutableListOf<Map<String, Any>>()
             var textResponseMessage = ""
@@ -774,6 +804,7 @@ class AgentExecutor(
 
             if (toolUseBlocks.isEmpty()) {
                 lastResponse = textResponseMessage
+                cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.VALIDATION, "추론 결과 검증 완료 및 최종 응답 출력 준비", 0.95)
                 loop = false
             } else {
                 for (block in toolUseBlocks) {
@@ -794,7 +825,13 @@ class AgentExecutor(
                             "status" to "START"
                         ))
                         sendMessage(roomId, agent.name, livePayload, MessageType.LIVE_WORKING)
+                        try {
+                            messagingTemplate.convertAndSend("/topic/tool-preview", livePayload)
+                        } catch (e: Exception) {
+                            println("Failed to broadcast tool preview start: ${e.message}")
+                        }
                     }
+                    cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.OBSERVATION, "도구 사용 관측: `$toolName` 호출 시작", 0.9)
 
                     val result = try {
                         val toolResult = when (toolName) {
@@ -845,6 +882,7 @@ class AgentExecutor(
 
                         toolResult
                     } catch (e: Exception) {
+                        cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.CORRECTION, "도구 '$toolName' 실행 실패 관측: ${e.message}", 0.75)
                         // 진단을 위한 추가 컨텍스트 포함
                         val context = " [Environment Context: Current Dir=${File(".").absolutePath}, Files=${File(".").list()?.joinToString(", ")}]"
                         throw RuntimeException("도구 '$toolName' 실행 실패: ${e.message} $context", e)
@@ -857,6 +895,11 @@ class AgentExecutor(
                             "status" to "END"
                         ))
                         sendMessage(roomId, agent.name, endPayload, MessageType.LIVE_WORKING)
+                        try {
+                            messagingTemplate.convertAndSend("/topic/tool-preview", endPayload)
+                        } catch (e: Exception) {
+                            println("Failed to broadcast tool preview end: ${e.message}")
+                        }
                     }
 
                     messages.add(mapOf(
@@ -902,6 +945,21 @@ class AgentExecutor(
             "status" to "START"
         ))
         sendMessage(roomId, fromAgentName, startPayload, MessageType.COLLABORATION)
+        try {
+            messagingTemplate.convertAndSend("/topic/collaborations", startPayload)
+        } catch (e: Exception) {
+            println("Failed to broadcast collaboration start: ${e.message}")
+        }
+        val connectionPayload = objectMapper.writeValueAsString(mapOf(
+            "source" to fromAgentName,
+            "target" to agentName,
+            "status" to "ACTIVE"
+        ))
+        try {
+            messagingTemplate.convertAndSend("/topic/connections", connectionPayload)
+        } catch (e: Exception) {
+            println("Failed to broadcast connection active: ${e.message}")
+        }
 
         sendMessage(roomId, agentName, "🤝 **[협업 요청 수신]**\n> **요청 내용**: $task", MessageType.AGENT)
         
@@ -917,6 +975,21 @@ class AgentExecutor(
                 "status" to "END"
             ))
             sendMessage(roomId, fromAgentName, endPayload, MessageType.COLLABORATION)
+            try {
+                messagingTemplate.convertAndSend("/topic/collaborations", endPayload)
+            } catch (e: Exception) {
+                println("Failed to broadcast collaboration end: ${e.message}")
+            }
+            val disconnectPayload = objectMapper.writeValueAsString(mapOf(
+                "source" to fromAgentName,
+                "target" to agentName,
+                "status" to "INACTIVE"
+            ))
+            try {
+                messagingTemplate.convertAndSend("/topic/connections", disconnectPayload)
+            } catch (e: Exception) {
+                println("Failed to broadcast connection inactive: ${e.message}")
+            }
             
             "🙋 **${agentName}의 보고**: $response"
         } catch (e: Exception) {
@@ -926,6 +999,21 @@ class AgentExecutor(
                 "status" to "END"
             ))
             sendMessage(roomId, fromAgentName, endPayload, MessageType.COLLABORATION)
+            try {
+                messagingTemplate.convertAndSend("/topic/collaborations", endPayload)
+            } catch (e: Exception) {
+                println("Failed to broadcast collaboration end: ${e.message}")
+            }
+            val disconnectPayload = objectMapper.writeValueAsString(mapOf(
+                "source" to fromAgentName,
+                "target" to agentName,
+                "status" to "INACTIVE"
+            ))
+            try {
+                messagingTemplate.convertAndSend("/topic/connections", disconnectPayload)
+            } catch (e: Exception) {
+                println("Failed to broadcast connection inactive: ${e.message}")
+            }
             "에이전트 호출 중 오류: ${e.message}"
         }
     }

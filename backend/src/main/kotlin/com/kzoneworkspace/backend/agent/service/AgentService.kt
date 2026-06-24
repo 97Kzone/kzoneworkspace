@@ -50,6 +50,14 @@ class AgentService(
         }
     }
 
+    fun broadcastPerformance() {
+        try {
+            messagingTemplate.convertAndSend("/topic/performance", getTeamPerformanceMetrics())
+        } catch (e: Exception) {
+            println("웹소켓 브로드캐스트 에러 (performance): ${e.message}")
+        }
+    }
+
     @PostConstruct
     @Transactional
     fun initDefaultAgents() {
@@ -240,6 +248,7 @@ class AgentService(
             achievement = achievement
         ))
         broadcastAgents()
+        broadcastPerformance()
     }
 
     fun getEvolutionHistory(agentId: Long): List<AgentEvolutionLog> =
@@ -415,6 +424,7 @@ class AgentService(
         
         synergy.lastCollaboratedAt = LocalDateTime.now()
         synergyRepository.save(synergy)
+        broadcastPerformance()
     }
 
     fun getAllSynergies(): List<AgentSynergy> = synergyRepository.findAll()

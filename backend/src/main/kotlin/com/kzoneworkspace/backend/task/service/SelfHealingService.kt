@@ -7,6 +7,7 @@ import com.kzoneworkspace.backend.task.entity.Task
 import com.kzoneworkspace.backend.task.repository.SelfHealingRepository
 import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
 import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 
 data class HealingStrategy(
@@ -25,7 +26,8 @@ class SelfHealingService(
     private val claudeClient: ClaudeClient,
     private val selfHealingRepository: SelfHealingRepository,
     private val officeItemRepository: com.kzoneworkspace.backend.agent.repository.OfficeItemRepository,
-    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository,
+    private val messagingTemplate: SimpMessagingTemplate
 ) {
     private val objectMapper = jacksonObjectMapper()
 
@@ -83,14 +85,14 @@ class SelfHealingService(
             [분석 및 복구 가이드라인]
             1. 에러의 근본 원인을 파악하세요 (예: 파일 경로 오타, 존재하지 않는 파일 읽기, 잘못된 도구 사용, 문법 오류 등).
             2. 문제를 해결하기 위한 '중간 단계'가 필요하다면 이를 포함한 새로운 지시사항을 만드세요.
-               - 예: '파일이 없어서 실패했다'면 '파일을 새로 생성하고 내용을 작성해라'라는 명령으로 대체.
-               - 예: '문법 오류가 났다'면 '해당 라인을 수정하여 다시 저장하라'는 명령으로 대체.
+            - 예: '파일이 없어서 실패했다'면 '파일을 새로 생성하고 내용을 작성해라'라는 명령으로 대체.
+            - 예: '문법 오류가 났다'면 '해당 라인을 수정하여 다시 저장하라'는 명령으로 대체.
             3. 만약 3회 이상 실패했거나 도저히 수동 개입 없이 자동 복구가 불가능한 치명적 하드웨어/네트워크 에러라면 'GIVE_UP'을 선택하세요.
             4. 에이전트는 원본 할당된 에이전트(${task.agent?.name ?: "Unknown"})와 동일한 자격과 도구를 가지고 있다고 가정합니다.
             
-            $auxiliaryPrompt
+            ${auxiliaryPrompt}
             
-            $sandboxPrompt
+            ${sandboxPrompt}
             
             응답은 반드시 아래 JSON 형식으로만 작성하세요. 텍스트 설명은 포함하지 마세요:
             {
@@ -113,6 +115,19 @@ class SelfHealingService(
             parseResponse(response)
         } catch (e: Exception) {
             HealingStrategy(StrategyType.GIVE_UP, "", "복구 분석 중 예상치 못한 오류 발생: ${e.message}")
+        }
+
+        // 실시간 자율 복구 알림 전송
+        try {
+            val agentName = task.agent?.name ?: "Unknown"
+            val alertMessage = if (strategy.type == StrategyType.RETRY_WITH_FIX) {
+                "⚠️ [$agentName] 자가 치유(Self-Healing) 작동 중: ${strategy.reasoning}"
+            } else {
+                "🚨 [$agentName] 자가 치유 불능으로 복구를 중단합니다."
+            }
+            messagingTemplate.convertAndSend("/topic/healing-alert", alertMessage)
+        } catch (e: Exception) {
+            println("Failed to broadcast self-healing alert: ${e.message}")
         }
 
         try {

@@ -32,10 +32,37 @@ export const useStompWS = (
     stompClientRef.current.onConnect = (frame: any) => {
       console.log('WebSocket 연결 성공:', frame);
       
+      // 중복 수신 메시지 필터링 유틸
+      const handleIncomingMessage = (msgBody: any) => {
+        setMessages((prev: any) => {
+          if (msgBody.id && prev.some((m: any) => m.id === msgBody.id)) {
+            return prev;
+          }
+          const isDuplicate = prev.some((m: any) => {
+            const sameContent = m.content === msgBody.content && m.senderName === msgBody.senderName;
+            if (sameContent) {
+              const t1 = new Date(m.timestamp || m.createdAt).getTime();
+              const t2 = new Date(msgBody.timestamp || msgBody.createdAt).getTime();
+              if (!isNaN(t1) && !isNaN(t2) && Math.abs(t1 - t2) < 3000) {
+                return true;
+              }
+            }
+            return false;
+          });
+          if (isDuplicate) return prev;
+          return [...prev, msgBody];
+        });
+      };
+
       // 전역 메시지 구독
       stompClientRef.current.subscribe('/topic/messages', (msg: any) => {
         const body = JSON.parse(msg.body);
-        setMessages((prev: any) => [...prev, body]);
+        handleIncomingMessage(body);
+      });
+
+      stompClientRef.current.subscribe('/topic/public', (msg: any) => {
+        const body = JSON.parse(msg.body);
+        handleIncomingMessage(body);
       });
 
       // 태스크 업데이트 구독
@@ -84,15 +111,18 @@ export const useStompWS = (
       // 에이전트 간 연결(상호작용) 구독
       stompClientRef.current.subscribe('/topic/connections', (msg: any) => {
           const body = JSON.parse(msg.body);
+          const from = body.from || body.source;
+          const to = body.to || body.target;
+          
           setActiveConnections((prev: any) => {
-            const exists = prev.find((c: any) => c.from === body.from && c.to === body.to);
+            const exists = prev.find((c: any) => c.from === from && c.to === to);
             if (exists) return prev;
-            return [...prev, { ...body, timestamp: Date.now() }];
+            return [...prev, { from, to, status: body.status, timestamp: Date.now() }];
           });
           
           // 3초 후 연결 표시 제거
           setTimeout(() => {
-            setActiveConnections((prev: any) => prev.filter((c: any) => !(c.from === body.from && c.to === body.to)));
+            setActiveConnections((prev: any) => prev.filter((c: any) => !(c.from === from && c.to === to)));
           }, 3000);
       });
 
@@ -101,7 +131,7 @@ export const useStompWS = (
         const body = JSON.parse(msg.body);
         setActivePreviews((prev: any) => ({
           ...prev,
-          [body.agentName]: body.toolName === 'thinking_end' ? null : body
+          [body.agentName]: body.toolName === 'thinking_end' || body.status === 'END' ? null : body
         }));
       });
 
@@ -121,16 +151,19 @@ export const useStompWS = (
       // 에이전트 협업 상태 구독
       stompClientRef.current.subscribe('/topic/collaborations', (msg: any) => {
         const body = JSON.parse(msg.body);
+        const agentName = body.from || body.agentName;
+        const targetAgentName = body.status === 'END' ? null : (body.to || body.targetAgentName);
+
         setActiveCollaborations((prev: any) => ({
           ...prev,
-          [body.agentName]: body.targetAgentName
+          [agentName]: targetAgentName
         }));
         
-        if (body.targetAgentName === null) {
+        if (targetAgentName === null) {
           setTimeout(() => {
              setActiveCollaborations((prev: any) => {
                const newState = { ...prev };
-               delete newState[body.agentName];
+               delete newState[agentName];
                return newState;
              });
           }, 2000);
@@ -139,7 +172,13 @@ export const useStompWS = (
 
       // 지식 부스트(인텔리전스 공유) 알림 구독
       stompClientRef.current.subscribe('/topic/intelligence-boost', (msg: any) => {
-          const intelId = msg.body;
+          let intelId = msg.body;
+          try {
+              const body = JSON.parse(msg.body);
+              intelId = body.agentName || msg.body;
+          } catch (e) {
+              // JSON 형식이 아닌 경우 그대로 사용
+          }
           setIsIntelligenceBoosted((prev: any) => ({ ...prev, [intelId]: true }));
           setTimeout(() => {
               setIsIntelligenceBoosted((prev: any) => ({ ...prev, [intelId]: false }));
