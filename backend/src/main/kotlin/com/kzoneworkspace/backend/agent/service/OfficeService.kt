@@ -107,7 +107,7 @@ class OfficeService(
     /**
      * 가상 오피스 자산 상태 및 에이전트 목록의 변경사항을 WebSocket 채널로 실시간 브로드캐스트합니다.
      */
-    private fun broadcastUpdates() {
+    fun broadcastUpdates() {
         try {
             messagingTemplate.convertAndSend("/topic/office", getAllItems())
             messagingTemplate.convertAndSend("/topic/agents", agentService.getAllAgents())

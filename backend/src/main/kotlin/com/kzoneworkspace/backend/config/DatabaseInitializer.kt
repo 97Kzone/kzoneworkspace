@@ -31,6 +31,17 @@ class DatabaseInitializer(private val jdbcTemplate: JdbcTemplate) {
                 println("⚠️ Failed to update agents table schema: ${e.message}")
             }
 
+            // Schema Migrations for office_items table
+            try {
+                jdbcTemplate.execute("ALTER TABLE office_items ADD COLUMN IF NOT EXISTS utilization_rate INTEGER DEFAULT 0")
+                jdbcTemplate.execute("ALTER TABLE office_items ADD COLUMN IF NOT EXISTS failure_prevented_count INTEGER DEFAULT 0")
+                jdbcTemplate.execute("ALTER TABLE office_items ADD COLUMN IF NOT EXISTS accumulated_time_seconds BIGINT DEFAULT 0")
+                jdbcTemplate.execute("ALTER TABLE office_items ADD COLUMN IF NOT EXISTS last_activated_at TIMESTAMP")
+                println("✅ office_items table schema updated successfully.")
+            } catch (e: Exception) {
+                println("⚠️ Failed to update office_items table schema: ${e.message}")
+            }
+
             // Create neural_resonances table if not exists
             try {
                 jdbcTemplate.execute("""

@@ -53,6 +53,10 @@ export interface OfficeItem {
     y: number;
     agentId: number | null;
     createdAt: string;
+    utilizationRate?: number;
+    failurePreventedCount?: number;
+    accumulatedTimeSeconds?: number;
+    lastActivatedAt?: string | null;
 }
 
 export interface Skill {

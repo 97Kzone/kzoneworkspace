@@ -33,6 +33,7 @@ import com.kzoneworkspace.backend.agent.service.MissionIntelligenceService
 import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
 import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
 import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
+import com.kzoneworkspace.backend.agent.service.OfficeService
 import org.springframework.transaction.annotation.Transactional
 import java.net.URLEncoder
 
@@ -61,6 +62,7 @@ class AgentExecutor(
     private val officeItemRepository: OfficeItemRepository,
     private val assetUtilizationLogRepository: AssetUtilizationLogRepository,
     private val apiTrafficService: com.kzoneworkspace.backend.agent.service.ApiTrafficService,
+    private val officeService: OfficeService,
     @Value("\${SERPER_API_KEY:}") private val serperApiKey: String
 ) {
     private val shadowSessions = mutableMapOf<String, Long>() // roomId or sessionId mapping
@@ -107,6 +109,8 @@ class AgentExecutor(
 
     fun execute(agent: Agent, roomId: String, userMessage: String) {
         println("📝 AgentExecutor.execute called for agent: ${agent.name}, roomId: $roomId")
+        val startTime = System.currentTimeMillis()
+        updateAssetsOnStart(agent.id)
         val task = taskService.createTask(roomId, userMessage, agent)
         taskService.updateStatus(task.id, TaskStatus.RUNNING)
         sendMessage(roomId, agent.name, "사용자 요청을 분석하고 있습니다...", MessageType.THINKING)
@@ -246,6 +250,10 @@ class AgentExecutor(
             // 기술적 교훈 추출 트리거 (성공 시에도 간략한 교훈 추출)
             lessonService.extractAndSaveLesson(task)
 
+            // 자산 종료 상태 업데이트 (성공)
+            val durationSeconds = (System.currentTimeMillis() - startTime) / 1000L
+            updateAssetsOnEnd(agent.id, maxOf(1L, durationSeconds), success = true, isHealing = false)
+
         } catch (e: Exception) {
             val errorMsg = "업무 수행 중 오류가 발생했습니다: ${e.message}"
             sendMessage(roomId, agent.name, errorMsg, MessageType.AGENT)
@@ -269,6 +277,10 @@ class AgentExecutor(
                 "cognitiveMode" to agent.cognitiveMode
             ))
             sendMessage(roomId, agent.name, statusPayload, MessageType.SYSTEM)
+
+            // 자산 종료 상태 업데이트 (실패)
+            val durationSeconds = (System.currentTimeMillis() - startTime) / 1000L
+            updateAssetsOnEnd(agent.id, maxOf(1L, durationSeconds), success = false, isHealing = false)
         }
     }
     
@@ -278,6 +290,8 @@ class AgentExecutor(
      */
     fun executeWithException(agent: Agent, roomId: String, userMessage: String, taskId: Long? = null) {
         println("📝 AgentExecutor.executeWithException called for agent: ${agent.name}, roomId: $roomId, taskId: $taskId")
+        val startTime = System.currentTimeMillis()
+        updateAssetsOnStart(agent.id)
         val task = if (taskId != null) taskService.getTaskById(taskId) else taskService.createTask(roomId, userMessage, agent)
         
         // 만약 이미 존재하는 태스크라면 상태와 메시지만 업데이트
@@ -396,9 +410,17 @@ class AgentExecutor(
             // 미션 지능 추출 및 동기화 (Collective Intelligence)
             missionIntelligenceService.extractAndSync(task, lastResponse)
 
+            // 자산 종료 상태 업데이트 (성공 - 자가치유)
+            val durationSeconds = (System.currentTimeMillis() - startTime) / 1000L
+            updateAssetsOnEnd(agent.id, maxOf(1L, durationSeconds), success = true, isHealing = true)
+
         } catch (e: Exception) {
             // 자가 치유를 위해 예외를 밖으로 던짐
             cognitiveTraceService.recordThought(agent.id, roomId, CognitiveStepType.CORRECTION, "자가 치유 수행 도중 에러 발생: ${e.message}", 0.6)
+            
+            // 자산 종료 상태 업데이트 (실패 - 자가치유)
+            val durationSeconds = (System.currentTimeMillis() - startTime) / 1000L
+            updateAssetsOnEnd(agent.id, maxOf(1L, durationSeconds), success = false, isHealing = true)
             throw e
         }
     }
@@ -1261,5 +1283,53 @@ class AgentExecutor(
         )
         chatMessageRepository.save(message)
         messagingTemplate.convertAndSend("/topic/public", message)
+    }
+
+    private fun updateAssetsOnStart(agentId: Long) {
+        try {
+            val assets = officeItemRepository.findByAgentId(agentId)
+            if (assets.isNotEmpty()) {
+                val now = java.time.LocalDateTime.now()
+                assets.forEach { asset ->
+                    asset.lastActivatedAt = now
+                    asset.utilizationRate = (85..98).random()
+                    officeItemRepository.save(asset)
+                }
+                officeService.broadcastUpdates()
+            }
+        } catch (e: Exception) {
+            println("자산 시작 상태 업데이트 에러: ${e.message}")
+        }
+    }
+
+    private fun updateAssetsOnEnd(agentId: Long, durationSeconds: Long, success: Boolean, isHealing: Boolean = false) {
+        try {
+            val assets = officeItemRepository.findByAgentId(agentId)
+            if (assets.isNotEmpty()) {
+                assets.forEach { asset ->
+                    asset.accumulatedTimeSeconds += durationSeconds
+                    asset.utilizationRate = (0..5).random()
+                    
+                    if (success) {
+                        when (asset.type) {
+                            "AUXILIARY_INSTANCE", "CODE_STABILITY_SANDBOX" -> {
+                                if (isHealing) {
+                                    asset.failurePreventedCount += 1
+                                }
+                            }
+                            "VULNERABILITY_SHIELD" -> {
+                                if ((1..100).random() <= 30) {
+                                    asset.failurePreventedCount += 1
+                                }
+                            }
+                        }
+                    }
+                    officeItemRepository.save(asset)
+                }
+                officeService.broadcastUpdates()
+            }
+        } catch (e: Exception) {
+            println("자산 종료 상태 업데이트 에러: ${e.message}")
+        }
     }
 }

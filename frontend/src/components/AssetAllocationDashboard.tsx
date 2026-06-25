@@ -678,18 +678,54 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         className="absolute bottom-3 left-3 right-3 bg-slate-900/95 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xl z-20"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="text-indigo-400">
-                              {getAssetStyle(selectedAssetDetail.type).icon}
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2">
+                              <div className="text-indigo-400">
+                                {getAssetStyle(selectedAssetDetail.type).icon}
+                              </div>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                배치 사양 분석
+                              </span>
                             </div>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              배치 사양 분석
-                            </span>
+                            {selectedAssetDetail.lastActivatedAt && (
+                              <span className="text-[8px] text-slate-500 font-mono">
+                                Activated: {new Date(selectedAssetDetail.lastActivatedAt).toLocaleTimeString()}
+                              </span>
+                            )}
                           </div>
                           <h5 className="text-xs font-black text-white truncate">{selectedAssetDetail.name}</h5>
-                          <p className="text-[9px] font-bold text-slate-400 leading-normal mt-1">
+                          <p className="text-[9px] font-bold text-slate-400 leading-normal mt-1 mb-2">
                             {getAssetStyle(selectedAssetDetail.type).spec}
                           </p>
+                          
+                          {/* 실시간 운영 통계 뱃지 추가 */}
+                          <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-2 mt-2">
+                            <div className="bg-black/40 rounded-lg p-1.5 border border-white/5 flex flex-col justify-center">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider leading-none">실시간 가동률</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-500" style={{ width: `${selectedAssetDetail.utilizationRate || 0}%` }}></div>
+                                </div>
+                                <span className="text-[8px] font-mono text-indigo-400 font-bold leading-none">{selectedAssetDetail.utilizationRate || 0}%</span>
+                              </div>
+                            </div>
+                            <div className="bg-black/40 rounded-lg p-1.5 border border-white/5 flex flex-col justify-center">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider leading-none">오류 방어 수</span>
+                              <span className="text-[9px] font-mono text-emerald-400 font-bold mt-1 leading-none">{selectedAssetDetail.failurePreventedCount || 0} 회</span>
+                            </div>
+                            <div className="bg-black/40 rounded-lg p-1.5 border border-white/5 flex flex-col justify-center">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider leading-none">누적 가동 시간</span>
+                              <span className="text-[9px] font-mono text-slate-300 font-bold mt-1 leading-none">
+                                {(() => {
+                                  const sec = selectedAssetDetail.accumulatedTimeSeconds || 0;
+                                  if (sec < 60) return `${sec}초`;
+                                  const min = Math.floor(sec / 60);
+                                  const rem = sec % 60;
+                                  return `${min}분 ${rem}초`;
+                                })()}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button
@@ -1044,18 +1080,54 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         className="absolute bottom-3 left-3 right-3 bg-slate-900/95 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xl z-20"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="text-indigo-400">
-                              {getAssetStyle(selectedAssetDetail.type).icon}
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2">
+                              <div className="text-indigo-400">
+                                {getAssetStyle(selectedAssetDetail.type).icon}
+                              </div>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                배치 사양 분석 (군집)
+                              </span>
                             </div>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              배치 사양 분석 (군집)
-                            </span>
+                            {selectedAssetDetail.lastActivatedAt && (
+                              <span className="text-[8px] text-slate-500 font-mono">
+                                Activated: {new Date(selectedAssetDetail.lastActivatedAt).toLocaleTimeString()}
+                              </span>
+                            )}
                           </div>
                           <h5 className="text-xs font-black text-white truncate">{selectedAssetDetail.name}</h5>
-                          <p className="text-[9px] font-bold text-slate-400 leading-normal mt-1">
+                          <p className="text-[9px] font-bold text-slate-400 leading-normal mt-1 mb-2">
                             {getAssetStyle(selectedAssetDetail.type).spec}
                           </p>
+                          
+                          {/* 실시간 운영 통계 뱃지 추가 */}
+                          <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-2 mt-2">
+                            <div className="bg-black/40 rounded-lg p-1.5 border border-white/5 flex flex-col justify-center">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider leading-none">실시간 가동률</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-500" style={{ width: `${selectedAssetDetail.utilizationRate || 0}%` }}></div>
+                                </div>
+                                <span className="text-[8px] font-mono text-indigo-400 font-bold leading-none">{selectedAssetDetail.utilizationRate || 0}%</span>
+                              </div>
+                            </div>
+                            <div className="bg-black/40 rounded-lg p-1.5 border border-white/5 flex flex-col justify-center">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider leading-none">오류 방어 수</span>
+                              <span className="text-[9px] font-mono text-emerald-400 font-bold mt-1 leading-none">{selectedAssetDetail.failurePreventedCount || 0} 회</span>
+                            </div>
+                            <div className="bg-black/40 rounded-lg p-1.5 border border-white/5 flex flex-col justify-center">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider leading-none">누적 가동 시간</span>
+                              <span className="text-[9px] font-mono text-slate-300 font-bold mt-1 leading-none">
+                                {(() => {
+                                  const sec = selectedAssetDetail.accumulatedTimeSeconds || 0;
+                                  if (sec < 60) return `${sec}초`;
+                                  const min = Math.floor(sec / 60);
+                                  const rem = sec % 60;
+                                  return `${min}분 ${rem}초`;
+                                })()}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button
@@ -1135,9 +1207,16 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         className="bg-black/20 border border-slate-800 p-5 rounded-3xl flex items-center justify-between gap-4"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">컴퓨팅 자원 운영 중</span>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">컴퓨팅 자원 운영 중</span>
+                            </div>
+                            {item.lastActivatedAt && (
+                              <span className="text-[8px] text-slate-500 font-mono">
+                                Act: {new Date(item.lastActivatedAt).toLocaleTimeString()}
+                              </span>
+                            )}
                           </div>
                           
                           <h5 className="text-xs font-black text-white truncate uppercase flex items-center gap-2">
@@ -1145,11 +1224,39 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                             {item.name}
                           </h5>
                           
-                          <div className="flex items-center gap-2 mt-3">
-                            <div className={`w-6 h-6 rounded-lg ${agentColor.bg} flex items-center justify-center text-white text-[8px] font-bold`}>
+                          {/* 실시간 운영 통계 렌더링 */}
+                          <div className="flex gap-4 items-center mt-3 bg-black/40 border border-white/5 p-2.5 rounded-2xl">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">실시간 가동률</span>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-500" style={{ width: `${item.utilizationRate || 0}%` }}></div>
+                                </div>
+                                <span className="text-[8px] font-mono text-indigo-400 font-bold leading-none">{item.utilizationRate || 0}%</span>
+                              </div>
+                            </div>
+                            <div className="shrink-0 border-l border-white/5 pl-4 text-right">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider block leading-none">방어 횟수</span>
+                              <span className="text-[9px] font-mono text-emerald-400 font-bold mt-1.5 block leading-none">{item.failurePreventedCount || 0}회</span>
+                            </div>
+                            <div className="shrink-0 border-l border-white/5 pl-4 text-right">
+                              <span className="text-[7px] text-slate-500 font-black uppercase tracking-wider block leading-none">누적 가동</span>
+                              <span className="text-[9px] font-mono text-slate-300 font-bold mt-1.5 block leading-none">
+                                {(() => {
+                                  const sec = item.accumulatedTimeSeconds || 0;
+                                  if (sec < 60) return `${sec}초`;
+                                  const min = Math.floor(sec / 60);
+                                  return `${min}분`;
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-3.5">
+                            <div className={`w-5 h-5 rounded-lg ${agentColor.bg} flex items-center justify-center text-white text-[8px] font-bold`}>
                               {holdingAgent ? holdingAgent.name[0].toUpperCase() : "?"}
                             </div>
-                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-wide">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide">
                               {holdingAgent ? holdingAgent.name : "미지정 개체"}
                             </span>
                           </div>
