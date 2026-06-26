@@ -14,6 +14,11 @@ class OfficeController(
     @GetMapping("/items")
     fun getAllItems(): List<OfficeItem> = officeService.getAllItems()
 
+    @GetMapping("/available-assets")
+    fun getAvailableAssets(): List<com.kzoneworkspace.backend.agent.service.AvailableAssetDto> {
+        return officeService.getAvailableAssets()
+    }
+
     @GetMapping("/logs")
     fun getRecentLogs(): List<AssetUtilizationLog> = officeService.getRecentLogs()
 

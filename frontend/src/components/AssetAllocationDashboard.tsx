@@ -41,6 +41,34 @@ const getAgentColorHex = (name: string) => {
   return '#475569'; // slate-600
 };
 
+const getAssetIcon = (type: string) => {
+  switch (type) {
+    case "REASONING_CORE": return <Cpu size={20} />;
+    case "EXTENDED_CONTEXT": return <Layers size={20} />;
+    case "VECTOR_SEARCH": return <Search size={20} />;
+    case "AUXILIARY_INSTANCE": return <ShieldCheck size={20} />;
+    case "CODE_STABILITY_SANDBOX": return <ShieldCheck size={20} />;
+    case "SYNERGY_BRIDGE": return <Network size={20} />;
+    case "COST_OPTIMIZER": return <Zap size={20} />;
+    case "VULNERABILITY_SHIELD": return <ShieldCheck size={20} />;
+    default: return <Zap size={20} />;
+  }
+};
+
+const getAssetColorGradient = (type: string) => {
+  switch (type) {
+    case "REASONING_CORE": return "from-indigo-500 to-cyan-500";
+    case "EXTENDED_CONTEXT": return "from-purple-500 to-pink-500";
+    case "VECTOR_SEARCH": return "from-emerald-500 to-teal-500";
+    case "AUXILIARY_INSTANCE": return "from-amber-500 to-orange-500";
+    case "CODE_STABILITY_SANDBOX": return "from-emerald-500 to-blue-500";
+    case "SYNERGY_BRIDGE": return "from-blue-500 to-indigo-600";
+    case "COST_OPTIMIZER": return "from-yellow-500 to-amber-600";
+    case "VULNERABILITY_SHIELD": return "from-rose-500 to-amber-500";
+    default: return "from-slate-500 to-slate-700";
+  }
+};
+
 export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> = ({
   agents: propsAgents,
   allocatedItems: propsAllocatedItems,
@@ -52,6 +80,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   const [localAgents, setLocalAgents] = useState<Agent[]>([]);
   const [localAllocatedItems, localSetAllocatedItems] = useState<OfficeItem[]>([]);
   const [localAssetLogs, setLocalAssetLogs] = useState<AssetUtilizationLog[]>([]);
+  const [availableAssets, setAvailableAssets] = useState<ComputationalAsset[]>([]);
   const assetLogs = propsAssetLogs !== undefined ? propsAssetLogs : localAssetLogs;
   
   const [loading, setLoading] = useState(!propsAgents);
@@ -79,88 +108,23 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
     return allocatedItems.filter(item => item.agentId === selectedAgentId);
   }, [allocatedItems, selectedAgentId]);
 
-  // 제공되는 컴퓨팅 자산 정의
-  const availableAssets: ComputationalAsset[] = [
-    {
-      id: "reasoning_core",
-      name: "고성능 추론 가속 코어",
-      type: "REASONING_CORE",
-      description: "고부하 추론 처리를 위한 GPU 가속 컴퓨팅 코어를 추가 할당합니다.",
-      price: 150,
-      icon: <Cpu size={20} />,
-      color: "from-indigo-500 to-cyan-500"
-    },
-    {
-      id: "extended_context",
-      name: "대용량 컨텍스트 메모리 확장",
-      type: "EXTENDED_CONTEXT",
-      description: "Context Window를 최대 128k로 확장하고 세션 캐싱 메모리를 확보합니다.",
-      price: 100,
-      icon: <Layers size={20} />,
-      color: "from-purple-500 to-pink-500"
-    },
-    {
-      id: "vector_search",
-      name: "실시간 벡터 지식 검색 세션",
-      type: "VECTOR_SEARCH",
-      description: "에이전트 단/장기 기억 검색의 정확도를 높이고 시맨틱 검색 속도를 극대화합니다.",
-      price: 80,
-      icon: <Search size={20} />,
-      color: "from-emerald-500 to-teal-500"
-    },
-    {
-      id: "auxiliary_instance",
-      name: "보조 추론 및 자가 치유 인스턴스",
-      type: "AUXILIARY_INSTANCE",
-      description: "다중 스레드 병렬 연산을 지원하여 로직 검증 및 자가 치유 레이턴시를 단축합니다.",
-      price: 200,
-      icon: <ShieldCheck size={20} />,
-      color: "from-amber-500 to-orange-500"
-    },
-    {
-      id: "code_stability_sandbox",
-      name: "코드 안정성 검증용 자율 샌드박스",
-      type: "CODE_STABILITY_SANDBOX",
-      description: "격리된 테스트 샌드박스를 활성화하여 빌드 오류 및 런타임 결함을 예방하고, 에이전트의 안정성을 극대화합니다.",
-      price: 120,
-      icon: <ShieldCheck size={20} />,
-      color: "from-emerald-500 to-blue-500"
-    },
-    {
-      id: "synergy_bridge",
-      name: "협업 시너지 공명 브릿지",
-      type: "SYNERGY_BRIDGE",
-      description: "에이전트 간의 협업 채널 전용 대역폭을 확보하여 협업 시너지를 가속하고, 업무 실패 시 발생하는 시너지 하락 리스크를 방어합니다.",
-      price: 130,
-      icon: <Network size={20} />,
-      color: "from-blue-500 to-indigo-600"
-    },
-    {
-      id: "cost_optimizer",
-      name: "실시간 API 비용 및 토큰 최적화 엔진",
-      type: "COST_OPTIMIZER",
-      description: "추론 프롬프트 및 컨텍스트를 실시간으로 압축하여 호출 시 발생하는 API 비용과 토큰 소모량을 20% 절감합니다.",
-      price: 90,
-      icon: <Zap size={20} />,
-      color: "from-yellow-500 to-amber-600"
-    },
-    {
-      id: "vulnerability_shield",
-      name: "실시간 보안 및 취약점 검증 쉴드",
-      type: "VULNERABILITY_SHIELD",
-      description: "에이전트가 코드를 변경하거나 패키지를 추가할 때 보안 결함이나 알려진 취약점을 실시간 스캔하여 차단하고, 프로젝트의 안전성을 극대화합니다.",
-      price: 110,
-      icon: <ShieldCheck size={20} />,
-      color: "from-rose-500 to-amber-500"
-    }
-  ];
-
   const fetchData = async () => {
     // Props로 초기 데이터 로딩 함수가 넘어오면 이를 사용
     if (fetchInitialData) {
       setLoading(true);
       try {
         await fetchInitialData();
+        const assetsRes = await officeService.getAvailableAssets();
+        const mappedAssets = assetsRes.data.map(item => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          description: item.description,
+          price: item.price,
+          icon: getAssetIcon(item.type),
+          color: getAssetColorGradient(item.type)
+        }));
+        setAvailableAssets(mappedAssets);
       } catch (e) {
         console.error("자산 배치 데이터 로딩 실패:", e);
         setErrorMessage("백엔드 데이터를 로드하지 못했습니다.");
@@ -172,10 +136,11 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
 
     setLoading(true);
     try {
-      const [agentRes, officeRes, logsRes] = await Promise.all([
+      const [agentRes, officeRes, logsRes, assetsRes] = await Promise.all([
         agentService.getAll(),
         officeService.getAll(),
-        officeService.getLogs()
+        officeService.getLogs(),
+        officeService.getAvailableAssets()
       ]);
       
       if (propsSetAgents) {
@@ -192,6 +157,17 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
 
       setLocalAssetLogs(logsRes.data);
       
+      const mappedAssets = assetsRes.data.map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        description: item.description,
+        price: item.price,
+        icon: getAssetIcon(item.type),
+        color: getAssetColorGradient(item.type)
+      }));
+      setAvailableAssets(mappedAssets);
+      
       if (agentRes.data.length > 0 && selectedAgentId === "") {
         setSelectedAgentId(agentRes.data[0].id);
       }
@@ -202,6 +178,27 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const loadAssetsOnly = async () => {
+      try {
+        const assetsRes = await officeService.getAvailableAssets();
+        const mappedAssets = assetsRes.data.map(item => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          description: item.description,
+          price: item.price,
+          icon: getAssetIcon(item.type),
+          color: getAssetColorGradient(item.type)
+        }));
+        setAvailableAssets(mappedAssets);
+      } catch (e) {
+        console.error("자산 목록 조회 실패:", e);
+      }
+    };
+    loadAssetsOnly();
+  }, []);
 
   useEffect(() => {
     if (agents.length > 0 && selectedAgentId === "") {
@@ -216,6 +213,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       setLoading(false);
     }
   }, [propsAgents]);
+
 
   // 특정 자산을 에이전트에 할당 (배치)
   const handleAllocateAsset = async (asset: ComputationalAsset) => {

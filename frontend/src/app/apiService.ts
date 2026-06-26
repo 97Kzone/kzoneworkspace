@@ -59,6 +59,15 @@ export interface OfficeItem {
     lastActivatedAt?: string | null;
 }
 
+export interface AvailableAsset {
+    id: string;
+    name: string;
+    type: string;
+    description: string;
+    price: number;
+}
+
+
 export interface Skill {
     id: string;
     name: string;
@@ -343,6 +352,7 @@ export const officeService = {
 
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),
     getLogs: () => api.get<AssetUtilizationLog[]>('/office/logs'),
+    getAvailableAssets: () => api.get<AvailableAsset[]>('/office/available-assets'),
 };
 
 

@@ -117,5 +117,75 @@ class OfficeService(
             println("웹소켓 브로드캐스트 에러: ${e.message}")
         }
     }
+
+    fun getAvailableAssets(): List<AvailableAssetDto> {
+        return listOf(
+            AvailableAssetDto(
+                id = "reasoning_core",
+                name = "고성능 추론 가속 코어",
+                type = "REASONING_CORE",
+                description = "고부하 추론 처리를 위한 GPU 가속 컴퓨팅 코어를 추가 할당합니다.",
+                price = ASSET_PRICES["REASONING_CORE"] ?: 150
+            ),
+            AvailableAssetDto(
+                id = "extended_context",
+                name = "대용량 컨텍스트 메모리 확장",
+                type = "EXTENDED_CONTEXT",
+                description = "Context Window를 최대 128k로 확장하고 세션 캐싱 메모리를 확보합니다.",
+                price = ASSET_PRICES["EXTENDED_CONTEXT"] ?: 100
+            ),
+            AvailableAssetDto(
+                id = "vector_search",
+                name = "실시간 벡터 지식 검색 세션",
+                type = "VECTOR_SEARCH",
+                description = "에이전트 단/장기 기억 검색의 정확도를 높이고 시맨틱 검색 속도를 극대화합니다.",
+                price = ASSET_PRICES["VECTOR_SEARCH"] ?: 80
+            ),
+            AvailableAssetDto(
+                id = "auxiliary_instance",
+                name = "보조 추론 및 자가 치유 인스턴스",
+                type = "AUXILIARY_INSTANCE",
+                description = "다중 스레드 병렬 연산을 지원하여 로직 검증 및 자가 치유 레이턴시를 단축합니다.",
+                price = ASSET_PRICES["AUXILIARY_INSTANCE"] ?: 200
+            ),
+            AvailableAssetDto(
+                id = "code_stability_sandbox",
+                name = "코드 안정성 검증용 자율 샌드박스",
+                type = "CODE_STABILITY_SANDBOX",
+                description = "자율 실행 격리 테스트 환경을 구축하여 빌드 오류 및 런타임 결함을 예방하고, 에이전트의 안정성을 극대화합니다.",
+                price = ASSET_PRICES["CODE_STABILITY_SANDBOX"] ?: 120
+            ),
+            AvailableAssetDto(
+                id = "synergy_bridge",
+                name = "협업 시너지 공명 브릿지",
+                type = "SYNERGY_BRIDGE",
+                description = "에이전트 간의 협업 채널 전용 대역폭을 확보하여 협업 시너지를 가속하고, 업무 실패 시 발생하는 시너지 하락 리스크를 방어합니다.",
+                price = ASSET_PRICES["SYNERGY_BRIDGE"] ?: 130
+            ),
+            AvailableAssetDto(
+                id = "cost_optimizer",
+                name = "실시간 API 비용 및 토큰 최적화 엔진",
+                type = "COST_OPTIMIZER",
+                description = "추론 프롬프트 및 컨텍스트를 실시간으로 압축하여 호출 시 발생하는 API 비용과 토큰 소모량을 20% 절감합니다.",
+                price = ASSET_PRICES["COST_OPTIMIZER"] ?: 90
+            ),
+            AvailableAssetDto(
+                id = "vulnerability_shield",
+                name = "실시간 보안 및 취약점 검증 쉴드",
+                type = "VULNERABILITY_SHIELD",
+                description = "에이전트가 코드를 변경하거나 패키지를 추가할 때 보안 결함이나 알려진 취약점을 실시간 스캔하여 차단하고, 프로젝트의 안전성을 극대화합니다.",
+                price = ASSET_PRICES["VULNERABILITY_SHIELD"] ?: 110
+            )
+        )
+    }
 }
+
+data class AvailableAssetDto(
+    val id: String,
+    val name: String,
+    val type: String,
+    val description: String,
+    val price: Int
+)
+
 
