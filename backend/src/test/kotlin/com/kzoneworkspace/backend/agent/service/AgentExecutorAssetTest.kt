@@ -42,6 +42,7 @@ class AgentExecutorAssetTest {
     private val officeItemRepository = mock(OfficeItemRepository::class.java)
     private val assetUtilizationLogRepository = mock(AssetUtilizationLogRepository::class.java)
     private val apiTrafficService = mock(com.kzoneworkspace.backend.agent.service.ApiTrafficService::class.java)
+    private val officeService = mock(OfficeService::class.java)
 
     private fun createAgentExecutor() = AgentExecutor(
         claudeClient = claudeClient,
@@ -67,6 +68,7 @@ class AgentExecutorAssetTest {
         officeItemRepository = officeItemRepository,
         assetUtilizationLogRepository = assetUtilizationLogRepository,
         apiTrafficService = apiTrafficService,
+        officeService = officeService,
         serperApiKey = ""
     )
 

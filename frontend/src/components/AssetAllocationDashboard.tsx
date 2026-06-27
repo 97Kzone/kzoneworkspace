@@ -5,10 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Cpu, Layers, Search, ShieldCheck, Zap, User, Trash2, 
   Loader2, CheckCircle2, AlertTriangle, RefreshCw, Server, ArrowRight,
-  Info, X, Network, List, Bot
+  Info, X, Network, List, Bot, TrendingUp, BarChart3, PieChart, Activity
 } from "lucide-react";
 import { 
-  agentService, officeService, Agent, OfficeItem, AssetUtilizationLog 
+  agentService, officeService, Agent, OfficeItem, AssetUtilizationLog, SwarmAssetAnalytics 
 } from "../app/apiService";
 import { getAgentColor } from "../utils/agentColors";
 
@@ -88,8 +88,9 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   const [selectedAgentId, setSelectedAgentId] = useState<number | "">("");
   
   // 우측 영역 탭 전환 상태 및 선택된 자산 상세 보기 상태
-  const [activeTabRight, setActiveTabRight] = useState<'topology' | 'swarmGrid' | 'list'>('topology');
+  const [activeTabRight, setActiveTabRight] = useState<'topology' | 'swarmGrid' | 'list' | 'analytics'>('topology');
   const [selectedAssetDetail, setSelectedAssetDetail] = useState<OfficeItem | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<SwarmAssetAnalytics | null>(null);
 
   // Props가 있으면 우선 사용하고 없으면 로컬 상태를 폴백으로 사용
   const agents = propsAgents !== undefined ? propsAgents : localAgents;
@@ -114,7 +115,10 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       setLoading(true);
       try {
         await fetchInitialData();
-        const assetsRes = await officeService.getAvailableAssets();
+        const [assetsRes, analyticsRes] = await Promise.all([
+          officeService.getAvailableAssets(),
+          officeService.getAssetAnalytics().catch(() => null)
+        ]);
         const mappedAssets = assetsRes.data.map(item => ({
           id: item.id,
           name: item.name,
@@ -125,6 +129,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           color: getAssetColorGradient(item.type)
         }));
         setAvailableAssets(mappedAssets);
+        if (analyticsRes?.data) setAnalyticsData(analyticsRes.data);
       } catch (e) {
         console.error("자산 배치 데이터 로딩 실패:", e);
         setErrorMessage("백엔드 데이터를 로드하지 못했습니다.");
@@ -136,11 +141,12 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
 
     setLoading(true);
     try {
-      const [agentRes, officeRes, logsRes, assetsRes] = await Promise.all([
+      const [agentRes, officeRes, logsRes, assetsRes, analyticsRes] = await Promise.all([
         agentService.getAll(),
         officeService.getAll(),
         officeService.getLogs(),
-        officeService.getAvailableAssets()
+        officeService.getAvailableAssets(),
+        officeService.getAssetAnalytics().catch(() => null)
       ]);
       
       if (propsSetAgents) {
@@ -156,6 +162,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       }
 
       setLocalAssetLogs(logsRes.data);
+      if (analyticsRes?.data) setAnalyticsData(analyticsRes.data);
       
       const mappedAssets = assetsRes.data.map(item => ({
         id: item.id,
@@ -553,6 +560,13 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
               >
                 <List size={10} />
                 자산 목록
+              </button>
+              <button 
+                onClick={() => setActiveTabRight('analytics')}
+                className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${activeTabRight === 'analytics' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+              >
+                <BarChart3 size={10} />
+                정량 분석 (ROI)
               </button>
             </div>
           </div>
@@ -1181,6 +1195,84 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                       💡 군집 토폴로지 맵에서 에이전트 노드(파란색 원)를 클릭하면 해당 에이전트가 주 제어 대상으로 전환됩니다. 각 에이전트 주위를 도는 위성 노드는 배치된 컴퓨팅 자산이며, 클릭하여 실시간 사양 조회 및 강제 회수 조치가 가능합니다.
                     </div>
                   </div>
+                </div>
+              </div>
+            ) : activeTabRight === 'analytics' ? (
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar-dark flex flex-col gap-4">
+                {/* 요약 정량 지표 카드 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-900/60 border border-indigo-500/20 p-4 rounded-2xl flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">전체 배치 자산 비용</span>
+                      <Cpu size={14} className="text-indigo-400" />
+                    </div>
+                    <div className="mt-3">
+                      <span className="text-xl font-black text-white italic">{analyticsData?.totalAllocatedAssetCost || 0}</span>
+                      <span className="text-xs font-bold text-indigo-400 ml-1">pts</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/60 border border-emerald-500/20 p-4 rounded-2xl flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">평균 투자 대비 ROI</span>
+                      <TrendingUp size={14} className="text-emerald-400" />
+                    </div>
+                    <div className="mt-3">
+                      <span className="text-xl font-black text-emerald-400 italic">+{analyticsData?.overallRoi || 0}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 에이전트별 자산 정량 효율성 리스트 */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between px-1">
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <Activity size={12} className="text-indigo-400" />
+                      에이전트별 자산 활용 효율성 (Utilization Efficiency)
+                    </h5>
+                  </div>
+
+                  {(!analyticsData || analyticsData.agentAnalytics.length === 0) ? (
+                    <div className="border border-dashed border-slate-800 rounded-2xl p-8 text-center text-slate-600">
+                      <p className="text-[10px] font-black uppercase tracking-widest">분석 데이터가 존재하지 않습니다.</p>
+                    </div>
+                  ) : (
+                    analyticsData.agentAnalytics.map((item) => (
+                      <div key={item.agentId} className="bg-black/30 border border-slate-800 p-4 rounded-2xl flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                            <span className="text-xs font-black text-white">{item.agentName}</span>
+                            <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                              자산 {item.allocatedAssetCount}개 보유
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] font-black text-slate-400">ROI:</span>
+                            <span className="text-xs font-black text-emerald-400">{item.roi}%</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[9px]">
+                            <span className="text-slate-400 font-bold">컴퓨팅 활용 효율성 점수</span>
+                            <span className="font-mono font-bold text-indigo-300">{item.utilizationEfficiency} / 100</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 rounded-full transition-all duration-500" 
+                              style={{ width: `${item.utilizationEfficiency}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[8px] font-bold text-slate-500 border-t border-white/5 pt-2 mt-1">
+                          <span>총 배치 비용: {item.totalAssetCost} pts</span>
+                          <span>기여도 획득: {item.earnedContributionPoints} pts</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             ) : (

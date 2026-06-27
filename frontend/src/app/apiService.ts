@@ -345,6 +345,31 @@ export const schedulingService = {
     delete: (id: number) => api.delete(`/scheduled-tasks/${id}`),
 };
 
+export interface AgentAssetAnalytics {
+    agentId: number;
+    agentName: string;
+    allocatedAssetCount: number;
+    totalAssetCost: number;
+    earnedContributionPoints: number;
+    roi: number;
+    utilizationEfficiency: number;
+}
+
+export interface AssetTypeAnalytics {
+    assetType: string;
+    assetName: string;
+    allocationCount: number;
+    totalCostAllocated: number;
+    avgRoi: number;
+}
+
+export interface SwarmAssetAnalytics {
+    totalAllocatedAssetCost: number;
+    overallRoi: number;
+    agentAnalytics: AgentAssetAnalytics[];
+    assetTypeAnalytics: AssetTypeAnalytics[];
+}
+
 export const officeService = {
     getAll: () => api.get<OfficeItem[]>('/office/items'),
     allocateAsset: (data: { agentId: number, name: string, type: string, x?: number, y?: number, price: number }) => 
@@ -353,6 +378,7 @@ export const officeService = {
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),
     getLogs: () => api.get<AssetUtilizationLog[]>('/office/logs'),
     getAvailableAssets: () => api.get<AvailableAsset[]>('/office/available-assets'),
+    getAssetAnalytics: () => api.get<SwarmAssetAnalytics>('/office/analytics/roi'),
 };
 
 

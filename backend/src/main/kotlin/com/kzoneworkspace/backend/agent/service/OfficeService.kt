@@ -4,6 +4,9 @@ import com.kzoneworkspace.backend.agent.entity.OfficeItem
 import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
 import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
+import com.kzoneworkspace.backend.agent.dto.SwarmAssetAnalyticsDto
+import com.kzoneworkspace.backend.agent.dto.AgentAssetAnalyticsDto
+import com.kzoneworkspace.backend.agent.dto.AssetTypeAnalyticsDto
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -112,10 +115,80 @@ class OfficeService(
             messagingTemplate.convertAndSend("/topic/office", getAllItems())
             messagingTemplate.convertAndSend("/topic/agents", agentService.getAllAgents())
             messagingTemplate.convertAndSend("/topic/office/logs", getRecentLogs())
+            messagingTemplate.convertAndSend("/topic/office/analytics", getAssetAnalytics())
         } catch (e: Exception) {
             // 웹소켓 발행 실패 시 에러 로그 기록 (프로세스 중단 방지)
             println("웹소켓 브로드캐스트 에러: ${e.message}")
         }
+    }
+
+    /**
+     * 에이전트별 컴퓨팅 자산 투자 대비 기여도 획득률(ROI) 및 활용 효율성을 정량 분석합니다.
+     */
+    fun getAssetAnalytics(): SwarmAssetAnalyticsDto {
+        val allItems = officeItemRepository.findAll()
+        val agents = agentService.getAllAgents()
+
+        val agentAnalyticsList = agents.map { agent ->
+            val assignedItems = allItems.filter { it.agentId == agent.id }
+            val totalCost = assignedItems.sumOf { ASSET_PRICES[it.type] ?: 0 }
+            val earnedPoints = agent.contributionPoints
+            
+            val roi = if (totalCost > 0) {
+                (earnedPoints.toDouble() / totalCost) * 100
+            } else 0.0
+
+            val reliability = agent.reliabilityIndex
+            val efficiency = if (assignedItems.isNotEmpty()) {
+                ((roi / 2.5) + (reliability / 2.0)).toInt().coerceIn(15, 99)
+            } else 0
+
+            AgentAssetAnalyticsDto(
+                agentId = agent.id!!,
+                agentName = agent.name,
+                allocatedAssetCount = assignedItems.size,
+                totalAssetCost = totalCost,
+                earnedContributionPoints = earnedPoints,
+                roi = Math.round(roi * 10.0) / 10.0,
+                utilizationEfficiency = efficiency
+            )
+        }
+
+        val totalCostSum = agentAnalyticsList.sumOf { it.totalAssetCost }
+        val overallRoi = if (totalCostSum > 0) {
+            val totalEarned = agentAnalyticsList.sumOf { it.earnedContributionPoints }
+            Math.round((totalEarned.toDouble() / totalCostSum * 100) * 10.0) / 10.0
+        } else 0.0
+
+        val assetTypeGroup = allItems.groupBy { it.type }
+        val assetTypeAnalyticsList = ASSET_PRICES.map { (type, cost) ->
+            val itemsForType = assetTypeGroup[type] ?: emptyList()
+            val count = itemsForType.size
+            val assetName = itemsForType.firstOrNull()?.name ?: type
+            
+            // 타입별 평균 ROI 계산
+            val avgRoiForType = if (count > 0) {
+                val sumRoi = itemsForType.mapNotNull { item ->
+                    agentAnalyticsList.find { it.agentId == item.agentId }?.roi
+                }.sum()
+                Math.round((sumRoi / count) * 10.0) / 10.0
+            } else 0.0
+
+            AssetTypeAnalyticsDto(
+                assetType = type,
+                assetName = assetName,
+                allocationCount = count,
+                totalCostAllocated = count * cost,
+                avgRoi = avgRoiForType
+            )
+        }
+
+        return SwarmAssetAnalyticsDto(
+            totalAllocatedAssetCost = totalCostSum,
+            overallRoi = overallRoi,
+            agentAnalytics = agentAnalyticsList,
+            assetTypeAnalytics = assetTypeAnalyticsList
+        )
     }
 
     fun getAvailableAssets(): List<AvailableAssetDto> {
