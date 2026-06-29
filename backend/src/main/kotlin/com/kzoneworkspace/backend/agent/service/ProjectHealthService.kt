@@ -38,7 +38,8 @@ class ProjectHealthService(
     private val techPulseRepository: TechPulseRepository,
     private val agentRepository: AgentRepository,
     private val strategicRecommendationRepository: StrategicRecommendationRepository,
-    private val geminiClient: GeminiClient
+    private val geminiClient: GeminiClient,
+    private val officeService: OfficeService
 ) {
     private val log = LoggerFactory.getLogger(ProjectHealthService::class.java)
     private val gson = Gson()
@@ -52,9 +53,13 @@ class ProjectHealthService(
         val completedTasks = tasks.count { it.status.name == "COMPLETED" }
         val failedTasks = tasks.count { it.status.name == "FAILED" }
         
+        val assetAnalytics = try { officeService.getAssetAnalytics() } catch (e: Exception) { null }
         val agents = agentRepository.findAll()
-        val agentVoices = agents.joinToString("\n") { 
-            "- ${it.name} (${it.role}): ${it.contributionPoints} pts (Contribution), Cognitive Mode: ${it.cognitiveMode ?: "STABLE"}"
+        val agentVoices = agents.joinToString("\n") { agent ->
+            val agentAssetInfo = assetAnalytics?.agentAnalytics?.find { it.agentId == agent.id }
+            val assetCount = agentAssetInfo?.allocatedAssetCount ?: 0
+            val assetCost = agentAssetInfo?.totalAssetCost ?: 0
+            "- ${agent.name} (${agent.role}): ${agent.contributionPoints} pts (Contribution), Reliability: ${agent.reliabilityIndex}%, Assets Allocated: ${assetCount} units (${assetCost}pts), Cognitive Mode: ${agent.cognitiveMode ?: "STABLE"}"
         }
 
         val recentLogs = activityLogRepository.findAll().sortedByDescending { it.timestamp }.take(30)
@@ -69,13 +74,13 @@ class ProjectHealthService(
 
         // 2. prompt 구성
         val systemPrompt = """
-            당신은 전지전능한 프로젝트 관리형 AI 아키텍트입니다. 
-            현재 AI 에이전트 워크스테이션의 모든 데이터를 분석하여, 프로젝트의 '건강도'와 '전략적 방향'을 제시해야 합니다.
+            당신은 군집 지능 워크스테이션의 전지전능한 프로젝트 관리형 AI 아키텍트입니다. 
+            현재 AI 에이전트 군집의 모든 데이터(업무 성공률, 생산성 자산 배치, 인지 신뢰도)를 분석하여, 프로젝트의 '건강도'와 '전략적 방향'을 제시해야 합니다.
             
             응답은 반드시 JSON 형식으로만 제공하며, 다음 필드를 포함해야 합니다:
             - score: 0~100 사이의 정수 (프로젝트 건강도)
             - status: 'EXCELLENT', 'GOOD', 'STABLE', 'WARNING', 'CRITICAL' 중 하나
-            - synergyLevel: 'HIGH', 'MEDIUM', 'LOW' (에이전트 간의 협업 및 감정 상태 기준)
+            - synergyLevel: 'HIGH', 'MEDIUM', 'LOW' (에이전트 간의 협업 및 인지 신뢰도/공명 상태 기준)
             - risks: 현재 프로젝트에서 발견된 잠재적 위험 요소 리스트 (문자열 리스트)
             - recommendations: 구체적이고 실행 가능한 전략 카드 리스트. 각 객체는 다음 필드를 포함함:
                 * title: 전략의 제목

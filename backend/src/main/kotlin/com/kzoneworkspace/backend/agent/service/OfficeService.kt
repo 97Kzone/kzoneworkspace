@@ -251,6 +251,42 @@ class OfficeService(
             )
         )
     }
+
+    /**
+     * 에이전트의 역할, 인지 신뢰도, 보유 성공 기여도 지표를 정량 분석하여 최적의 미배치 생산성 컴퓨팅 자산을 추천합니다.
+     */
+    fun recommendAssetForAgent(agentId: Long): AvailableAssetDto? {
+        val agent = agentService.getAgentById(agentId)
+        val assignedTypes = officeItemRepository.findAll()
+            .filter { it.agentId == agentId }
+            .map { it.type }
+            .toSet()
+
+        val available = getAvailableAssets().filter { it.type !in assignedTypes }
+        if (available.isEmpty()) return null
+
+        val roleLower = agent.role.lowercase()
+        // 역할별 최적 자산 타입선호도 매핑
+        val preferredType = when {
+            roleLower.contains("coder") || roleLower.contains("dev") -> "CODE_STABILITY_SANDBOX"
+            roleLower.contains("qa") || roleLower.contains("review") -> "VULNERABILITY_SHIELD"
+            roleLower.contains("analyst") || roleLower.contains("research") -> "VECTOR_SEARCH"
+            roleLower.contains("architect") || roleLower.contains("lead") -> "REASONING_CORE"
+            else -> "EXTENDED_CONTEXT"
+        }
+
+        // 선호 자산이 미배치 상태이며 성공 기여도가 충분한 경우 우선 추천
+        val preferredAsset = available.find { it.type == preferredType }
+        if (preferredAsset != null && agent.contributionPoints >= preferredAsset.price) {
+            return preferredAsset
+        }
+
+        // 성공 기여도로 즉시 배치 가능한 자산 중 가격이 높은 순(고성능 자산)으로 추천
+        val affordable = available.filter { agent.contributionPoints >= it.price }
+            .sortedByDescending { it.price }
+
+        return affordable.firstOrNull() ?: available.minByOrNull { it.price }
+    }
 }
 
 data class AvailableAssetDto(

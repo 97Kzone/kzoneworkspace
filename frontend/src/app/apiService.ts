@@ -379,6 +379,7 @@ export const officeService = {
     getLogs: () => api.get<AssetUtilizationLog[]>('/office/logs'),
     getAvailableAssets: () => api.get<AvailableAsset[]>('/office/available-assets'),
     getAssetAnalytics: () => api.get<SwarmAssetAnalytics>('/office/analytics/roi'),
+    getRecommendation: (agentId: number) => api.get<AvailableAsset>(`/office/recommendations/${agentId}`),
 };
 
 

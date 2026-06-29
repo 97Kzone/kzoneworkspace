@@ -26,6 +26,11 @@ class OfficeController(
     @GetMapping("/analytics/roi")
     fun getAssetAnalytics(): SwarmAssetAnalyticsDto = officeService.getAssetAnalytics()
 
+    @GetMapping("/recommendations/{agentId}")
+    fun getRecommendation(@PathVariable agentId: Long): com.kzoneworkspace.backend.agent.service.AvailableAssetDto? {
+        return officeService.recommendAssetForAgent(agentId)
+    }
+
     @PostMapping("/items/allocate")
     fun allocateAsset(@RequestBody request: AllocateAssetRequest): OfficeItem {
         return officeService.allocateAsset(
