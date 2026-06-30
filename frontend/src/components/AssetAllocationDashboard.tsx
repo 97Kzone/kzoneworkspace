@@ -91,6 +91,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   const [activeTabRight, setActiveTabRight] = useState<'topology' | 'swarmGrid' | 'list' | 'analytics'>('topology');
   const [selectedAssetDetail, setSelectedAssetDetail] = useState<OfficeItem | null>(null);
   const [analyticsData, setAnalyticsData] = useState<SwarmAssetAnalytics | null>(null);
+  const [recommendedAsset, setRecommendedAsset] = useState<ComputationalAsset | null>(null);
 
   // Props가 있으면 우선 사용하고 없으면 로컬 상태를 폴백으로 사용
   const agents = propsAgents !== undefined ? propsAgents : localAgents;
@@ -108,6 +109,29 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   const allocatedItemsForAgent = useMemo(() => {
     return allocatedItems.filter(item => item.agentId === selectedAgentId);
   }, [allocatedItems, selectedAgentId]);
+
+  const fetchRecommendation = async (agentId: number) => {
+    try {
+      const res = await officeService.getRecommendation(agentId);
+      if (res && res.data) {
+        const item = res.data;
+        setRecommendedAsset({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          description: item.description,
+          price: item.price,
+          icon: getAssetIcon(item.type),
+          color: getAssetColorGradient(item.type)
+        });
+      } else {
+        setRecommendedAsset(null);
+      }
+    } catch (e) {
+      console.error("추천 자산 로드 실패:", e);
+      setRecommendedAsset(null);
+    }
+  };
 
   const fetchData = async () => {
     // Props로 초기 데이터 로딩 함수가 넘어오면 이를 사용
@@ -130,6 +154,9 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
         }));
         setAvailableAssets(mappedAssets);
         if (analyticsRes?.data) setAnalyticsData(analyticsRes.data);
+        if (selectedAgentId !== "") {
+          fetchRecommendation(Number(selectedAgentId));
+        }
       } catch (e) {
         console.error("자산 배치 데이터 로딩 실패:", e);
         setErrorMessage("백엔드 데이터를 로드하지 못했습니다.");
@@ -177,6 +204,9 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       
       if (agentRes.data.length > 0 && selectedAgentId === "") {
         setSelectedAgentId(agentRes.data[0].id);
+        fetchRecommendation(agentRes.data[0].id);
+      } else if (selectedAgentId !== "") {
+        fetchRecommendation(Number(selectedAgentId));
       }
     } catch (e) {
       console.error("자산 배치 데이터 로딩 실패:", e);
@@ -212,6 +242,14 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       setSelectedAgentId(agents[0].id);
     }
   }, [agents, selectedAgentId]);
+
+  useEffect(() => {
+    if (selectedAgentId !== "") {
+      fetchRecommendation(Number(selectedAgentId));
+    } else {
+      setRecommendedAsset(null);
+    }
+  }, [selectedAgentId]);
 
   useEffect(() => {
     if (!propsAgents) {
@@ -838,6 +876,71 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         </span>
                       </div>
                     </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-500 text-center py-4 font-bold uppercase">분석 에이전트를 상단에서 선택하십시오.</p>
+                  )}
+                </div>
+
+                {/* AI 맞춤형 자산 배치 추천 엔진 (AI Computational Asset Recommendation) */}
+                <div className="bg-slate-900/40 rounded-3xl border border-slate-800 p-5 flex flex-col gap-3.5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none"></div>
+                  
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <Zap size={12} className="text-yellow-400 animate-pulse" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      AI 맞춤형 자산 배치 추천 엔진
+                    </span>
+                  </div>
+
+                  {selectedAgent ? (
+                    recommendedAsset ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="text-[10px] text-slate-400 leading-normal">
+                          에이전트의 역할군(<strong>{selectedAgent.role}</strong>)과 역량을 정량 분석한 결과, 아래 연산 가속 자산이 비즈니스 생산성 향상에 가장 권장됩니다.
+                        </div>
+
+                        <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-2xl flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${recommendedAsset.color} text-white flex items-center justify-center shadow-md shrink-0`}>
+                              {recommendedAsset.icon}
+                            </div>
+                            <div>
+                              <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none">추천 자산</span>
+                              <h6 className="text-xs font-black text-white uppercase mt-0.5">{recommendedAsset.name}</h6>
+                              <p className="text-[9px] text-slate-400 font-medium leading-relaxed mt-0.5">{recommendedAsset.description}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <div className="text-right">
+                              <span className="text-[7px] font-black text-slate-500 uppercase">배치 비용</span>
+                              <p className="text-sm font-black text-indigo-400 italic leading-none mt-0.5">{recommendedAsset.price} pts</p>
+                            </div>
+                            
+                            <button
+                              onClick={() => handleAllocateAsset(recommendedAsset)}
+                              disabled={actionLoading || selectedAgent.contributionPoints < recommendedAsset.price}
+                              className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${
+                                selectedAgent.contributionPoints >= recommendedAsset.price
+                                  ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow active:scale-95 cursor-pointer"
+                                  : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
+                              }`}
+                            >
+                              즉시 배치
+                              <ArrowRight size={8} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-4 text-center gap-2">
+                        <CheckCircle2 size={24} className="text-emerald-500" />
+                        <p className="text-[10px] font-black text-white uppercase tracking-widest">최적의 자산 구성 상태</p>
+                        <p className="text-[9px] text-slate-500 font-medium max-w-[240px]">
+                          현재 에이전트의 역할군에 필요한 모든 핵심 생산성 자산이 정상 배치되어 있습니다.
+                        </p>
+                      </div>
+                    )
                   ) : (
                     <p className="text-[10px] text-slate-500 text-center py-4 font-bold uppercase">분석 에이전트를 상단에서 선택하십시오.</p>
                   )}
