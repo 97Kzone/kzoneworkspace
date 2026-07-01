@@ -51,6 +51,8 @@ const getAssetIcon = (type: string) => {
     case "SYNERGY_BRIDGE": return <Network size={20} />;
     case "COST_OPTIMIZER": return <Zap size={20} />;
     case "VULNERABILITY_SHIELD": return <ShieldCheck size={20} />;
+    case "CI_CD_PIPELINE_EMULATOR": return <RefreshCw size={20} />;
+    case "DEPRECATED_API_SCANNER": return <Search size={20} />;
     default: return <Zap size={20} />;
   }
 };
@@ -65,6 +67,8 @@ const getAssetColorGradient = (type: string) => {
     case "SYNERGY_BRIDGE": return "from-blue-500 to-indigo-600";
     case "COST_OPTIMIZER": return "from-yellow-500 to-amber-600";
     case "VULNERABILITY_SHIELD": return "from-rose-500 to-amber-500";
+    case "CI_CD_PIPELINE_EMULATOR": return "from-cyan-500 to-blue-600";
+    case "DEPRECATED_API_SCANNER": return "from-teal-500 to-emerald-600";
     default: return "from-slate-500 to-slate-700";
   }
 };
@@ -401,6 +405,20 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           stroke: "#f43f5e",
           spec: "코드 변경 시 취약점 정밀 검사, OWASP Top 10 차단 필터 상시 가동",
           icon: <ShieldCheck size={16} />
+        };
+      case "CI_CD_PIPELINE_EMULATOR":
+        return {
+          bg: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
+          stroke: "#06b6d4",
+          spec: "빌드 및 배포 자동화 검증 활성화, 가상 통합 테스트를 통한 결함 사전 스캔 및 제거",
+          icon: <RefreshCw size={16} />
+        };
+      case "DEPRECATED_API_SCANNER":
+        return {
+          bg: "bg-teal-500/10 text-teal-400 border-teal-500/30",
+          stroke: "#14b8a6",
+          spec: "레거시 및 Deprecated API 사용 건 실시간 정밀 추적 및 현대적인 대체 유형 제안",
+          icon: <Search size={16} />
         };
       default:
         return {
@@ -873,6 +891,22 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                         <span className="text-slate-400 font-bold">보안 및 취약점 검증 (Shield)</span>
                         <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "VULNERABILITY_SHIELD") ? "text-rose-400 animate-pulse" : "text-slate-500"}`}>
                           {allocatedItemsForAgent.some(item => item.type === "VULNERABILITY_SHIELD") ? "실시간 취약점 쉴드 가동 중" : "보안 스캔 미활성"}
+                        </span>
+                      </div>
+
+                      {/* Spec item: CI/CD Pipeline Emulator check */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-bold">CI/CD 통합 검증 (Pipeline)</span>
+                        <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "CI_CD_PIPELINE_EMULATOR") ? "text-cyan-400 animate-pulse" : "text-slate-500"}`}>
+                          {allocatedItemsForAgent.some(item => item.type === "CI_CD_PIPELINE_EMULATOR") ? "파이프라인 시뮬레이션 가동 중" : "검증 모드 미연동"}
+                        </span>
+                      </div>
+
+                      {/* Spec item: Deprecated API Scanner check */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-bold">API 호환성 검증 (Scanner)</span>
+                        <span className={`font-bold ${allocatedItemsForAgent.some(item => item.type === "DEPRECATED_API_SCANNER") ? "text-amber-400 animate-pulse" : "text-slate-500"}`}>
+                          {allocatedItemsForAgent.some(item => item.type === "DEPRECATED_API_SCANNER") ? "레거시 API 실시간 추적 중" : "기본 컴파일러 감지"}
                         </span>
                       </div>
                     </div>

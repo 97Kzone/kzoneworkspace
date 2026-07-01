@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { 
   Bot, Plus, Users, Terminal, Code2, Layout, Database, 
-  Search, Activity, Trash2, Heart, Zap, Cpu, Layers, ShieldCheck 
+  Search, Activity, Trash2, Heart, Zap, Cpu, Layers, ShieldCheck, RefreshCw 
 } from "lucide-react";
 import { getAgentColor } from "../../utils/agentColors";
 import { OfficeItem } from "../../app/apiService";
@@ -163,6 +163,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ vo, onDeleteAgent, onOpenProje
                           icon = <ShieldCheck size={10} />;
                           colorClass = "bg-rose-50 text-rose-600 border-rose-100/50";
                           displayName = "보안 쉴드";
+                        } else if (asset.type === "CI_CD_PIPELINE_EMULATOR") {
+                          icon = <RefreshCw size={10} />;
+                          colorClass = "bg-cyan-50 text-cyan-600 border-cyan-100/50";
+                          displayName = "파이프라인";
+                        } else if (asset.type === "DEPRECATED_API_SCANNER") {
+                          icon = <Search size={10} />;
+                          colorClass = "bg-teal-50 text-teal-600 border-teal-100/50";
+                          displayName = "API 분석기";
                         } else {
                           icon = <Zap size={10} />;
                           colorClass = "bg-slate-50 text-slate-600 border-slate-100";

@@ -453,6 +453,16 @@ class EvaluationService(
                     latencyMultiplier *= 1.02
                     rationaleBuilders.add("실시간 보안 및 취약점 검증 쉴드(Vulnerability Shield) 가동으로 잠재 보안 결함 차단")
                 }
+                "CI_CD_PIPELINE_EMULATOR" -> {
+                    scoreBonus += 9.0
+                    latencyMultiplier *= 0.95
+                    rationaleBuilders.add("CI/CD 파이프라인 에뮬레이터(CI/CD Pipeline Emulator) 가동으로 가상 빌드 자동 검증")
+                }
+                "DEPRECATED_API_SCANNER" -> {
+                    scoreBonus += 6.0
+                    latencyMultiplier *= 0.98
+                    rationaleBuilders.add("사용 제안 API 분석기(Deprecated API Scanner) 가동으로 레거시 호환성 사전 추적")
+                }
             }
         }
 
@@ -467,6 +477,8 @@ class EvaluationService(
                 "COST_OPTIMIZER" -> "에이전트 평가 중 [실시간 API 비용 및 토큰 최적화 엔진] 자원이 가동되어 평가 성능 점수 보정(+5.0) 및 레이턴시 단축(10%)이 적용되었습니다."
                 "SYNERGY_BRIDGE" -> "에이전트 평가 중 [협업 시너지 공명 브릿지] 자원이 연동되어 인지 정렬도 및 성능 보정(+5.0)이 적용되었습니다."
                 "VULNERABILITY_SHIELD" -> "에이전트 평가 중 [실시간 보안 및 취약점 검증 쉴드] 자원이 연동되어 보안성 보너스 점수 보정(+7.0) 및 레이턴시 보정(2% 지연)이 적용되었습니다."
+                "CI_CD_PIPELINE_EMULATOR" -> "에이전트 평가 중 [CI/CD 파이프라인 에뮬레이터] 자원이 연동되어 가상 통합 테스트 점수 보정(+9.0) 및 레이턴시 단축(5%)이 적용되었습니다."
+                "DEPRECATED_API_SCANNER" -> "에이전트 평가 중 [사용 제안 API 분석기] 자원이 가동되어 레거시 호환성 점수 보정(+6.0) 및 레이턴시 단축(2%)이 적용되었습니다."
                 else -> null
             }
             if (description != null) {

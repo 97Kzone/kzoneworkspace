@@ -29,7 +29,9 @@ class OfficeService(
             "CODE_STABILITY_SANDBOX" to 120,
             "SYNERGY_BRIDGE" to 130,
             "COST_OPTIMIZER" to 90,
-            "VULNERABILITY_SHIELD" to 110
+            "VULNERABILITY_SHIELD" to 110,
+            "CI_CD_PIPELINE_EMULATOR" to 140,
+            "DEPRECATED_API_SCANNER" to 95
         )
     }
 
@@ -248,6 +250,20 @@ class OfficeService(
                 type = "VULNERABILITY_SHIELD",
                 description = "에이전트가 코드를 변경하거나 패키지를 추가할 때 보안 결함이나 알려진 취약점을 실시간 스캔하여 차단하고, 프로젝트의 안전성을 극대화합니다.",
                 price = ASSET_PRICES["VULNERABILITY_SHIELD"] ?: 110
+            ),
+            AvailableAssetDto(
+                id = "ci_cd_pipeline_emulator",
+                name = "CI/CD 파이프라인 에뮬레이터",
+                type = "CI_CD_PIPELINE_EMULATOR",
+                description = "빌드 및 배포 자동화 검증이 활성화되어 실제 배포 시의 부작용을 가상 환경에서 사전 테스트하고 예방합니다.",
+                price = ASSET_PRICES["CI_CD_PIPELINE_EMULATOR"] ?: 140
+            ),
+            AvailableAssetDto(
+                id = "deprecated_api_scanner",
+                name = "사용 제안 API 분석기",
+                type = "DEPRECATED_API_SCANNER",
+                description = "레거시 및 Deprecated API 사용 건을 실시간 감지하여 현대적인 대체 코드 구현 유형을 권장합니다.",
+                price = ASSET_PRICES["DEPRECATED_API_SCANNER"] ?: 95
             )
         )
     }
@@ -268,8 +284,12 @@ class OfficeService(
         val roleLower = agent.role.lowercase()
         // 역할별 최적 자산 타입선호도 매핑
         val preferredType = when {
-            roleLower.contains("coder") || roleLower.contains("dev") -> "CODE_STABILITY_SANDBOX"
-            roleLower.contains("qa") || roleLower.contains("review") -> "VULNERABILITY_SHIELD"
+            roleLower.contains("coder") || roleLower.contains("dev") -> {
+                if ("CODE_STABILITY_SANDBOX" in assignedTypes) "CI_CD_PIPELINE_EMULATOR" else "CODE_STABILITY_SANDBOX"
+            }
+            roleLower.contains("qa") || roleLower.contains("review") -> {
+                if ("VULNERABILITY_SHIELD" in assignedTypes) "DEPRECATED_API_SCANNER" else "VULNERABILITY_SHIELD"
+            }
             roleLower.contains("analyst") || roleLower.contains("research") -> "VECTOR_SEARCH"
             roleLower.contains("architect") || roleLower.contains("lead") -> "REASONING_CORE"
             else -> "EXTENDED_CONTEXT"
