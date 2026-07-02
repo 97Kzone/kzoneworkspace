@@ -64,7 +64,7 @@ export interface AvailableAsset {
     name: string;
     type: string;
     description: string;
-    price: number;
+    cost: number;
 }
 
 
@@ -372,7 +372,7 @@ export interface SwarmAssetAnalytics {
 
 export const officeService = {
     getAll: () => api.get<OfficeItem[]>('/office/items'),
-    allocateAsset: (data: { agentId: number, name: string, type: string, x?: number, y?: number, price: number }) => 
+    allocateAsset: (data: { agentId: number, name: string, type: string, x?: number, y?: number, cost: number }) => 
         api.post<OfficeItem>('/office/items/allocate', data),
 
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),

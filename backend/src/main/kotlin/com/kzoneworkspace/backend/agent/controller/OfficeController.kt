@@ -39,7 +39,7 @@ class OfficeController(
             type = request.type,
             x = request.x,
             y = request.y,
-            price = request.price
+            cost = request.cost
         )
     }
 
@@ -55,7 +55,7 @@ class OfficeController(
         val type: String,
         val x: Int = 0,
         val y: Int = 0,
-        val price: Int
+        val cost: Int
     )
 
 

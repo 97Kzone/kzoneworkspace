@@ -54,7 +54,7 @@ class OfficeServiceAssetLogTest {
 
         officeService.deleteItem(10L)
 
-        assertEquals(200, agent.contributionPoints) // 50 + 150 (REASONING_CORE price)
+        assertEquals(200, agent.contributionPoints) // 50 + 150 (REASONING_CORE cost)
         verify(officeItemRepository, times(1)).deleteById(10L)
         verify(assetUtilizationLogRepository, times(1)).save(any(AssetUtilizationLog::class.java))
         verify(messagingTemplate, times(1)).convertAndSend(eq("/topic/office/logs"), anyList<AssetUtilizationLog>())

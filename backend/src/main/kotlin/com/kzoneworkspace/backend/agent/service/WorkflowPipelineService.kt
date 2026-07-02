@@ -88,7 +88,7 @@ class WorkflowPipelineService(
                     type = "AUXILIARY_INSTANCE",
                     x = Random.nextInt(10, 90),
                     y = Random.nextInt(10, 90),
-                    price = cost
+                    cost = cost
                 )
 
                 // 활동 로그 기록
@@ -136,7 +136,7 @@ class WorkflowPipelineService(
                     type = "REASONING_CORE",
                     x = Random.nextInt(10, 90),
                     y = Random.nextInt(10, 90),
-                    price = cost
+                    cost = cost
                 )
                 activityLogService.logActivity(
                     agentId = agent.id,
@@ -179,7 +179,7 @@ class WorkflowPipelineService(
                     type = "CODE_STABILITY_SANDBOX",
                     x = Random.nextInt(10, 90),
                     y = Random.nextInt(10, 90),
-                    price = cost
+                    cost = cost
                 )
                 activityLogService.logActivity(
                     agentId = agent.id,
@@ -222,7 +222,7 @@ class WorkflowPipelineService(
                     type = "COST_OPTIMIZER",
                     x = Random.nextInt(10, 90),
                     y = Random.nextInt(10, 90),
-                    price = cost
+                    cost = cost
                 )
                 activityLogService.logActivity(
                     agentId = agent.id,
@@ -265,7 +265,7 @@ class WorkflowPipelineService(
                     type = "SYNERGY_BRIDGE",
                     x = Random.nextInt(10, 90),
                     y = Random.nextInt(10, 90),
-                    price = cost
+                    cost = cost
                 )
                 activityLogService.logActivity(
                     agentId = agent.id,
@@ -308,7 +308,7 @@ class WorkflowPipelineService(
                     type = "VECTOR_SEARCH",
                     x = Random.nextInt(10, 90),
                     y = Random.nextInt(10, 90),
-                    price = cost
+                    cost = cost
                 )
                 activityLogService.logActivity(
                     agentId = agent.id,
@@ -351,7 +351,7 @@ class WorkflowPipelineService(
                     type = "VULNERABILITY_SHIELD",
                     x = Random.nextInt(10, 90),
                     y = Random.nextInt(10, 90),
-                    price = cost
+                    cost = cost
                 )
                 activityLogService.logActivity(
                     agentId = agent.id,

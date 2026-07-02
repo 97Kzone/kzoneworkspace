@@ -141,14 +141,14 @@ class AgentService(
         val targetTaskId = taskId ?: taskRepository.findByAgentId(agentId)
             .maxByOrNull { it.updatedAt }?.id
 
-        var selfHealingBonus = 0
-        var collaborationBonus = 0
+        var selfHealingIncrement = 0
+        var collaborationIncrement = 0
 
         if (targetTaskId != null) {
             // 자율 오류 해결 능력 반영
             val healingLogs = selfHealingRepository.findByTaskId(targetTaskId)
             if (healingLogs.isNotEmpty() && missionSuccess) {
-                selfHealingBonus = healingLogs.size * 15
+                selfHealingIncrement = healingLogs.size * 15
             }
 
             // 협업 강도 반영
@@ -157,14 +157,14 @@ class AgentService(
                 val hasDependencies = !task.dependsOnIds.isNullOrBlank()
                 val isSubtask = task.parentId != null
                 if (hasDependencies || isSubtask) {
-                    collaborationBonus += 8
+                    collaborationIncrement += 8
                 }
             }
             
             // 협업 시너지 브릿지 연동 반영
             val hasSynergyBridge = officeItemRepository.findByAgentId(agentId).any { it.type == "SYNERGY_BRIDGE" }
             if (hasSynergyBridge) {
-                collaborationBonus += 7
+                collaborationIncrement += 7
             }
         }
 
@@ -172,7 +172,7 @@ class AgentService(
         if (missionSuccess) {
             // 성공 시: 기여도 점진 상승
             val baseValue = complexity * 10
-            agent.contributionPoints += (baseValue + selfHealingBonus + collaborationBonus)
+            agent.contributionPoints += (baseValue + selfHealingIncrement + collaborationIncrement)
         }
 
         // 인지 신뢰도 지수 동적 계산 (추론 정확성, 자가 복구 성공률, 인지 일관성)
@@ -231,8 +231,8 @@ class AgentService(
         val savedAgent = agentRepository.save(agent)
 
         // 신뢰성 변화 이력 기록
-        val healingDesc = if (selfHealingBonus > 0) " (자율 자가치유 보너스 +${selfHealingBonus}pts)" else ""
-        val collabDesc = if (collaborationBonus > 0) " (협업 시너지 보너스 +${collaborationBonus}pts)" else ""
+        val healingDesc = if (selfHealingIncrement > 0) " (자율 자가치유 가산 +${selfHealingIncrement}pts)" else ""
+        val collabDesc = if (collaborationIncrement > 0) " (협업 시너지 가산 +${collaborationIncrement}pts)" else ""
         val achievement = if (missionSuccess) {
             "비즈니스 태스크 완료 기여: 복잡도 $complexity 해결${healingDesc}${collabDesc}. [정량 분석 요약: 누적 태스크 성공률 ${taskSuccessRate.toInt()}%, 자가복구율 ${healingSuccessRate.toInt()}%, 평균 추론 신뢰도 ${avgConfidence.toInt()}%]"
         } else {
@@ -356,15 +356,15 @@ class AgentService(
         val agent1 = agentRepository.findAll().find { it.name == n1 }
         val agent2 = agentRepository.findAll().find { it.name == n2 }
         
-        var bonus = 0
+        var synergyWeight = 0
         if (agent1 != null && agent2 != null) {
             val t1 = agent1.personalityTraits
             val t2 = agent2.personalityTraits
             
-            // 단순 시너지 계산 공식: 서로 다른 강점이 조화를 이룰 때 보너스
-            if ((t1["ANALYTICAL"] ?: 50) > 70 && (t2["CREATIVE"] ?: 50) > 70) bonus += 5
-            if ((t1["BOLD"] ?: 50) > 70 && (t2["CAUTIOUS"] ?: 50) > 70) bonus += 5
-            if ((t1["EMPATHETIC"] ?: 50) > 60 || (t2["EMPATHETIC"] ?: 50) > 60) bonus += 2
+            // 단순 시너지 계산 공식: 서로 다른 강점이 조화를 이룰 때 가산점
+            if ((t1["ANALYTICAL"] ?: 50) > 70 && (t2["CREATIVE"] ?: 50) > 70) synergyWeight += 5
+            if ((t1["BOLD"] ?: 50) > 70 && (t2["CAUTIOUS"] ?: 50) > 70) synergyWeight += 5
+            if ((t1["EMPATHETIC"] ?: 50) > 60 || (t2["EMPATHETIC"] ?: 50) > 60) synergyWeight += 2
         }
 
         // SYNERGY_BRIDGE 자산이 있는지 확인
@@ -377,12 +377,12 @@ class AgentService(
         }
 
         if (success) {
-            val successBonus = if (hasSynergyBridge) 8 else 5
-            synergy.synergyScore = (synergy.synergyScore + successBonus + bonus).coerceAtMost(100)
+            val successIncrement = if (hasSynergyBridge) 8 else 5
+            synergy.synergyScore = (synergy.synergyScore + successIncrement + synergyWeight).coerceAtMost(100)
             synergy.synergyNote = if (hasSynergyBridge) {
-                "성공적인 협업을 통해 신뢰가 쌓였습니다. [협업 시너지 공명 브릿지] 가동 보너스 적용 (+3, 총 +${successBonus + bonus})"
+                "성공적인 협업을 통해 신뢰가 쌓였습니다. [협업 시너지 공명 브릿지] 가동 가산 적용 (+3, 총 +${successIncrement + synergyWeight})"
             } else {
-                "성공적인 협업을 통해 신뢰가 쌓였습니다. (Bonus: +$bonus)"
+                "성공적인 협업을 통해 신뢰가 쌓였습니다. (시너지 가산: +$synergyWeight)"
             }
             
             if (hasSynergyBridge) {

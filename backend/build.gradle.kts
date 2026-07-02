@@ -65,6 +65,17 @@ allOpen {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	val envFile = file(".env")
+	if (envFile.exists()) {
+		envFile.readLines().forEach { line ->
+			if (line.isNotBlank() && !line.startsWith("#")) {
+				val split = line.split("=", limit = 2)
+				if (split.size == 2) {
+					environment(split[0].trim(), split[1].trim())
+				}
+			}
+		}
+	}
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {

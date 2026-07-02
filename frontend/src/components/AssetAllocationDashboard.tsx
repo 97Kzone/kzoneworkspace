@@ -17,7 +17,7 @@ interface ComputationalAsset {
   name: string;
   type: string;
   description: string;
-  price: number;
+  cost: number;
   icon: React.ReactNode;
   color: string;
 }
@@ -124,7 +124,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           name: item.name,
           type: item.type,
           description: item.description,
-          price: item.price,
+          cost: item.cost,
           icon: getAssetIcon(item.type),
           color: getAssetColorGradient(item.type)
         });
@@ -152,7 +152,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           name: item.name,
           type: item.type,
           description: item.description,
-          price: item.price,
+          cost: item.cost,
           icon: getAssetIcon(item.type),
           color: getAssetColorGradient(item.type)
         }));
@@ -200,7 +200,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
         name: item.name,
         type: item.type,
         description: item.description,
-        price: item.price,
+        cost: item.cost,
         icon: getAssetIcon(item.type),
         color: getAssetColorGradient(item.type)
       }));
@@ -229,7 +229,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           name: item.name,
           type: item.type,
           description: item.description,
-          price: item.price,
+          cost: item.cost,
           icon: getAssetIcon(item.type),
           color: getAssetColorGradient(item.type)
         }));
@@ -274,8 +274,8 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
     const agent = agents.find(a => a.id === selectedAgentId);
     if (!agent) return;
 
-    if (agent.contributionPoints < asset.price) {
-      setErrorMessage(`'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 자산 배치에 ${asset.price} pts가 필요합니다.`);
+    if (agent.contributionPoints < asset.cost) {
+      setErrorMessage(`'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 자산 배치에 ${asset.cost} pts가 필요합니다.`);
       return;
     }
 
@@ -289,7 +289,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
         agentId: Number(selectedAgentId),
         name: asset.name,
         type: asset.type,
-        price: asset.price
+        cost: asset.cost
       });
 
       setSuccessMessage(`에이전트 '${agent.name}'에 '${asset.name}' 자산 배치를 성공적으로 완료하였습니다!`);
@@ -543,7 +543,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           <div className="grid grid-cols-1 gap-4">
             {availableAssets.map((asset) => {
               const currentAgent = agents.find(a => a.id === selectedAgentId);
-              const isAffordable = currentAgent ? currentAgent.contributionPoints >= asset.price : false;
+              const isAffordable = currentAgent ? currentAgent.contributionPoints >= asset.cost : false;
 
               return (
                 <motion.div
@@ -564,7 +564,7 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                   <div className="flex flex-col items-end gap-3 shrink-0">
                     <div className="text-right">
                       <span className="text-[8px] font-black text-slate-500 uppercase">필요 기여도</span>
-                      <p className="text-lg font-black text-indigo-400 italic leading-none mt-0.5">{asset.price} pts</p>
+                      <p className="text-lg font-black text-indigo-400 italic leading-none mt-0.5">{asset.cost} pts</p>
                     </div>
                     
                     <button
@@ -948,14 +948,14 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                           <div className="flex flex-col items-end gap-2 shrink-0">
                             <div className="text-right">
                               <span className="text-[7px] font-black text-slate-500 uppercase">배치 비용</span>
-                              <p className="text-sm font-black text-indigo-400 italic leading-none mt-0.5">{recommendedAsset.price} pts</p>
+                              <p className="text-sm font-black text-indigo-400 italic leading-none mt-0.5">{recommendedAsset.cost} pts</p>
                             </div>
                             
                             <button
                               onClick={() => handleAllocateAsset(recommendedAsset)}
-                              disabled={actionLoading || selectedAgent.contributionPoints < recommendedAsset.price}
+                              disabled={actionLoading || selectedAgent.contributionPoints < recommendedAsset.cost}
                               className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${
-                                selectedAgent.contributionPoints >= recommendedAsset.price
+                                selectedAgent.contributionPoints >= recommendedAsset.cost
                                   ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow active:scale-95 cursor-pointer"
                                   : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
                               }`}

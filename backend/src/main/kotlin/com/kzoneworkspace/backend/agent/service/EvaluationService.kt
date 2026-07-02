@@ -407,26 +407,26 @@ class EvaluationService(
 
         val agent = agentService.getAgentById(agentId)
 
-        var scoreBonus = 0.0
+        var scoreIncrement = 0.0
         var latencyMultiplier = 1.0
         val rationaleBuilders = mutableListOf<String>()
 
         assets.forEach { asset ->
             when (asset.type) {
                 "REASONING_CORE" -> {
-                    scoreBonus += 10.0
+                    scoreIncrement += 10.0
                     latencyMultiplier *= 0.85
                     rationaleBuilders.add("고성능 추론 코어(Reasoning Core) 가속 가동")
                 }
                 "EXTENDED_CONTEXT" -> {
                     if (benchmark.difficulty >= 2) {
-                        scoreBonus += 10.0
+                        scoreIncrement += 10.0
                         rationaleBuilders.add("대용량 컨텍스트 메모리(Extended Context) 기반 대규모 구조 파악 성공")
                     }
                 }
                 "VECTOR_SEARCH" -> {
                     if (benchmark.criteriaType == CriteriaType.SEMANTIC || benchmark.criteriaType == CriteriaType.CONTAINS) {
-                        scoreBonus += 8.0
+                        scoreIncrement += 8.0
                         rationaleBuilders.add("실시간 벡터 DB 검색(Vector DB Search)을 통한 고정밀 지식 검색")
                     }
                 }
@@ -435,31 +435,31 @@ class EvaluationService(
                     rationaleBuilders.add("보조 추론 인스턴스(Auxiliary Instance) 병렬 검증 연동")
                 }
                 "CODE_STABILITY_SANDBOX" -> {
-                    scoreBonus += 12.0
+                    scoreIncrement += 12.0
                     latencyMultiplier *= 1.05
                     rationaleBuilders.add("코드 안정성 검증용 자율 샌드박스(Code Stability Sandbox) 가동으로 구문 오류 예방")
                 }
                 "COST_OPTIMIZER" -> {
-                    scoreBonus += 5.0
+                    scoreIncrement += 5.0
                     latencyMultiplier *= 0.90
                     rationaleBuilders.add("실시간 API 비용 및 토큰 최적화 엔진(Cost Optimizer) 가동으로 컨텍스트 압축 및 레이턴시 단축")
                 }
                 "SYNERGY_BRIDGE" -> {
-                    scoreBonus += 5.0
+                    scoreIncrement += 5.0
                     rationaleBuilders.add("협업 시너지 공명 브릿지(Synergy Bridge) 연동으로 에이전트 인지 정렬도 상승")
                 }
                 "VULNERABILITY_SHIELD" -> {
-                    scoreBonus += 7.0
+                    scoreIncrement += 7.0
                     latencyMultiplier *= 1.02
                     rationaleBuilders.add("실시간 보안 및 취약점 검증 쉴드(Vulnerability Shield) 가동으로 잠재 보안 결함 차단")
                 }
                 "CI_CD_PIPELINE_EMULATOR" -> {
-                    scoreBonus += 9.0
+                    scoreIncrement += 9.0
                     latencyMultiplier *= 0.95
                     rationaleBuilders.add("CI/CD 파이프라인 에뮬레이터(CI/CD Pipeline Emulator) 가동으로 가상 빌드 자동 검증")
                 }
                 "DEPRECATED_API_SCANNER" -> {
-                    scoreBonus += 6.0
+                    scoreIncrement += 6.0
                     latencyMultiplier *= 0.98
                     rationaleBuilders.add("사용 제안 API 분석기(Deprecated API Scanner) 가동으로 레거시 호환성 사전 추적")
                 }
@@ -476,7 +476,7 @@ class EvaluationService(
                 "CODE_STABILITY_SANDBOX" -> "에이전트 평가 중 [코드 안정성 검증용 자율 샌드박스] 자원이 연동되어 구문 에러 방지 점수 보정(+12.0)이 적용되었습니다."
                 "COST_OPTIMIZER" -> "에이전트 평가 중 [실시간 API 비용 및 토큰 최적화 엔진] 자원이 가동되어 평가 성능 점수 보정(+5.0) 및 레이턴시 단축(10%)이 적용되었습니다."
                 "SYNERGY_BRIDGE" -> "에이전트 평가 중 [협업 시너지 공명 브릿지] 자원이 연동되어 인지 정렬도 및 성능 보정(+5.0)이 적용되었습니다."
-                "VULNERABILITY_SHIELD" -> "에이전트 평가 중 [실시간 보안 및 취약점 검증 쉴드] 자원이 연동되어 보안성 보너스 점수 보정(+7.0) 및 레이턴시 보정(2% 지연)이 적용되었습니다."
+                "VULNERABILITY_SHIELD" -> "에이전트 평가 중 [실시간 보안 및 취약점 검증 쉴드] 자원이 연동되어 보안성 가산 점수 보정(+7.0) 및 레이턴시 보정(2% 지연)이 적용되었습니다."
                 "CI_CD_PIPELINE_EMULATOR" -> "에이전트 평가 중 [CI/CD 파이프라인 에뮬레이터] 자원이 연동되어 가상 통합 테스트 점수 보정(+9.0) 및 레이턴시 단축(5%)이 적용되었습니다."
                 "DEPRECATED_API_SCANNER" -> "에이전트 평가 중 [사용 제안 API 분석기] 자원이 가동되어 레거시 호환성 점수 보정(+6.0) 및 레이턴시 단축(2%)이 적용되었습니다."
                 else -> null
@@ -493,7 +493,7 @@ class EvaluationService(
             }
         }
 
-        var finalScore = (baseScore + scoreBonus).coerceAtMost(100.0)
+        var finalScore = (baseScore + scoreIncrement).coerceAtMost(100.0)
         var finalSuccess = baseSuccess
 
         if (assets.any { it.type == "AUXILIARY_INSTANCE" } && finalScore < 60.0) {
