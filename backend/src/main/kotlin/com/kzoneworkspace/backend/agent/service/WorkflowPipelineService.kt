@@ -72,11 +72,11 @@ class WorkflowPipelineService(
 
         if (title.contains("스케일 아웃")) {
             // 스케일 아웃 전략 적용: 성공 기여도 200 pts 필요 및 보조 인스턴스 자동 배치
-            val cost = 200
+            val cost = officeService.getAssetCost("AUXILIARY_INSTANCE")
             if (agent.contributionPoints < cost) {
                 return ApplyOptimizationResult(
                     success = false,
-                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 스케일 아웃 배치를 위해서는 최소 200 pts가 필요합니다."
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 스케일 아웃 배치를 위해서는 최소 $cost pts가 필요합니다."
                 )
             }
 
@@ -122,11 +122,11 @@ class WorkflowPipelineService(
                 )
             }
         } else if (title.contains("추론 속도 가속")) {
-            val cost = 150
+            val cost = officeService.getAssetCost("REASONING_CORE")
             if (agent.contributionPoints < cost) {
                 return ApplyOptimizationResult(
                     success = false,
-                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 고성능 추론 가속 코어 배치를 위해서는 최소 150 pts가 필요합니다."
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 고성능 추론 가속 코어 배치를 위해서는 최소 $cost pts가 필요합니다."
                 )
             }
             try {
@@ -165,11 +165,11 @@ class WorkflowPipelineService(
                 )
             }
         } else if (title.contains("코드 안정성")) {
-            val cost = 120
+            val cost = officeService.getAssetCost("CODE_STABILITY_SANDBOX")
             if (agent.contributionPoints < cost) {
                 return ApplyOptimizationResult(
                     success = false,
-                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 코드 안정성 검증용 자율 샌드박스 배치를 위해서는 최소 120 pts가 필요합니다."
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 코드 안정성 검증용 자율 샌드박스 배치를 위해서는 최소 $cost pts가 필요합니다."
                 )
             }
             try {
@@ -208,11 +208,11 @@ class WorkflowPipelineService(
                 )
             }
         } else if (title.contains("비용 최적화")) {
-            val cost = 90
+            val cost = officeService.getAssetCost("COST_OPTIMIZER")
             if (agent.contributionPoints < cost) {
                 return ApplyOptimizationResult(
                     success = false,
-                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. API 비용 및 토큰 최적화 엔진 배치를 위해서는 최소 90 pts가 필요합니다."
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. API 비용 및 토큰 최적화 엔진 배치를 위해서는 최소 $cost pts가 필요합니다."
                 )
             }
             try {
@@ -251,11 +251,11 @@ class WorkflowPipelineService(
                 )
             }
         } else if (title.contains("시너지 공명") || title.contains("협업 시너지")) {
-            val cost = 130
+            val cost = officeService.getAssetCost("SYNERGY_BRIDGE")
             if (agent.contributionPoints < cost) {
                 return ApplyOptimizationResult(
                     success = false,
-                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 협업 시너지 공명 브릿지 배치를 위해서는 최소 130 pts가 필요합니다."
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 협업 시너지 공명 브릿지 배치를 위해서는 최소 $cost pts가 필요합니다."
                 )
             }
             try {
@@ -294,11 +294,11 @@ class WorkflowPipelineService(
                 )
             }
         } else if (title.contains("지식 검색") || title.contains("벡터 지식")) {
-            val cost = 80
+            val cost = officeService.getAssetCost("VECTOR_SEARCH")
             if (agent.contributionPoints < cost) {
                 return ApplyOptimizationResult(
                     success = false,
-                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 실시간 벡터 지식 검색 세션 배치를 위해서는 최소 80 pts가 필요합니다."
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 실시간 벡터 지식 검색 세션 배치를 위해서는 최소 $cost pts가 필요합니다."
                 )
             }
             try {
@@ -337,11 +337,11 @@ class WorkflowPipelineService(
                 )
             }
         } else if (title.contains("보안 쉴드") || title.contains("취약점 검증") || title.contains("보안 및 취약점")) {
-            val cost = 110
+            val cost = officeService.getAssetCost("VULNERABILITY_SHIELD")
             if (agent.contributionPoints < cost) {
                 return ApplyOptimizationResult(
                     success = false,
-                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 실시간 보안 및 취약점 검증 쉴드 배치를 위해서는 최소 110 pts가 필요합니다."
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 실시간 보안 및 취약점 검증 쉴드 배치를 위해서는 최소 $cost pts가 필요합니다."
                 )
             }
             try {

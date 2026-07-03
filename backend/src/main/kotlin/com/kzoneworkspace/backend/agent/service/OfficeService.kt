@@ -35,6 +35,8 @@ class OfficeService(
         )
     }
 
+    fun getAssetCost(type: String): Int = ASSET_COSTS[type] ?: 0
+
     fun getAllItems(): List<OfficeItem> = officeItemRepository.findAll()
 
     @Transactional

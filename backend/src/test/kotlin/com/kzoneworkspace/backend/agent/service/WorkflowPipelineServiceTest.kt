@@ -9,6 +9,7 @@ import com.kzoneworkspace.backend.task.entity.TaskStatus
 import com.kzoneworkspace.backend.websocket.ChatMessage
 import com.kzoneworkspace.backend.websocket.ChatMessageRepository
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.*
 import org.mockito.Mockito.*
@@ -35,6 +36,25 @@ class WorkflowPipelineServiceTest {
         taskRepository = taskRepository,
         officeItemRepository = officeItemRepository
     )
+
+    @BeforeEach
+    fun setUp() {
+        `when`(officeService.getAssetCost(anyString())).thenAnswer { invocation ->
+            val type = invocation.arguments[0] as String
+            when (type) {
+                "AUXILIARY_INSTANCE" -> 200
+                "REASONING_CORE" -> 150
+                "CODE_STABILITY_SANDBOX" -> 120
+                "COST_OPTIMIZER" -> 90
+                "SYNERGY_BRIDGE" -> 130
+                "VECTOR_SEARCH" -> 80
+                "VULNERABILITY_SHIELD" -> 110
+                "CI_CD_PIPELINE_EMULATOR" -> 140
+                "DEPRECATED_API_SCANNER" -> 95
+                else -> 0
+            }
+        }
+    }
 
     @Test
     fun `최적화 추천 엔진이 연산 지표 및 미배치 자원을 정량 분석하여 제안을 동적 설계하는가`() {
