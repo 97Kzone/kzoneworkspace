@@ -9,11 +9,11 @@ import org.springframework.stereotype.Repository
 @Repository
 interface MemoryRepository : JpaRepository<Memory, Long> {
 
-    @Query(value = "SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding FROM memories", nativeQuery = true)
+    @Query(value = "SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding, importance, tags FROM memories", nativeQuery = true)
     fun findAllNative(): List<Memory>
 
     @Query(value = """
-        SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding FROM memories m 
+        SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding, importance, tags FROM memories m 
         WHERE m.agent_id = :agentId 
         ORDER BY m.embedding::vector <=> cast(:queryEmbedding as vector) 
         LIMIT :limit
@@ -25,7 +25,7 @@ interface MemoryRepository : JpaRepository<Memory, Long> {
     ): List<Memory>
 
     @Query(value = """
-        SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding FROM memories m 
+        SELECT id, content, agent_id, room_id, created_at, embedding::text as embedding, importance, tags FROM memories m 
         ORDER BY m.embedding::vector <=> cast(:queryEmbedding as vector) 
         LIMIT :limit
     """, nativeQuery = true)

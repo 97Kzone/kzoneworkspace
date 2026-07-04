@@ -108,4 +108,48 @@ class MemoryServiceTest {
         // Then
         assertTrue(results.isEmpty())
     }
+
+    @Test
+    fun `getAllMemories should return list of MemoryResponse preserving importance and tags`() {
+        // Given
+        val mockMemories = listOf(
+            Memory(id = 101L, content = "Important Memory", embedding = "[0.1]", roomId = "room1", agentId = 1L, importance = 9, tags = "CORE,TEST")
+        )
+        `when`(memoryRepository.findAllNative()).thenReturn(mockMemories)
+        
+        // When
+        val results = memoryService.getAllMemories(10)
+        
+        // Then
+        assertEquals(1, results.size)
+        assertEquals(101L, results[0].id)
+        assertEquals("Important Memory", results[0].content)
+        assertEquals(9, results[0].importance)
+        assertEquals("CORE,TEST", results[0].tags)
+        verify(memoryRepository).findAllNative()
+    }
+
+    @Test
+    fun `searchMemories should return similar memories preserving importance and tags`() {
+        // Given
+        val agentId = 1L
+        val query = "search query"
+        val embedding = listOf(0.1f, 0.2f)
+        val mockMemories = listOf(
+            Memory(id = 202L, content = "Found Memory", embedding = "[0.1, 0.2]", roomId = "room1", agentId = 1L, importance = 8, tags = "SEARCH")
+        )
+        `when`(geminiClient.embedText("search query", "gemini-embedding-001")).thenReturn(embedding)
+        `when`(memoryRepository.findSimilarMemories(agentId, "[0.1, 0.2]", 5)).thenReturn(mockMemories)
+        
+        // When
+        val results = memoryService.searchMemories(agentId, query, 5)
+        
+        // Then
+        assertEquals(1, results.size)
+        assertEquals(202L, results[0].id)
+        assertEquals(8, results[0].importance)
+        assertEquals("SEARCH", results[0].tags)
+        verify(geminiClient).embedText("search query")
+        verify(memoryRepository).findSimilarMemories(agentId, "[0.1, 0.2]", 5)
+    }
 }
