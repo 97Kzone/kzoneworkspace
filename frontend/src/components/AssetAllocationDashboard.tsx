@@ -1411,6 +1411,48 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                     ))
                   )}
                 </div>
+
+                {/* 컴퓨팅 자산 재배치/회수 권장 제안 */}
+                <div className="flex flex-col gap-3 border-t border-white/5 pt-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <AlertTriangle size={12} className="text-amber-400" />
+                      자산 재배치 및 회수 권장 제안 (Rebalancing Recommendations)
+                    </h5>
+                  </div>
+
+                  {(!analyticsData || !analyticsData.rebalancingRecommendations || analyticsData.rebalancingRecommendations.length === 0) ? (
+                    <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-4 text-center text-slate-500">
+                      <p className="text-[9px] font-bold uppercase tracking-wider">가동 중인 모든 컴퓨팅 리소스가 효율적으로 운용되고 있습니다.</p>
+                    </div>
+                  ) : (
+                    analyticsData.rebalancingRecommendations.map((rec) => (
+                      <div key={rec.assetId} className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-2xl flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1 flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] font-black px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              {rec.agentName}
+                            </span>
+                            <span className="text-[9px] font-black text-white">{rec.assetName}</span>
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-bold leading-normal mt-0.5">
+                            {rec.recommendationReason}
+                          </p>
+                          <span className="text-[8px] font-mono text-slate-500 font-bold">
+                            회수 시 반환 예정 기여도: <strong className="text-amber-400">{rec.cost} pts</strong>
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleRevokeAsset(rec.assetId, rec.assetName, rec.agentName)}
+                          disabled={actionLoading}
+                          className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-black border border-amber-500/20 hover:border-amber-500 text-amber-400 rounded-xl text-[8px] font-black uppercase tracking-widest transition-colors active:scale-95 cursor-pointer shrink-0"
+                        >
+                          즉시 회수
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             ) : (
               // Asset List tab view (original list view with refined styles)

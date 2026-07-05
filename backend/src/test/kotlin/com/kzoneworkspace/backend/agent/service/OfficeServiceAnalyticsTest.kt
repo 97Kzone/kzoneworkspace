@@ -68,4 +68,43 @@ class OfficeServiceAnalyticsTest {
         assertEquals(200.0, agentDto.roi)
         assertTrue(agentDto.utilizationEfficiency in 15..99)
     }
+
+    @Test
+    fun `가동률이 낮은 자산이 있는 경우 재배치 권장 대상을 올바르게 식별한다`() {
+        // given
+        val dummyAgent = Agent(
+            id = 1L,
+            name = "개발자 AI",
+            role = "CODER",
+            model = "claude-3-5-sonnet",
+            contributionPoints = 100,
+            reliabilityIndex = 80
+        )
+        val underutilizedItem = OfficeItem(
+            id = 20L,
+            name = "고성능 추론 가속 코어",
+            type = "REASONING_CORE",
+            agentId = 1L
+        ).apply {
+            utilizationRate = 5 // 15% 미만으로 유휴 자산에 해당
+            failurePreventedCount = 0
+            accumulatedTimeSeconds = 120L
+        }
+
+        `when`(agentService.getAllAgents()).thenReturn(listOf(dummyAgent))
+        `when`(officeItemRepository.findAll()).thenReturn(listOf(underutilizedItem))
+
+        // when
+        val analytics = officeService.getAssetAnalytics()
+
+        // then
+        assertNotNull(analytics)
+        assertEquals(1, analytics.rebalancingRecommendations.size)
+        
+        val recommendation = analytics.rebalancingRecommendations.first()
+        assertEquals(20L, recommendation.assetId)
+        assertEquals("개발자 AI", recommendation.agentName)
+        assertEquals("REASONING_CORE", recommendation.type)
+        assertTrue(recommendation.recommendationReason.contains("실시간 가동률"))
+    }
 }

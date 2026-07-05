@@ -363,11 +363,22 @@ export interface AssetTypeAnalytics {
     avgRoi: number;
 }
 
+export interface AssetRebalancingRecommendation {
+    assetId: number;
+    assetName: string;
+    agentName: string;
+    type: string;
+    currentEfficiency: number;
+    cost: number;
+    recommendationReason: string;
+}
+
 export interface SwarmAssetAnalytics {
     totalAllocatedAssetCost: number;
     overallRoi: number;
     agentAnalytics: AgentAssetAnalytics[];
     assetTypeAnalytics: AssetTypeAnalytics[];
+    rebalancingRecommendations?: AssetRebalancingRecommendation[];
 }
 
 export const officeService = {

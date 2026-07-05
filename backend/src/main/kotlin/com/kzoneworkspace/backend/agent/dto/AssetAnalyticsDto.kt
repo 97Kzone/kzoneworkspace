@@ -4,7 +4,8 @@ data class SwarmAssetAnalyticsDto(
     val totalAllocatedAssetCost: Int,
     val overallRoi: Double,
     val agentAnalytics: List<AgentAssetAnalyticsDto>,
-    val assetTypeAnalytics: List<AssetTypeAnalyticsDto>
+    val assetTypeAnalytics: List<AssetTypeAnalyticsDto>,
+    val rebalancingRecommendations: List<AssetRebalancingRecommendationDto> = emptyList()
 )
 
 data class AgentAssetAnalyticsDto(
@@ -23,4 +24,14 @@ data class AssetTypeAnalyticsDto(
     val allocationCount: Int,
     val totalCostAllocated: Int,
     val avgRoi: Double
+)
+
+data class AssetRebalancingRecommendationDto(
+    val assetId: Long,
+    val assetName: String,
+    val agentName: String,
+    val type: String,
+    val currentEfficiency: Int,
+    val cost: Int,
+    val recommendationReason: String
 )

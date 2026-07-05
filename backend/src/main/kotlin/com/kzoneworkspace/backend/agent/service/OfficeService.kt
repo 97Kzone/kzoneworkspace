@@ -7,6 +7,7 @@ import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
 import com.kzoneworkspace.backend.agent.dto.SwarmAssetAnalyticsDto
 import com.kzoneworkspace.backend.agent.dto.AgentAssetAnalyticsDto
 import com.kzoneworkspace.backend.agent.dto.AssetTypeAnalyticsDto
+import com.kzoneworkspace.backend.agent.dto.AssetRebalancingRecommendationDto
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -187,11 +188,46 @@ class OfficeService(
             )
         }
 
+        // 재배치 및 회수 권장 엔진 연산
+        val rebalancingRecommendations = allItems.mapNotNull { item ->
+            if (item.agentId == null) return@mapNotNull null
+            val agent = agents.find { it.id == item.agentId } ?: return@mapNotNull null
+            val agentAnalytic = agentAnalyticsList.find { it.agentId == agent.id } ?: return@mapNotNull null
+            
+            val isUnderutilized = item.utilizationRate < 15
+            val hasLowEfficiency = agentAnalytic.utilizationEfficiency < 40 && item.utilizationRate < 30
+            val isUnusedDefenseAsset = item.failurePreventedCount == 0 && 
+                    (item.type == "VULNERABILITY_SHIELD" || item.type == "CODE_STABILITY_SANDBOX")
+            
+            if (isUnderutilized || hasLowEfficiency || isUnusedDefenseAsset) {
+                val cost = ASSET_COSTS[item.type] ?: 0
+                val reason = when {
+                    isUnderutilized -> "실시간 가동률(${item.utilizationRate}%)이 15% 미만인 유휴 상태로, 리소스 낭비가 의심됩니다."
+                    hasLowEfficiency -> "소속 에이전트의 종합 자산 효율성(${agentAnalytic.utilizationEfficiency}/100)이 낮고 가동률이 저조하여 회수 조치를 권장합니다."
+                    isUnusedDefenseAsset -> "오류 방어 검증 실적이 전혀 없는 무가동 보안 자산입니다."
+                    else -> "자산 활용성 대비 성과 가중 비효율로 재배치 대상군에 포함되었습니다."
+                }
+                
+                AssetRebalancingRecommendationDto(
+                    assetId = item.id,
+                    assetName = item.name,
+                    agentName = agent.name,
+                    type = item.type,
+                    currentEfficiency = agentAnalytic.utilizationEfficiency,
+                    cost = cost,
+                    recommendationReason = reason
+                )
+            } else {
+                null
+            }
+        }
+
         return SwarmAssetAnalyticsDto(
             totalAllocatedAssetCost = totalCostSum,
             overallRoi = overallRoi,
             agentAnalytics = agentAnalyticsList,
-            assetTypeAnalytics = assetTypeAnalyticsList
+            assetTypeAnalytics = assetTypeAnalyticsList,
+            rebalancingRecommendations = rebalancingRecommendations
         )
     }
 
