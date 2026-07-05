@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
 import org.springframework.messaging.simp.SimpMessagingTemplate
+import java.util.Optional
+
 
 class OfficeServiceAnalyticsTest {
 
@@ -107,4 +109,45 @@ class OfficeServiceAnalyticsTest {
         assertEquals("REASONING_CORE", recommendation.type)
         assertTrue(recommendation.recommendationReason.contains("실시간 가동률"))
     }
+
+    @Test
+    fun `일괄 자동 재배치 시 비효율 자산을 정상적으로 회수하고 에이전트 맞춤형 자산을 신규 자동 배치한다`() {
+        // given
+        val dummyAgent = Agent(
+            id = 1L,
+            name = "개발자 AI",
+            role = "CODER",
+            model = "claude-3-5-sonnet",
+            contributionPoints = 20,
+            reliabilityIndex = 80
+        )
+        val underutilizedItem = OfficeItem(
+            id = 20L,
+            name = "고성능 추론 가속 코어",
+            type = "REASONING_CORE",
+            agentId = 1L
+        ).apply {
+            utilizationRate = 5
+            failurePreventedCount = 0
+            accumulatedTimeSeconds = 120L
+        }
+
+        `when`(agentService.getAllAgents()).thenReturn(listOf(dummyAgent))
+        `when`(officeItemRepository.findAll()).thenReturn(listOf(underutilizedItem))
+        `when`(officeItemRepository.findById(20L)).thenReturn(Optional.of(underutilizedItem))
+        `when`(agentService.getAgentById(1L)).thenReturn(dummyAgent)
+        `when`(officeItemRepository.save(any(OfficeItem::class.java))).thenAnswer { it.arguments[0] as OfficeItem }
+
+        // when
+        val result = officeService.executeAutoRebalancing()
+
+        // then
+        assertNotNull(result)
+        assertEquals(1, result.rebalancedCount)
+        verify(officeItemRepository).deleteById(20L)
+        // 20pts + 150pts(환불) = 170pts. Coder 선호 자산인 CODE_STABILITY_SANDBOX(120pts)를 구매(배치)함.
+        assertEquals(1, result.allocatedCount)
+        verify(officeItemRepository).save(any(OfficeItem::class.java))
+    }
 }
+

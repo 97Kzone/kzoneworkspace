@@ -3,6 +3,8 @@ package com.kzoneworkspace.backend.agent.controller
 import com.kzoneworkspace.backend.agent.entity.OfficeItem
 import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import com.kzoneworkspace.backend.agent.dto.SwarmAssetAnalyticsDto
+import com.kzoneworkspace.backend.agent.dto.AutoRebalanceResultDto
+
 import com.kzoneworkspace.backend.agent.service.OfficeService
 import org.springframework.web.bind.annotation.*
 
@@ -42,6 +44,12 @@ class OfficeController(
             cost = request.cost
         )
     }
+
+    @PostMapping("/rebalance/auto")
+    fun executeAutoRebalancing(): AutoRebalanceResultDto {
+        return officeService.executeAutoRebalancing()
+    }
+
 
 
 

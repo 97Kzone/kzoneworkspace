@@ -35,3 +35,9 @@ data class AssetRebalancingRecommendationDto(
     val cost: Int,
     val recommendationReason: String
 )
+
+data class AutoRebalanceResultDto(
+    val rebalancedCount: Int,
+    val allocatedCount: Int,
+    val message: String
+)

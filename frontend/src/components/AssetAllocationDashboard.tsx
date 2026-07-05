@@ -332,6 +332,35 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
     }
   };
 
+  // 컴퓨팅 자산 일괄 자동 재배치 및 최적화 실행
+  const handleAutoRebalance = async () => {
+    if (!confirm("가동률이 낮거나 효율성이 저조한 유휴 컴퓨팅 자산을 일괄 회수하고, 에이전트별 최적의 추천 자산으로 자동 재배치하시겠습니까?")) {
+      return;
+    }
+
+    setActionLoading(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    setSelectedAssetDetail(null);
+
+    try {
+      const res = await officeService.rebalanceAuto();
+      if (res && res.data) {
+        setSuccessMessage(res.data.message);
+        setTimeout(() => setSuccessMessage(null), 7000);
+        // 재조회
+        await fetchData();
+      }
+    } catch (e: any) {
+      console.error(e);
+      const errMsg = e.response?.data?.message || "일괄 자동 재배치 처리 중 오류가 발생했습니다. 백엔드 에러를 확인하세요.";
+      setErrorMessage(errMsg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+
   // 통계 계산
   const metrics = useMemo(() => {
     const totalPoints = agents.reduce((acc, a) => acc + a.contributionPoints, 0);
@@ -1419,7 +1448,18 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                       <AlertTriangle size={12} className="text-amber-400" />
                       자산 재배치 및 회수 권장 제안 (Rebalancing Recommendations)
                     </h5>
+                    {analyticsData && analyticsData.rebalancingRecommendations && analyticsData.rebalancingRecommendations.length > 0 && (
+                      <button
+                        onClick={handleAutoRebalance}
+                        disabled={actionLoading}
+                        className="px-2.5 py-1.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500 hover:to-orange-500 hover:text-black border border-amber-500/20 hover:border-amber-500 text-amber-400 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <RefreshCw size={10} className={actionLoading ? "animate-spin" : ""} />
+                        일괄 자동 재배치 및 최적화 실행
+                      </button>
+                    )}
                   </div>
+
 
                   {(!analyticsData || !analyticsData.rebalancingRecommendations || analyticsData.rebalancingRecommendations.length === 0) ? (
                     <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-4 text-center text-slate-500">

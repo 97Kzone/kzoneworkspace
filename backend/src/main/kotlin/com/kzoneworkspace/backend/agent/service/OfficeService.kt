@@ -8,6 +8,8 @@ import com.kzoneworkspace.backend.agent.dto.SwarmAssetAnalyticsDto
 import com.kzoneworkspace.backend.agent.dto.AgentAssetAnalyticsDto
 import com.kzoneworkspace.backend.agent.dto.AssetTypeAnalyticsDto
 import com.kzoneworkspace.backend.agent.dto.AssetRebalancingRecommendationDto
+import com.kzoneworkspace.backend.agent.dto.AutoRebalanceResultDto
+
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -345,7 +347,73 @@ class OfficeService(
 
         return affordable.firstOrNull() ?: available.minByOrNull { it.cost }
     }
+
+    /**
+     * 비효율 컴퓨팅 자산을 일괄 회수하고, 각 에이전트의 잔여/환불 기여도 포인트를 활용하여 최적의 추천 자산을 자동 배치합니다.
+     */
+    @Transactional
+    fun executeAutoRebalancing(): AutoRebalanceResultDto {
+        val analytics = getAssetAnalytics()
+        val recommendations = analytics.rebalancingRecommendations
+
+        if (recommendations.isEmpty()) {
+            return AutoRebalanceResultDto(
+                rebalancedCount = 0,
+                allocatedCount = 0,
+                message = "재배치가 필요한 비효율 컴퓨팅 자산이 없습니다."
+            )
+        }
+
+        var revokedCount = 0
+        recommendations.forEach { rec ->
+            try {
+                deleteItem(rec.assetId)
+                revokedCount++
+            } catch (e: Exception) {
+                println("Failed to revoke asset ${rec.assetId}: ${e.message}")
+            }
+        }
+
+        var allocatedCount = 0
+        val agents = agentService.getAllAgents()
+        agents.forEach { agent ->
+            var keepRecommending = true
+            while (keepRecommending) {
+                val recommended = recommendAssetForAgent(agent.id)
+                if (recommended != null && agent.contributionPoints >= recommended.cost) {
+                    try {
+                        val randomX = (10..90).random()
+                        val randomY = (10..90).random()
+                        allocateAsset(
+                            agentId = agent.id,
+                            name = recommended.name,
+                            type = recommended.type,
+                            x = randomX,
+                            y = randomY,
+                            cost = recommended.cost
+                        )
+                        allocatedCount++
+                    } catch (e: Exception) {
+                        println("Failed to auto-allocate asset to agent ${agent.id}: ${e.message}")
+                        keepRecommending = false
+                    }
+                } else {
+                    keepRecommending = false
+                }
+            }
+        }
+
+        broadcastUpdates()
+
+        val msg = "성공적으로 비효율 자산 ${revokedCount}개를 회수하고, 최적의 자산 ${allocatedCount}개를 에이전트에 자동 재배치하였습니다."
+        return AutoRebalanceResultDto(
+            rebalancedCount = revokedCount,
+            allocatedCount = allocatedCount,
+            message = msg
+        )
+    }
 }
+
 
 data class AvailableAssetDto(
     val id: String,

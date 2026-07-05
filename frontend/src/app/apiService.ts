@@ -391,7 +391,9 @@ export const officeService = {
     getAvailableAssets: () => api.get<AvailableAsset[]>('/office/available-assets'),
     getAssetAnalytics: () => api.get<SwarmAssetAnalytics>('/office/analytics/roi'),
     getRecommendation: (agentId: number) => api.get<AvailableAsset>(`/office/recommendations/${agentId}`),
+    rebalanceAuto: () => api.post<{ rebalancedCount: number, allocatedCount: number, message: string }>('/office/rebalance/auto'),
 };
+
 
 
 export const codeReviewService = {
