@@ -20,6 +20,7 @@ interface ComputationalAsset {
   cost: number;
   icon: React.ReactNode;
   color: string;
+  recommendationReason?: string;
 }
 
 interface AssetAllocationDashboardProps {
@@ -126,7 +127,8 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           description: item.description,
           cost: item.cost,
           icon: getAssetIcon(item.type),
-          color: getAssetColorGradient(item.type)
+          color: getAssetColorGradient(item.type),
+          recommendationReason: item.recommendationReason
         });
       } else {
         setRecommendedAsset(null);
@@ -959,8 +961,24 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                     recommendedAsset ? (
                       <div className="flex flex-col gap-3">
                         <div className="text-[10px] text-slate-400 leading-normal">
-                          에이전트의 역할군(<strong>{selectedAgent.role}</strong>)과 역량을 정량 분석한 결과, 아래 연산 가속 자산이 비즈니스 생산성 향상에 가장 권장됩니다.
+                          에이전트의 역할군(<strong>{selectedAgent.role}</strong>), 신뢰도 및 인지 성향을 정량 분석한 결과, 아래 연산 가속 자산이 생산성 향상에 가장 권장됩니다.
                         </div>
+
+                        {recommendedAsset.recommendationReason && (
+                          <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-3.5 flex items-start gap-2.5">
+                            <div className="p-1.5 bg-indigo-500/10 rounded-xl text-indigo-400 shrink-0 mt-0.5">
+                              <Zap size={12} className="animate-pulse" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest block mb-1">
+                                실시간 인지 특성 매칭 사유
+                              </span>
+                              <p className="text-[10px] text-slate-300 font-bold leading-normal">
+                                {recommendedAsset.recommendationReason}
+                              </p>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-2xl flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3">

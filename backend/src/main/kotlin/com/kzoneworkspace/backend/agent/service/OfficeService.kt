@@ -322,30 +322,114 @@ class OfficeService(
         if (available.isEmpty()) return null
 
         val roleLower = agent.role.lowercase()
-        // 역할별 최적 자산 타입선호도 매핑
-        val preferredType = when {
-            roleLower.contains("coder") || roleLower.contains("dev") -> {
-                if ("CODE_STABILITY_SANDBOX" in assignedTypes) "CI_CD_PIPELINE_EMULATOR" else "CODE_STABILITY_SANDBOX"
+        val traits = agent.personalityTraits
+        val reliability = agent.reliabilityIndex
+        val modelLower = agent.model.lowercase()
+
+        // 각 자산별 추천 점수 계산
+        val scoredAssets = available.map { asset ->
+            var score = 0.0
+            val reasons = mutableListOf<String>()
+
+            // 1. 역할 매칭 (+50점)
+            val isRoleMatch = when (asset.type) {
+                "REASONING_CORE" -> roleLower.contains("architect") || roleLower.contains("lead") || roleLower.contains("pm")
+                "EXTENDED_CONTEXT" -> roleLower.contains("analyst") || roleLower.contains("researcher") || roleLower.contains("writer")
+                "VECTOR_SEARCH" -> roleLower.contains("analyst") || roleLower.contains("researcher") || roleLower.contains("db")
+                "AUXILIARY_INSTANCE" -> roleLower.contains("qa") || roleLower.contains("reviewer") || roleLower.contains("coder") || roleLower.contains("dev")
+                "CODE_STABILITY_SANDBOX" -> roleLower.contains("coder") || roleLower.contains("dev")
+                "SYNERGY_BRIDGE" -> roleLower.contains("architect") || roleLower.contains("lead") || roleLower.contains("coordinator")
+                "COST_OPTIMIZER" -> true
+                "VULNERABILITY_SHIELD" -> roleLower.contains("qa") || roleLower.contains("reviewer") || roleLower.contains("security")
+                "CI_CD_PIPELINE_EMULATOR" -> roleLower.contains("coder") || roleLower.contains("dev") || roleLower.contains("ops")
+                "DEPRECATED_API_SCANNER" -> roleLower.contains("coder") || roleLower.contains("dev") || roleLower.contains("qa") || roleLower.contains("reviewer")
+                else -> false
             }
-            roleLower.contains("qa") || roleLower.contains("review") -> {
-                if ("VULNERABILITY_SHIELD" in assignedTypes) "DEPRECATED_API_SCANNER" else "VULNERABILITY_SHIELD"
+            if (isRoleMatch) {
+                score += 50.0
+                reasons.add("에이전트 역할군(${agent.role}) 특화 자원")
             }
-            roleLower.contains("analyst") || roleLower.contains("research") -> "VECTOR_SEARCH"
-            roleLower.contains("architect") || roleLower.contains("lead") -> "REASONING_CORE"
-            else -> "EXTENDED_CONTEXT"
+
+            // 2. 인지 성향 반영
+            val traitWeights = when (asset.type) {
+                "REASONING_CORE" -> mapOf("ANALYTICAL" to 0.6, "BOLD" to 0.4)
+                "EXTENDED_CONTEXT" -> mapOf("ANALYTICAL" to 0.5, "CREATIVE" to 0.5)
+                "VECTOR_SEARCH" -> mapOf("ANALYTICAL" to 0.7, "CAUTIOUS" to 0.3)
+                "AUXILIARY_INSTANCE" -> mapOf("CAUTIOUS" to 0.6, "EMPATHETIC" to 0.4)
+                "CODE_STABILITY_SANDBOX" -> mapOf("CAUTIOUS" to 0.8, "ANALYTICAL" to 0.2)
+                "SYNERGY_BRIDGE" -> mapOf("EMPATHETIC" to 0.8, "CREATIVE" to 0.2)
+                "COST_OPTIMIZER" -> mapOf("ANALYTICAL" to 0.5, "CAUTIOUS" to 0.5)
+                "VULNERABILITY_SHIELD" -> mapOf("CAUTIOUS" to 0.9, "ANALYTICAL" to 0.1)
+                "CI_CD_PIPELINE_EMULATOR" -> mapOf("BOLD" to 0.6, "CAUTIOUS" to 0.4)
+                "DEPRECATED_API_SCANNER" -> mapOf("CAUTIOUS" to 0.7, "ANALYTICAL" to 0.3)
+                else -> emptyMap()
+            }
+
+            var traitBonus = 0.0
+            val highTraits = mutableListOf<String>()
+            traitWeights.forEach { (trait, weight) ->
+                val value = traits[trait] ?: 50
+                traitBonus += value * weight
+                if (value >= 70) {
+                    val traitNameKo = when (trait) {
+                        "ANALYTICAL" -> "분석"
+                        "CREATIVE" -> "창의"
+                        "CAUTIOUS" -> "신중"
+                        "BOLD" -> "도전"
+                        "EMPATHETIC" -> "협동"
+                        else -> trait
+                    }
+                    highTraits.add("${traitNameKo} 성향(${value})")
+                }
+            }
+            score += traitBonus
+            if (highTraits.isNotEmpty()) {
+                reasons.add("우수 인지 특성(${highTraits.joinToString(", ")}) 연계")
+            }
+
+            // 3. 인지 신뢰도 보정
+            if (reliability < 60) {
+                if (asset.type in listOf("CODE_STABILITY_SANDBOX", "VULNERABILITY_SHIELD", "AUXILIARY_INSTANCE")) {
+                    score += 40.0
+                    reasons.add("신뢰도 경고 점수(${reliability}%)에 따른 시스템 자가치유 보강")
+                }
+            } else if (reliability > 85) {
+                if (asset.type in listOf("REASONING_CORE", "EXTENDED_CONTEXT")) {
+                    score += 25.0
+                    reasons.add("우수 신뢰도 등급(${reliability}%) 연산 시너지")
+                }
+            }
+
+            // 4. 모델 연산 비용 보정
+            val isHeavyModel = modelLower.contains("pro") || modelLower.contains("ultra") || 
+                               modelLower.contains("opus") || modelLower.contains("gpt-4")
+            if (isHeavyModel && asset.type == "COST_OPTIMIZER") {
+                score += 40.0
+                reasons.add("대형 추론 모델(${agent.model}) 가동에 따른 API 토큰 절감")
+            }
+
+            val reasonText = if (reasons.isNotEmpty()) {
+                reasons.joinToString(" / ")
+            } else {
+                "에이전트 맞춤형 범용 연산 자산"
+            }
+
+            val updatedAssetDto = AvailableAssetDto(
+                id = asset.id,
+                name = asset.name,
+                type = asset.type,
+                description = asset.description,
+                cost = asset.cost,
+                recommendationReason = reasonText
+            )
+            updatedAssetDto to score
         }
 
-        // 선호 자산이 미배치 상태이며 성공 기여도가 충분한 경우 우선 추천
-        val preferredAsset = available.find { it.type == preferredType }
-        if (preferredAsset != null && agent.contributionPoints >= preferredAsset.cost) {
-            return preferredAsset
-        }
+        // 성공 기여도로 즉시 배치 가능한 자산 중 점수가 가장 높은 것을 추천
+        val affordable = scoredAssets.filter { agent.contributionPoints >= it.first.cost }
+            .sortedByDescending { it.second }
 
-        // 성공 기여도로 즉시 배치 가능한 자산 중 비용이 높은 순(고성능 자산)으로 추천
-        val affordable = available.filter { agent.contributionPoints >= it.cost }
-            .sortedByDescending { it.cost }
-
-        return affordable.firstOrNull() ?: available.minByOrNull { it.cost }
+        return affordable.firstOrNull()?.first ?: scoredAssets.sortedByDescending { it.second }.firstOrNull()?.first
     }
 
     /**
@@ -420,7 +504,8 @@ data class AvailableAssetDto(
     val name: String,
     val type: String,
     val description: String,
-    val cost: Int
+    val cost: Int,
+    val recommendationReason: String? = null
 )
 
 

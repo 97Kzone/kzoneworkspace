@@ -65,6 +65,7 @@ export interface AvailableAsset {
     type: string;
     description: string;
     cost: number;
+    recommendationReason?: string;
 }
 
 

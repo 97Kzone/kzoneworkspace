@@ -149,5 +149,38 @@ class OfficeServiceAnalyticsTest {
         assertEquals(1, result.allocatedCount)
         verify(officeItemRepository).save(any(OfficeItem::class.java))
     }
+
+    @Test
+    fun `에이전트의 성향과 신뢰도를 반영하여 적절한 컴퓨팅 자산을 추천한다`() {
+        // given
+        val highCautionAgent = Agent(
+            id = 1L,
+            name = "신중한 검수자 AI",
+            role = "QA",
+            model = "claude-3-5-sonnet",
+            contributionPoints = 500,
+            reliabilityIndex = 50, // 60 미만으로 낮음 -> VULNERABILITY_SHIELD 등 가점
+            personalityTraits = mutableMapOf(
+                "ANALYTICAL" to 50,
+                "CREATIVE" to 50,
+                "CAUTIOUS" to 95, // 신중 성향 매우 높음
+                "BOLD" to 50,
+                "EMPATHETIC" to 50
+            )
+        )
+
+        `when`(agentService.getAgentById(1L)).thenReturn(highCautionAgent)
+        `when`(officeItemRepository.findAll()).thenReturn(emptyList()) // 미배치 상태
+
+        // when
+        val recommendation = officeService.recommendAssetForAgent(1L)
+
+        // then
+        assertNotNull(recommendation)
+        // VULNERABILITY_SHIELD: 역할 QA(+50), 신중 가중치 0.9 * 95 + 분석 0.1 * 50 = 90.5, 낮은 신뢰도 보정(+40) -> 총 180.5로 최고점
+        assertEquals("VULNERABILITY_SHIELD", recommendation?.type)
+        assertTrue(recommendation?.recommendationReason?.contains("신뢰도 경고") == true)
+        assertTrue(recommendation?.recommendationReason?.contains("우수 인지 특성") == true)
+    }
 }
 
