@@ -127,6 +127,20 @@ class AgentService(
         agent.personalityTraits = updated.personalityTraits
         agent.reliabilityIndex = updated.reliabilityIndex
         agent.missionCount = updated.missionCount
+        agent.scalingPolicy = updated.scalingPolicy
+        agent.updatedAt = LocalDateTime.now()
+        val saved = agentRepository.save(agent)
+        broadcastAgents()
+        return saved
+    }
+
+    @Transactional
+    fun updateScalingPolicy(id: Long, policy: String): Agent {
+        val agent = getAgentById(id)
+        if (policy !in listOf("MANUAL", "AUTO_LOAD", "AUTO_RECOVERY")) {
+            throw IllegalArgumentException("Invalid scaling policy: $policy")
+        }
+        agent.scalingPolicy = policy
         agent.updatedAt = LocalDateTime.now()
         val saved = agentRepository.save(agent)
         broadcastAgents()
@@ -209,6 +223,38 @@ class AgentService(
             (calculatedReliability - 10).coerceIn(30, 100)
         }
         agent.reliabilityIndex = finalReliability
+
+        if (agent.scalingPolicy == "AUTO_RECOVERY" && finalReliability < 60) {
+            val assignedItems = officeItemRepository.findByAgentId(agentId)
+            val auxCount = assignedItems.count { it.type == "AUXILIARY_INSTANCE" }
+            if (auxCount == 0 && agent.contributionPoints >= 200) {
+                agent.contributionPoints -= 200
+                val scaleItem = com.kzoneworkspace.backend.agent.entity.OfficeItem(
+                    name = "긴급 자가복구 보조 인스턴스",
+                    type = "AUXILIARY_INSTANCE",
+                    x = (10..90).random(),
+                    y = (10..90).random(),
+                    agentId = agentId
+                )
+                officeItemRepository.save(scaleItem)
+                
+                assetUtilizationLogRepository.save(AssetUtilizationLog(
+                    agentId = agentId,
+                    agentName = agent.name,
+                    assetType = "AUXILIARY_INSTANCE",
+                    assetName = "긴급 자가복구 보조 인스턴스",
+                    actionType = "ALLOCATION",
+                    description = "🚨 [자동 복구 스케일 아웃] ${agent.name} 에이전트의 인지 신뢰도 저하(${finalReliability}%) 감지. 자가 복구 보조 인스턴스가 자동 긴급 배치되었습니다. (성공 기여도 200 pts 차감)"
+                ))
+                
+                try {
+                    messagingTemplate.convertAndSend("/topic/office", officeItemRepository.findAll())
+                    messagingTemplate.convertAndSend("/topic/office/logs", assetUtilizationLogRepository.findTop50ByOrderByTimestampDesc())
+                } catch (e: Exception) {
+                    println("웹소켓 브로드캐스트 에러 (auto-recovery): ${e.message}")
+                }
+            }
+        }
 
         // 성격 진화 로직 (간단한 규칙)
         val traits = agent.personalityTraits

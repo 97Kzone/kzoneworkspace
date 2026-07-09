@@ -75,6 +75,9 @@ class Agent(
     @Column(name = "mission_count", nullable = false)
     var missionCount: Int = 0,
 
+    @Column(name = "scaling_policy", nullable = false)
+    var scalingPolicy: String = "MANUAL",
+
     @Transient
     var greeting: String? = null,
 

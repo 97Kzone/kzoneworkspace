@@ -24,6 +24,7 @@ export interface Agent {
     personalityTraits: Record<string, number>;
     reliabilityIndex: number; // 인지 신뢰도 지수 (Reliability Index, %)
     missionCount: number;
+    scalingPolicy: string;
 }
 
 export interface TeamPerformance {
@@ -310,6 +311,7 @@ export const agentService = {
     create: (agentData: any) => api.post<Agent>('/agents', agentData),
     update: (id: number, agentData: any) => api.put<Agent>(`/agents/${id}`, agentData),
     delete: (id: number) => api.delete(`/agents/${id}`),
+    updateScalingPolicy: (id: number, policy: string) => api.patch<Agent>(`/agents/${id}/scaling-policy?policy=${policy}`),
 };
 
 export const synergyService = {

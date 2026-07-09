@@ -32,9 +32,10 @@ class SelfHealingService(
     private val objectMapper = jacksonObjectMapper()
 
     fun analyzeAndProposeFix(task: Task, error: String): HealingStrategy {
-        val hasAuxiliaryInstance = task.agent?.let { agent ->
-            officeItemRepository.findByAgentId(agent.id).any { it.type == "AUXILIARY_INSTANCE" }
-        } ?: false
+        val auxiliaryCount = task.agent?.let { agent ->
+            officeItemRepository.findByAgentId(agent.id).count { it.type == "AUXILIARY_INSTANCE" }
+        } ?: 0
+        val hasAuxiliaryInstance = auxiliaryCount > 0
 
         val hasSandbox = task.agent?.let { agent ->
             officeItemRepository.findByAgentId(agent.id).any { it.type == "CODE_STABILITY_SANDBOX" }
@@ -42,13 +43,14 @@ class SelfHealingService(
 
         if (hasAuxiliaryInstance && task.agent != null) {
             val agent = task.agent!!
+            val nodes = 1 + auxiliaryCount
             assetUtilizationLogRepository.save(AssetUtilizationLog(
                 agentId = agent.id,
                 agentName = agent.name,
                 assetType = "AUXILIARY_INSTANCE",
                 assetName = "보조 추론 및 자가 치유 인스턴스",
                 actionType = "UTILIZATION",
-                description = "${agent.name} 에이전트: 자가 치유(Self-Healing) 복구 로직 제안을 설계하는 과정에서 [보조 추론 및 자가 치유 인스턴스]의 병렬 복구 컴퓨팅 자원이 활성화되었습니다."
+                description = "${agent.name} 에이전트: 자가 치유(Self-Healing) 복구 제안 설계 중 [보조 추론 및 자가 치유 인스턴스 ($nodes Nodes, $auxiliaryCount Replicas)]의 병렬 복구 컴퓨팅 자원이 활성화되었습니다."
             ))
         }
 
@@ -65,9 +67,10 @@ class SelfHealingService(
         }
 
         val auxiliaryPrompt = if (hasAuxiliaryInstance) {
+            val nodes = 1 + auxiliaryCount
             """
-            * [고성능 컴퓨팅 자원 지원]: 현재 대상 에이전트는 '보조 추론 모델 인스턴스(AUXILIARY_INSTANCE)'가 추가 가동되어 다중 스레드로 병렬 연산 및 자가 치유 레이턴시 단축을 지원받고 있습니다. 
-            더 엄밀하고 고도로 최적화된, 에러를 완벽하게 회피할 수 있는 정교한 복구 명령(suggestedCommand)을 적극적으로 설계해 제안하십시오.
+            * [고성능 분산 컴퓨팅 자원 지원 - $nodes Nodes ($auxiliaryCount Replicas)]: 현재 대상 에이전트는 보조 추론 및 자가 치유 인스턴스가 ${auxiliaryCount}개 추가 가동되어 총 ${nodes}개의 분산 노드에서 병렬 연산 및 자가 치유 속도 단축을 지원받고 있습니다.
+            노드 강도가 높을수록 더 엄밀하고 복잡한 구문 오류도 실시간 교차 검증하여 완벽한 복구 명령(suggestedCommand)을 제안할 수 있으므로, 아주 사소한 예외 시나리오까지 완벽히 차단된 정교한 해결책을 설계하여 제안하십시오.
             """.trimIndent()
         } else ""
 

@@ -10,7 +10,8 @@ data class AgentRequest (
     val systemPrompt: String = "",
     val provider: AiProvider,
     val model: String,
-    val assignedSkills: List<String> = emptyList()
+    val assignedSkills: List<String> = emptyList(),
+    val scalingPolicy: String = "MANUAL"
 ) {
     fun toEntity(): Agent = Agent(
         name = name,
@@ -18,6 +19,7 @@ data class AgentRequest (
         systemPrompt = systemPrompt,
         provider = provider,
         model = model,
-        assignedSkills = assignedSkills.toMutableList()
+        assignedSkills = assignedSkills.toMutableList(),
+        scalingPolicy = scalingPolicy
     )
 }

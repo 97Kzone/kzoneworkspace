@@ -26,6 +26,7 @@ class DatabaseInitializer(private val jdbcTemplate: JdbcTemplate) {
             try {
                 jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS experience_level INTEGER DEFAULT 80")
                 jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS mission_count INTEGER DEFAULT 0")
+                jdbcTemplate.execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS scaling_policy VARCHAR(20) DEFAULT 'MANUAL'")
                 println("✅ agents table schema updated successfully.")
             } catch (e: Exception) {
                 println("⚠️ Failed to update agents table schema: ${e.message}")

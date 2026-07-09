@@ -43,6 +43,10 @@ public class AgentController(
     fun updateStatus(@PathVariable id: Long, @RequestParam status: AgentStatus): ResponseEntity<Agent> =
         ResponseEntity.ok(agentService.updateStatus(id, status))
 
+    @PatchMapping("/{id}/scaling-policy")
+    fun updateScalingPolicy(@PathVariable id: Long, @RequestParam policy: String): ResponseEntity<Agent> =
+        ResponseEntity.ok(agentService.updateScalingPolicy(id, policy))
+
     @DeleteMapping("/{id}")
     fun deleteAgent(@PathVariable id: Long): ResponseEntity<Unit> {
         agentService.deleteAgent(id)

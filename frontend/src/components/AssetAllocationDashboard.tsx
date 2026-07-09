@@ -334,6 +334,24 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
     }
   };
 
+  // 스케일링 정책 변경 처리
+  const handleScalingPolicyChange = async (agentId: number, policy: string) => {
+    setActionLoading(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    try {
+      await agentService.updateScalingPolicy(agentId, policy);
+      setSuccessMessage(`에이전트 스케일링 정책이 '${policy === "MANUAL" ? "수동 제어" : policy === "AUTO_LOAD" ? "부하 기반 자동 스케일" : "신뢰도 기반 자동 복구"}'(으)로 변경되었습니다.`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+      await fetchData();
+    } catch (e: any) {
+      console.error(e);
+      setErrorMessage("스케일링 정책 변경 중 오류가 발생했습니다.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // 컴퓨팅 자산 일괄 자동 재배치 및 최적화 실행
   const handleAutoRebalance = async () => {
     if (!confirm("가동률이 낮거나 효율성이 저조한 유휴 컴퓨팅 자산을 일괄 회수하고, 에이전트별 최적의 추천 자산으로 자동 재배치하시겠습니까?")) {
@@ -1042,64 +1060,185 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                           ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
                           : "text-slate-400 bg-slate-500/10 border-slate-500/20"
                       }`}>
-                        {allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE") ? "병렬 분산 작동 중" : "단일 노드 가동 중"}
+                        {allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length > 0
+                          ? `병렬 분산 작동 중 (${1 + allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length} Nodes)`
+                          : "단일 노드 가동 중"}
                       </span>
                     )}
                   </div>
 
                   {selectedAgent ? (
-                    <div className="flex flex-col gap-3.5">
-                      <div className="text-[10px] text-slate-400 leading-normal">
-                        성공 기여도 지표를 사용하여 에이전트의 스케일 아웃을 실시간 제어합니다. 스케일 아웃 시 <strong>보조 추론 모델 인스턴스</strong>가 추가 배치되어 병렬 연산 및 에러 자가 치유 능력이 극대화됩니다.
+                    <div className="flex flex-col gap-4">
+                      {/* Scaling Policy Selector */}
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[8px] font-black text-slate-500 uppercase">동적 스케일링 정책 설정</span>
+                        <div className="grid grid-cols-3 gap-2 bg-black/30 p-1.5 rounded-xl border border-white/5">
+                          {[
+                            { id: "MANUAL", label: "수동 제어", desc: "사용자가 단추 클릭으로 직접 스케일 아웃/인을 제어합니다." },
+                            { id: "AUTO_LOAD", label: "부하 자동", desc: "태스크 처리 시작 시 보조 노드를 자동 배치하고 완료 시 회수합니다." },
+                            { id: "AUTO_RECOVERY", label: "자동 복구", desc: "신뢰도가 60% 미만 강하 시 보조 인스턴스를 긴급 자동 가동합니다." }
+                          ].map(policy => (
+                            <button
+                              key={policy.id}
+                              disabled={actionLoading}
+                              onClick={() => handleScalingPolicyChange(Number(selectedAgentId), policy.id)}
+                              className={`py-1.5 rounded-lg text-[9px] font-black tracking-wider transition-all cursor-pointer ${
+                                selectedAgent.scalingPolicy === policy.id
+                                  ? "bg-indigo-600 text-white shadow-md font-bold"
+                                  : "text-slate-400 hover:bg-white/5"
+                              }`}
+                              title={policy.desc}
+                            >
+                              {policy.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[8px] text-slate-500 leading-normal italic px-1">
+                          {selectedAgent.scalingPolicy === "MANUAL" && "💡 수동 제어 모드: 사용자가 기여도를 소모하여 자유롭게 노드 수를 조정합니다."}
+                          {selectedAgent.scalingPolicy === "AUTO_LOAD" && "💡 부하 자동 모드: 태스크 수행 시작 시 자동 2 노드로 확장(200 pts) 후 완료 시 100% 환불됩니다."}
+                          {selectedAgent.scalingPolicy === "AUTO_RECOVERY" && "💡 자동 복구 모드: 신뢰도가 60% 미만일 때 자가 복구를 위해 200 pts를 활용해 자동 스케일 아웃합니다."}
+                        </p>
+                      </div>
+
+                      {/* Multi-Node Infrastructure Racks Visualizer */}
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[8px] font-black text-slate-500 uppercase">가상 인프라 노드 모니터</span>
+                        <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-2xl border border-white/5">
+                          {(() => {
+                            const auxCount = allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length;
+                            const totalNodes = 1 + auxCount;
+                            
+                            return [1, 2, 3].map(nodeIndex => {
+                              const isActive = nodeIndex <= totalNodes;
+                              const isPrimary = nodeIndex === 1;
+                              const replicaIndex = nodeIndex - 1;
+                              const auxItem = isPrimary ? null : allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE")[replicaIndex - 1];
+                              
+                              return (
+                                <div
+                                  key={nodeIndex}
+                                  className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${
+                                    isActive
+                                      ? "bg-indigo-950/20 border-indigo-500/30 text-white shadow-[0_0_15px_rgba(99,102,241,0.05)]"
+                                      : "bg-slate-900/10 border-slate-800/50 text-slate-600 border-dashed"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative flex items-center justify-center">
+                                      <Server size={14} className={isActive ? "text-indigo-400" : "text-slate-700"} />
+                                      {isActive && (
+                                        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className={`text-[9px] font-black tracking-wide ${isActive ? "text-slate-300" : "text-slate-600"}`}>
+                                        NODE 0{nodeIndex} {isPrimary ? "(Primary)" : `(Replica ${replicaIndex})`}
+                                      </span>
+                                      <span className="text-[8px] text-slate-500 font-medium">
+                                        {isActive ? (isPrimary ? "주 추론 엔진 상시 작동" : `보조 인스턴스: ${auxItem?.name || "분산 가동 중"}`) : "노드 비활성 상태 (대기)"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {isActive ? (
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex flex-col items-end">
+                                        <span className="text-[8px] text-slate-400 font-black">ACTIVE</span>
+                                        <span className="text-[8px] text-emerald-400 font-bold mt-0.5">CPU {isPrimary ? "82%" : "45%"}</span>
+                                      </div>
+                                      <motion.div
+                                        animate={{ opacity: [0.4, 1, 0.4] }}
+                                        transition={{ duration: 1.5, repeat: Infinity }}
+                                        className="w-2 h-2 rounded-full bg-emerald-500"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <span className="text-[8px] text-slate-700 font-black uppercase tracking-widest">OFFLINE</span>
+                                  )}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
                       </div>
                       
-                      <div className="flex items-center justify-between bg-black/20 p-3.5 rounded-2xl border border-white/5">
+                      {/* Manual Scale Action Bar */}
+                      <div className="flex items-center justify-between bg-black/20 p-3 rounded-2xl border border-white/5">
                         <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-500 uppercase">현재 스케일 강도</span>
+                          <span className="text-[8px] font-black text-slate-500 uppercase">수동 스케일 조절</span>
                           <span className="text-xs font-bold text-white mt-1">
-                            {allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE")
-                              ? "2 Nodes (Planner + Auxiliary)"
-                              : "1 Node (Primary Agent)"}
+                            {(() => {
+                              const auxCount = allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length;
+                              return `${1 + auxCount} Nodes 가동 중`;
+                            })()}
                           </span>
                         </div>
                         
-                        {allocatedItemsForAgent.some(item => item.type === "AUXILIARY_INSTANCE") ? (
+                        <div className="flex items-center gap-2">
+                          {/* Scale-In Button */}
                           <button
                             onClick={() => {
-                              const auxItem = allocatedItemsForAgent.find(item => item.type === "AUXILIARY_INSTANCE");
-                              if (auxItem) {
+                              const auxItems = allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE");
+                              if (auxItems.length > 0) {
+                                const lastAux = auxItems[auxItems.length - 1];
                                 handleRevokeAsset(
-                                  auxItem.id,
-                                  auxItem.name,
+                                  lastAux.id,
+                                  lastAux.name,
                                   selectedAgent.name
                                 );
                               }
                             }}
-                            disabled={actionLoading}
-                            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                            disabled={
+                              actionLoading || 
+                              selectedAgent.scalingPolicy !== "MANUAL" || 
+                              allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length === 0
+                            }
+                            className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5 ${
+                              selectedAgent.scalingPolicy === "MANUAL" && 
+                              allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length > 0
+                                ? "bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
+                                : "bg-slate-800 text-slate-600 border border-slate-700/50 cursor-not-allowed"
+                            }`}
+                            title="노드 회수 (기여도 200 pts 환불)"
                           >
-                            스케일 인 (Scale-In)
-                            <ArrowRight size={10} className="rotate-180" />
+                            스케일 인
                           </button>
-                        ) : (
+
+                          {/* Scale-Out Button */}
                           <button
                             onClick={() => {
                               const scaleAsset = availableAssets.find(a => a.type === "AUXILIARY_INSTANCE");
                               if (scaleAsset) {
-                                handleAllocateAsset(scaleAsset);
+                                handleAllocateAsset({
+                                  ...scaleAsset,
+                                  name: `보조 추론 모델 인스턴스 (노드 복제)`
+                                });
                               }
                             }}
-                            disabled={actionLoading || selectedAgent.contributionPoints < 200}
-                            className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                            disabled={
+                              actionLoading || 
+                              selectedAgent.scalingPolicy !== "MANUAL" || 
+                              allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length >= 2 ||
+                              selectedAgent.contributionPoints < 200
+                            }
+                            className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                              selectedAgent.scalingPolicy === "MANUAL" && 
+                              allocatedItemsForAgent.filter(item => item.type === "AUXILIARY_INSTANCE").length < 2 &&
                               selectedAgent.contributionPoints >= 200
-                                ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg active:scale-95 cursor-pointer"
-                                : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
+                                ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg cursor-pointer"
+                                : "bg-slate-800 text-slate-600 border border-slate-700/50 cursor-not-allowed"
                             }`}
+                            title={
+                              selectedAgent.scalingPolicy !== "MANUAL"
+                                ? "수동 제어 모드에서만 활성화됩니다"
+                                : selectedAgent.contributionPoints < 200
+                                ? "기여도 점수가 부족합니다 (200 pts 필요)"
+                                : "최대 스케일 강도(3 Nodes)에 도달했습니다"
+                            }
                           >
-                            스케일 아웃 (Scale-Out: 200 pts)
-                            <ArrowRight size={10} />
+                            스케일 아웃 (+200)
                           </button>
-                        )}
+                        </div>
                       </div>
                     </div>
                   ) : (

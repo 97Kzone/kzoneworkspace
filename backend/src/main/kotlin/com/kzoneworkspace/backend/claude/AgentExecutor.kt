@@ -92,12 +92,18 @@ class AgentExecutor(
         if (assets.isEmpty()) return ""
         
         val sb = java.lang.StringBuilder("\n\n[활성화된 고성능 컴퓨팅 리소스 설정]")
-        assets.forEach { asset ->
-            when (asset.type) {
+        val assetTypes = assets.map { it.type }.toSet()
+        val auxCount = assets.count { it.type == "AUXILIARY_INSTANCE" }
+
+        assetTypes.forEach { type ->
+            when (type) {
                 "REASONING_CORE" -> sb.append("\n- 🚀 [고성능 추론 코어]: GPU 연산 가속이 활성화되어 더 깊고 높은 논리적 엄밀함을 발휘할 수 있습니다. 엄격한 알고리즘 설계 및 최적화된 로직으로 코드를 작성하세요.")
                 "EXTENDED_CONTEXT" -> sb.append("\n- 📁 [대용량 컨텍스트 메모리]: Context Window가 128k로 확장되고 지능형 세션 캐싱이 적용되어 복잡한 전역 구조나 방대한 기술 설정을 손쉽게 파악할 수 있습니다.")
                 "VECTOR_SEARCH" -> sb.append("\n- 🔍 [실시간 벡터 DB 검색 세션]: 과거의 기억과 프로젝트 RAG 지식 검색의 정밀도가 극대화되어 있습니다. 정확한 지식 베이스를 인출하여 답변하세요.")
-                "AUXILIARY_INSTANCE" -> sb.append("\n- 🛡️ [보조 추론 모델 인스턴스]: 다중 스레드 병렬 검증 인스턴스가 가동 중이므로 자가 오류 치유 및 교차 코드 검증 능력이 대폭 향상되어 있습니다.")
+                "AUXILIARY_INSTANCE" -> {
+                    val nodes = 1 + auxCount
+                    sb.append("\n- 🛡️ [보조 추론 모델 인스턴스 ($nodes Nodes)]: ${auxCount}개의 병렬 분산 복제 노드가 가동 중입니다. 다중 스레드 교차 코드 검사 및 자가 치유 능력이 극적으로 가속화되어 있습니다.")
+                }
                 "CODE_STABILITY_SANDBOX" -> sb.append("\n- 🧪 [코드 안정성 검증용 자율 샌드박스]: 격리된 실행 환경이 활성화되어 실제 코드에 미치는 사이드 이펙트나 구문 오류를 사전에 자율적으로 예방 및 테스트할 수 있습니다. 적극적인 빌드 검증을 시도하세요.")
                 "SYNERGY_BRIDGE" -> sb.append("\n- 🌐 [협업 시너지 공명 브릿지]: 에이전트 간 협업 채널 전용 대역폭이 확보되어 협업 시너지 효율이 가속되며, 작업 실패 시의 시너지 하락 리스크를 흡수 방어합니다.")
                 "COST_OPTIMIZER" -> sb.append("\n- ⚡ [실시간 API 비용 및 토큰 최적화 엔진]: 중복 컨텍스트 분석 및 프롬프트 최적화 필터가 가동되어 API 호출 시 발생하는 토큰 소모량과 추론 비용이 20% 절감됩니다.")
@@ -1291,6 +1297,33 @@ class AgentExecutor(
 
     private fun updateAssetsOnStart(agentId: Long) {
         try {
+            val agent = agentService.getAgentById(agentId)
+            if (agent.scalingPolicy == "AUTO_LOAD") {
+                val assignedItems = officeItemRepository.findByAgentId(agentId)
+                val hasAux = assignedItems.any { it.type == "AUXILIARY_INSTANCE" }
+                if (!hasAux && agent.contributionPoints >= 200) {
+                    officeService.allocateAsset(
+                        agentId = agentId,
+                        name = "자동 가동 보조 인스턴스",
+                        type = "AUXILIARY_INSTANCE",
+                        x = (10..90).random(),
+                        y = (10..90).random(),
+                        cost = 200
+                    )
+                    
+                    val message = ChatMessage(
+                        roomId = "default",
+                        senderId = "system",
+                        senderName = "System",
+                        content = "⚙️ **[자동 스케일 아웃]** '${agent.name}' 에이전트의 부하 감지로 인해 **보조 추론 모델 인스턴스**가 자동 가동 배치되었습니다. (성공 기여도 200 pts 차감)",
+                        type = MessageType.SYSTEM,
+                        timestamp = java.time.LocalDateTime.now()
+                    )
+                    chatMessageRepository.save(message)
+                    messagingTemplate.convertAndSend("/topic/public", message)
+                }
+            }
+
             val assets = officeItemRepository.findByAgentId(agentId)
             if (assets.isNotEmpty()) {
                 val now = java.time.LocalDateTime.now()
@@ -1330,8 +1363,28 @@ class AgentExecutor(
                     }
                     officeItemRepository.save(asset)
                 }
-                officeService.broadcastUpdates()
             }
+
+            val agent = agentService.getAgentById(agentId)
+            if (agent.scalingPolicy == "AUTO_LOAD") {
+                val assignedItems = officeItemRepository.findByAgentId(agentId)
+                val auxItem = assignedItems.find { it.type == "AUXILIARY_INSTANCE" && it.name == "자동 가동 보조 인스턴스" }
+                if (auxItem != null) {
+                    officeService.deleteItem(auxItem.id)
+                    
+                    val message = ChatMessage(
+                        roomId = "default",
+                        senderId = "system",
+                        senderName = "System",
+                        content = "⚙️ **[자동 스케일 인]** '${agent.name}' 에이전트 태스크 종료로 인해 **보조 추론 모델 인스턴스** 가동이 중단되고 회수되었습니다. (성공 기여도 200 pts 전액 환불)",
+                        type = MessageType.SYSTEM,
+                        timestamp = java.time.LocalDateTime.now()
+                    )
+                    chatMessageRepository.save(message)
+                    messagingTemplate.convertAndSend("/topic/public", message)
+                }
+            }
+            officeService.broadcastUpdates()
         } catch (e: Exception) {
             println("자산 종료 상태 업데이트 에러: ${e.message}")
         }
