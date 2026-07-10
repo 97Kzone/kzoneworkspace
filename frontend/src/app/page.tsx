@@ -97,7 +97,8 @@ export default function VirtualOfficeBright() {
     vo.fetchInitialData,
     setLiveEvaluation,
     vo.setOfficeItems,
-    vo.setAssetLogs
+    vo.setAssetLogs,
+    vo.setStrategicRecommendations
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -627,7 +628,11 @@ export default function VirtualOfficeBright() {
           )}
 
           {vo.activeTab === 'STRATEGIC_COUNCIL' && vo.activeCategory === 'INTELLIGENCE' && (
-             <StrategicCouncilDashboard />
+             <StrategicCouncilDashboard 
+               recommendations={vo.strategicRecommendations}
+               setRecommendations={vo.setStrategicRecommendations}
+               fetchData={vo.fetchStrategicRecommendations}
+             />
           )}
 
           {vo.activeTab === 'EFFICIENCY' && vo.activeCategory === 'INTELLIGENCE' && (

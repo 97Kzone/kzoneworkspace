@@ -3,11 +3,11 @@ import {
   Agent, Task, ChatMessage, Skill, ActivityLog, ScheduledTask, Memory, 
   CodeReviewResult, OfficeItem, AssetUtilizationLog, CodebaseChunk, TechPulse, ProjectHealth, 
   ActionableStrategy, TeamPerformance, AgentLesson, CognitiveTrace, 
-  MaintenanceIssue, MissionContext, BrainstormingSession, ScenarioSimulation, agentService, taskService, chatService, 
+  MaintenanceIssue, MissionContext, BrainstormingSession, ScenarioSimulation, StrategicRecommendation, agentService, taskService, chatService, 
   skillService, activityService, schedulingService, codeReviewService, 
   memoryService, officeService, codebaseService, briefingService, 
   techPulseService, projectHealthService, lessonService, shadowService, 
-  cognitiveService, janitorService, missionIntelligenceService, brainstormingService, scenarioService 
+  cognitiveService, janitorService, missionIntelligenceService, brainstormingService, scenarioService, strategicCouncilService 
 } from "../app/apiService";
 
 /**
@@ -124,12 +124,15 @@ export const useVirtualOffice = () => {
   const [assetLogs, setAssetLogs] = useState<AssetUtilizationLog[]>([]);
   const [isAssetAllocationOpen, setIsAssetAllocationOpen] = useState(false);
 
+  // 전략 위원회 권고안 관련 상태
+  const [strategicRecommendations, setStrategicRecommendations] = useState<StrategicRecommendation[]>([]);
+
   /**
    * 초기 데이터를 백엔드에서 가져오는 함수
    */
   const fetchInitialData = useCallback(async () => {
     try {
-      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes, brainRes, scenarioRes, memoryRes] = await Promise.all([
+      const [agentRes, taskRes, historyRes, skillRes, activityRes, scheduledRes, pulseRes, brainRes, scenarioRes, memoryRes, strategicRes] = await Promise.all([
         agentService.getAll(),
         taskService.getByRoom("default"),
         chatService.getHistory("default"),
@@ -139,7 +142,8 @@ export const useVirtualOffice = () => {
         techPulseService.getAll(),
         brainstormingService.getAll("default"),
         scenarioService.getAll("default"),
-        memoryService.getAll(100)
+        memoryService.getAll(100),
+        strategicCouncilService.getRecommendations()
       ]);
       setAgents(agentRes.data);
       setTasks(taskRes.data);
@@ -151,6 +155,7 @@ export const useVirtualOffice = () => {
       setBrainstormingSessions(brainRes.data);
       setScenarioSimulations(scenarioRes.data);
       setMemories(memoryRes.data);
+      setStrategicRecommendations(strategicRes.data);
       
       try {
         const perfRes = await agentService.getPerformance();
@@ -201,6 +206,15 @@ export const useVirtualOffice = () => {
       setBrainstormingSessions(res.data);
     } catch (err) {
       console.error("브레인스토밍 세션 로드 실패:", err);
+    }
+  }, []);
+
+  const fetchStrategicRecommendations = useCallback(async () => {
+    try {
+      const res = await strategicCouncilService.getRecommendations();
+      setStrategicRecommendations(res.data);
+    } catch (err) {
+      console.error("전략적 권고안 로드 실패:", err);
     }
   }, []);
 
@@ -279,6 +293,8 @@ export const useVirtualOffice = () => {
     fetchBrainstormingSessions,
     scenarioSimulations, setScenarioSimulations,
     isScenarioLoading, setIsScenarioLoading,
-    activeChat, setActiveChat
+    activeChat, setActiveChat,
+    strategicRecommendations, setStrategicRecommendations,
+    fetchStrategicRecommendations
   };
 };

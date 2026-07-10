@@ -39,7 +39,8 @@ class ProjectHealthService(
     private val agentRepository: AgentRepository,
     private val strategicRecommendationRepository: StrategicRecommendationRepository,
     private val geminiClient: GeminiClient,
-    private val officeService: OfficeService
+    private val officeService: OfficeService,
+    private val strategicCouncilService: StrategicCouncilService
 ) {
     private val log = LoggerFactory.getLogger(ProjectHealthService::class.java)
     private val gson = Gson()
@@ -151,6 +152,7 @@ class ProjectHealthService(
             )
 
             // Persistence logic: Save new high-priority recommendations
+            var hasNewRecommendations = false
             report.recommendations.forEach { strategy ->
                 if (strategicRecommendationRepository.findByTitle(strategy.title) == null) {
                     strategicRecommendationRepository.save(
@@ -163,7 +165,11 @@ class ProjectHealthService(
                             analysisReasoning = report.analysisReasoning
                         )
                     )
+                    hasNewRecommendations = true
                 }
+            }
+            if (hasNewRecommendations) {
+                strategicCouncilService.broadcastRecommendations()
             }
 
             return report

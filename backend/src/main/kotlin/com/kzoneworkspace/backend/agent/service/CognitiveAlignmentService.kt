@@ -20,7 +20,8 @@ class CognitiveAlignmentService(
     private val alignmentReportRepository: CognitiveAlignmentReportRepository,
     private val agentRepository: AgentRepository,
     private val recommendationRepository: StrategicRecommendationRepository,
-    private val geminiClient: GeminiClient
+    private val geminiClient: GeminiClient,
+    private val strategicCouncilService: StrategicCouncilService
 ) {
     private val log = LoggerFactory.getLogger(CognitiveAlignmentService::class.java)
     private val gson = Gson()
@@ -119,6 +120,7 @@ class CognitiveAlignmentService(
                         analysisReasoning = report.mediationStrategy
                     )
                 )
+                strategicCouncilService.broadcastRecommendations()
             }
 
             return savedReport

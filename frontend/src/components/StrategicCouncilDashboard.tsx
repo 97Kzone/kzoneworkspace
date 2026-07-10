@@ -17,20 +17,24 @@ import {
 } from "lucide-react";
 import { StrategicRecommendation, strategicCouncilService } from "../app/apiService";
 
-export const StrategicCouncilDashboard: React.FC = () => {
-  const [recommendations, setRecommendations] = useState<StrategicRecommendation[]>([]);
-  const [loading, setLoading] = useState(true);
+interface StrategicCouncilDashboardProps {
+  recommendations: StrategicRecommendation[];
+  setRecommendations: (val: StrategicRecommendation[]) => void;
+  fetchData: () => Promise<void>;
+}
+
+export const StrategicCouncilDashboard: React.FC<StrategicCouncilDashboardProps> = ({
+  recommendations,
+  setRecommendations,
+  fetchData
+}) => {
+  const [loading, setLoading] = useState(false);
   const [executingId, setExecutingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const handleFetchData = async () => {
     setLoading(true);
     try {
-      const res = await strategicCouncilService.getRecommendations();
-      setRecommendations(res.data);
+      await fetchData();
     } catch (e) {
       console.error("Failed to fetch recommendations:", e);
     } finally {
@@ -108,7 +112,7 @@ export const StrategicCouncilDashboard: React.FC = () => {
         <motion.button 
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={fetchData}
+          onClick={handleFetchData}
           className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors"
         >
           <RefreshCw className={loading ? "animate-spin text-indigo-400" : "text-slate-400"} size={20} />

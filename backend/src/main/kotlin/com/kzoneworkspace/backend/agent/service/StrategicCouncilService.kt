@@ -5,6 +5,7 @@ import com.kzoneworkspace.backend.agent.repository.StrategicRecommendationReposi
 import com.kzoneworkspace.backend.task.dto.WorkstreamRequest
 import com.kzoneworkspace.backend.task.service.WorkstreamService
 import org.slf4j.LoggerFactory
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -12,12 +13,21 @@ import java.time.LocalDateTime
 @Service
 class StrategicCouncilService(
     private val recommendationRepository: StrategicRecommendationRepository,
-    private val workstreamService: WorkstreamService
+    private val workstreamService: WorkstreamService,
+    private val messagingTemplate: SimpMessagingTemplate
 ) {
     private val log = LoggerFactory.getLogger(StrategicCouncilService::class.java)
 
     fun getAllRecommendations(): List<StrategicRecommendation> =
         recommendationRepository.findByOrderByCreatedAtDesc()
+
+    fun broadcastRecommendations() {
+        try {
+            messagingTemplate.convertAndSend("/topic/strategic-recommendations", getAllRecommendations())
+        } catch (e: Exception) {
+            log.error("웹소켓 브로드캐스트 에러 (strategic-recommendations): ${e.message}")
+        }
+    }
 
     @Transactional
     fun approveAndExecute(id: Long) {
@@ -46,6 +56,9 @@ class StrategicCouncilService(
         recommendationRepository.save(recommendation)
         
         log.info("Strategic mission launched successfully for: ${recommendation.title}")
+        
+        // Broadcast updates
+        broadcastRecommendations()
     }
 
     @Transactional
@@ -55,5 +68,9 @@ class StrategicCouncilService(
         }
         recommendation.status = "REJECTED"
         recommendationRepository.save(recommendation)
+        
+        // Broadcast updates
+        broadcastRecommendations()
     }
 }
+

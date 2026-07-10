@@ -21,7 +21,8 @@ export const useStompWS = (
   fetchInitialData: any,
   setLiveEvaluation?: any,
   setAllocatedItems?: any,
-  setAssetLogs?: any
+  setAssetLogs?: any,
+  setStrategicRecommendations?: any
 ) => {
   /**
    * WebSocket 서버에 연결하고 각 토픽을 구독하는 함수
@@ -208,10 +209,18 @@ export const useStompWS = (
               setAssetLogs(body);
           }
       });
+
+      // 전략 위원회 권고안 실시간 구독
+      stompClientRef.current.subscribe('/topic/strategic-recommendations', (msg: any) => {
+          const body = JSON.parse(msg.body);
+          if (setStrategicRecommendations) {
+              setStrategicRecommendations(body);
+          }
+      });
     };
 
     stompClientRef.current.activate();
-  }, [stompClientRef, setMessages, setTasks, setAgents, setActivities, setPerformanceData, setActiveConnections, setActivePreviews, setShowHealingToast, setCognitiveTraces, setActiveCollaborations, setIsIntelligenceBoosted, setLiveEvaluation, setAllocatedItems, setAssetLogs]);
+  }, [stompClientRef, setMessages, setTasks, setAgents, setActivities, setPerformanceData, setActiveConnections, setActivePreviews, setShowHealingToast, setCognitiveTraces, setActiveCollaborations, setIsIntelligenceBoosted, setLiveEvaluation, setAllocatedItems, setAssetLogs, setStrategicRecommendations]);
 
   useEffect(() => {
     fetchInitialData();
