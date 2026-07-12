@@ -20,7 +20,8 @@ class JanitorService(
     private val geminiClient: com.kzoneworkspace.backend.claude.GeminiClient,
     private val gitService: GitService,
     private val messagingTemplate: SimpMessagingTemplate,
-    private val chatMessageRepository: ChatMessageRepository
+    private val chatMessageRepository: ChatMessageRepository,
+    private val agentService: AgentService
 ) {
     private val logger = LoggerFactory.getLogger(JanitorService::class.java)
 
@@ -186,6 +187,30 @@ class JanitorService(
             
             issue.status = MaintenanceStatus.APPLIED
             maintenanceIssueRepository.save(issue)
+            
+            // Coder 또는 개발자 에이전트 식별하여 성공 기여도 반영
+            val agents = agentService.getAllAgents()
+            val coder = agents.find { it.name.equals("Coder", ignoreCase = true) || it.role.contains("개발자") } ?: agents.firstOrNull()
+            
+            val earnedPoints = when (issue.severity) {
+                IssueSeverity.CRITICAL -> 30
+                IssueSeverity.MAJOR -> 20
+                else -> 10
+            }
+            
+            if (coder != null) {
+                agentService.recordJanitorFixContribution(
+                    agentId = coder.id,
+                    category = issue.category.name,
+                    severity = issue.severity.name,
+                    description = issue.description,
+                    points = earnedPoints
+                )
+                
+                // WebSocket 시스템 알림 채널 발행
+                val messageContent = "🛠️ **[자율 AI 자니터]** '${coder.name}' 에이전트가 `${file.name}` 파일의 **${issue.category}** 결함(심각도: ${issue.severity})을 자동 수정 완료했습니다! (성공 기여도 +${earnedPoints} pts 지급)"
+                sendSystemNotification(messageContent)
+            }
             
             return true to "Successfully applied fix to ${issue.filePath}"
         } catch (e: Exception) {

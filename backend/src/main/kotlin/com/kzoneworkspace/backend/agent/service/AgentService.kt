@@ -388,6 +388,38 @@ class AgentService(
     }
 
     @Transactional
+    fun recordJanitorFixContribution(agentId: Long, category: String, severity: String, description: String, points: Int) {
+        val agent = getAgentById(agentId)
+        agent.contributionPoints += points
+        
+        // 성격 소폭 진화
+        val traits = agent.personalityTraits
+        traits["ANALYTICAL"] = (traits["ANALYTICAL"] ?: 50) + 2
+        traits["CAUTIOUS"] = (traits["CAUTIOUS"] ?: 50) + 1
+        traits.keys.forEach { key ->
+            traits[key] = (traits[key] ?: 50).coerceIn(0, 100)
+        }
+        
+        // 인지 신뢰도 소폭 상승 (최대 100)
+        agent.reliabilityIndex = (agent.reliabilityIndex + 1).coerceAtMost(100)
+        agent.updatedAt = LocalDateTime.now()
+        val savedAgent = agentRepository.save(agent)
+        
+        val achievement = "자율 AI 자니터 기술 부채 자동 수정 기여: [$category] $description 해결 (성공 기여도 +${points}pts 획득)"
+        
+        evolutionRepository.save(AgentEvolutionLog(
+            agentId = savedAgent.id,
+            agentName = savedAgent.name,
+            reliabilityIndex = savedAgent.reliabilityIndex,
+            missionCount = savedAgent.missionCount,
+            personalityTraits = savedAgent.personalityTraits.toMap(),
+            achievement = achievement
+        ))
+        broadcastAgents()
+        broadcastPerformance()
+    }
+
+    @Transactional
     fun updateSynergy(agent1Name: String, agent2Name: String, success: Boolean) {
         val names = listOf(agent1Name, agent2Name).sorted()
         val n1 = names[0]
