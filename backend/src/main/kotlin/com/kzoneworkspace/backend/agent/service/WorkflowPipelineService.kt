@@ -379,6 +379,92 @@ class WorkflowPipelineService(
                     message = "자산 자동 할당 중 오류 발생: ${e.message}"
                 )
             }
+        } else if (title.contains("CI/CD 파이프라인 에뮬레이션") || title.contains("CI/CD 파이프라인 에뮬레이터")) {
+            val cost = officeService.getAssetCost("CI_CD_PIPELINE_EMULATOR")
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. CI/CD 파이프라인 에뮬레이터 배치를 위해서는 최소 $cost pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "CI/CD 파이프라인 에뮬레이터 (${agent.name} 가상 배포)",
+                    type = "CI_CD_PIPELINE_EMULATOR",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    cost = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "CI/CD 에뮬레이션 최적화 적용: '${agent.name}' 에이전트에 CI/CD 파이프라인 에뮬레이터 자동 배치 완료 (성공 기여도 140 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 빌드/배포 사전 검증을 위한 **CI/CD 파이프라인 에뮬레이터** 조치 완료! 가상 에뮬레이션 테스트가 실시간 자동 연동되었습니다. (성공 기여도 140 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 CI/CD 파이프라인 에뮬레이터 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
+        } else if (title.contains("레거시 API 스캔") || title.contains("사용 제안 API 분석기")) {
+            val cost = officeService.getAssetCost("DEPRECATED_API_SCANNER")
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 사용 제안 API 분석기 배치를 위해서는 최소 $cost pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "사용 제안 API 분석기 (${agent.name} 분석)",
+                    type = "DEPRECATED_API_SCANNER",
+                    x = Random.nextInt(10, 90),
+                    y = Random.nextInt(10, 90),
+                    cost = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "레거시 API 스캔 최적화 적용: '${agent.name}' 에이전트에 사용 제안 API 분석기 자동 배치 완료 (성공 기여도 95 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 레거시 코드 탐지를 위한 **사용 제안 API 분석기** 조치 완료! Deprecated API 실시간 모니터링이 자동 연동되었습니다. (성공 기여도 95 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 사용 제안 API 분석기 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
         } else {
             // 컨텍스트 보강 전략 적용: 시스템 프롬프트 자동 튜닝 및 인지 신뢰도 약간 상승
             val optimizePrompt = "\n\n[AI 최적화 지침: 입력 요구사항 명세에 대한 엄밀한 분석을 우선 시행하고, 논리 정합성 자가 검증 루프를 필히 통과시키십시오.]"
@@ -513,6 +599,8 @@ class WorkflowPipelineService(
                 val hasBridge = agentItems.any { it.type == "SYNERGY_BRIDGE" }
                 val hasVector = agentItems.any { it.type == "VECTOR_SEARCH" }
                 val hasShield = agentItems.any { it.type == "VULNERABILITY_SHIELD" }
+                val hasCicd = agentItems.any { it.type == "CI_CD_PIPELINE_EMULATOR" }
+                val hasScanner = agentItems.any { it.type == "DEPRECATED_API_SCANNER" }
 
                 // 1. Scale-out (Auxiliary Instance): if bottleneck score is high & not yet allocated
                 if (stage.bottleneckScore > 65 && !hasAux) {
@@ -594,6 +682,30 @@ class WorkflowPipelineService(
                             description = "[보안성 강화] '${stage.agentName}' 에이전트가 배포 전 보안 결함을 검출하기 위해 실시간 보안 및 취약점 검증 쉴드(VULNERABILITY_SHIELD, 110 pts)를 할당하여 안전한 코드 생성을 확보하세요.",
                             targetStageId = stage.id,
                             impact = "MEDIUM"
+                        )
+                    )
+                }
+
+                // 9. CI/CD Pipeline Emulator: if QA or developer stage and not yet allocated
+                if ((stage.id == "STAGE_QA" || stage.id == "STAGE_DEV") && !hasCicd) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "CI/CD 파이프라인 에뮬레이션 제안: ${stage.name}",
+                            description = "[통합 테스트 강화] '${stage.agentName}' 에이전트의 QA/개발 검증 단계에서 가상 빌드 및 통합 테스트가 필요합니다. CI/CD 파이프라인 에뮬레이터(CI_CD_PIPELINE_EMULATOR, 140 pts)를 배치하여 빌드 결함을 자동 스캔하고 배포 리스크를 차단하세요.",
+                            targetStageId = stage.id,
+                            impact = "MEDIUM"
+                        )
+                    )
+                }
+
+                // 10. Deprecated API Scanner: if dev or reviewer stage and not yet allocated
+                if ((stage.id == "STAGE_DEV" || stage.id == "STAGE_REVIEW") && !hasScanner) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "레거시 API 스캔 제안: ${stage.name}",
+                            description = "[API 패턴 검증] '${stage.agentName}' 에이전트가 작성하는 코드 내 구식(Deprecated) 혹은 비효율적 API 문법을 스캔해야 합니다. 사용 제안 API 분석기(DEPRECATED_API_SCANNER, 95 pts)를 할당하여 대체 패턴을 자동으로 권장받으세요.",
+                            targetStageId = stage.id,
+                            impact = "LOW"
                         )
                     )
                 }

@@ -86,10 +86,14 @@ class WorkflowPipelineServiceTest {
         val hasSandbox = recommendations.any { it.title.contains("코드 안정성 샌드박스 제안") }
         val hasReasoning = recommendations.any { it.title.contains("추론 속도 가속 제안") }
         val hasCost = recommendations.any { it.title.contains("API 비용 최적화 제안") }
+        val hasCicd = recommendations.any { it.title.contains("CI/CD 파이프라인 에뮬레이션 제안") }
+        val hasScanner = recommendations.any { it.title.contains("레거시 API 스캔 제안") }
 
         assertTrue(hasSandbox, "완수율 저하 시 코드 안정성 샌드박스 최적화가 제안되어야 합니다.")
         assertTrue(hasReasoning, "평균 처리 속도 지연 시 추론 속도 가속 코어 최적화가 제안되어야 합니다.")
         assertTrue(hasCost, "개발 단계에서 API 비용 최적화 처방이 제안되어야 합니다.")
+        assertTrue(hasCicd, "개발/QA 단계에서 CI/CD 파이프라인 에뮬레이션 처방이 제안되어야 합니다.")
+        assertTrue(hasScanner, "개발/리뷰 단계에서 레거시 API 스캔 처방이 제안되어야 합니다.")
     }
 
     @Test
@@ -124,6 +128,40 @@ class WorkflowPipelineServiceTest {
         )
         verify(chatMessageRepository, times(1)).save(any(ChatMessage::class.java))
         verify(messagingTemplate, times(1)).convertAndSend(anyString(), any(ChatMessage::class.java))
+    }
+
+    @Test
+    fun `추천된 신규 최적화 제안(CI-CD 에뮬레이터 및 API 스캐너)을 실행 시 해당하는 생산성 컴퓨팅 자원이 실시간 자동 배치 및 할당되는가`() {
+        val agent = Agent(id = 2L, name = "Coder", role = "개발자", model = "test-model", contributionPoints = 500)
+        `when`(agentService.getAllAgents()).thenReturn(listOf(agent))
+        `when`(officeService.allocateAsset(anyLong(), anyString(), anyString(), anyInt(), anyInt(), anyInt())).thenAnswer { invocation ->
+            val type = invocation.arguments[2] as String
+            if (type == "CI_CD_PIPELINE_EMULATOR") {
+                OfficeItem(name = "CI/CD 파이프라인 에뮬레이터", type = "CI_CD_PIPELINE_EMULATOR", x = 10, y = 10, agentId = 2L)
+            } else {
+                OfficeItem(name = "사용 제안 API 분석기", type = "DEPRECATED_API_SCANNER", x = 10, y = 10, agentId = 2L)
+            }
+        }
+
+        // 1. CI/CD 파이프라인 에뮬레이션 적용 테스트
+        val resultCicd = service.applyOptimization("STAGE_DEV", "CI/CD 파이프라인 에뮬레이션 제안: Coder")
+        assertTrue(resultCicd.success)
+        assertTrue(resultCicd.message.contains("CI/CD 파이프라인 에뮬레이터"))
+
+        // 2. 레거시 API 스캔 적용 테스트
+        val resultScanner = service.applyOptimization("STAGE_DEV", "레거시 API 스캔 제안: Coder")
+        assertTrue(resultScanner.success)
+        assertTrue(resultScanner.message.contains("사용 제안 API 분석기"))
+
+        // 각 1회씩 총 2회 allocateAsset 호출 확인
+        verify(officeService, times(2)).allocateAsset(
+            eq(2L),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyInt(),
+            anyInt()
+        )
     }
 
     @Test
