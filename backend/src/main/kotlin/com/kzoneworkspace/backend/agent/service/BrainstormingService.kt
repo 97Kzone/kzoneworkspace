@@ -20,7 +20,8 @@ class BrainstormingService(
     private val collaborationService: CollaborationService,
     private val synergyRepository: AgentSynergyRepository,
     private val officeItemRepository: OfficeItemRepository,
-    private val assetUtilizationLogRepository: AssetUtilizationLogRepository
+    private val assetUtilizationLogRepository: AssetUtilizationLogRepository,
+    private val agentService: AgentService
 ) {
     private val log = LoggerFactory.getLogger(BrainstormingService::class.java)
     private val gson = Gson()
@@ -57,8 +58,12 @@ class BrainstormingService(
         
         agents.forEach { agent ->
             try {
+                val personaPrompt = agentService.getPersonaPrompt(agent)
+                val assetPrompt = agentService.getAssetPrompt(agent.id)
                 val systemPrompt = """
                     ${agent.systemPrompt}
+                    $personaPrompt
+                    $assetPrompt
                     ---
                     당신은 지금 그룹 브레인스토밍 세션에 참여하고 있습니다. 
                     다른 에이전트들의 의견을 듣기 전에, 본인의 역할과 전문성을 바탕으로 주어진 목표에 대한 초기 제안을 작성하세요.

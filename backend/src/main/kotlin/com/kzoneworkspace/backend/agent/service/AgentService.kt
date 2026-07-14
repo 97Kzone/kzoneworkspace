@@ -562,4 +562,50 @@ class AgentService(
         
         agent.currentActivity = activity
     }
+
+    fun getPersonaPrompt(agent: Agent): String {
+        val traits = agent.personalityTraits
+        val analytical = traits["ANALYTICAL"] ?: 50
+        val creative = traits["CREATIVE"] ?: 50
+        val bold = traits["BOLD"] ?: 50
+        val cautious = traits["CAUTIOUS"] ?: 50
+        
+        val style = when {
+            analytical > 70 -> "매우 분석적이고 데이터 중심적으로 사고하며,"
+            creative > 70 -> "혁신적이고 창의적인 해결책을 선호하며,"
+            bold > 70 -> "자신감 넘치고 과감하게 결정을 내리며,"
+            cautious > 70 -> "매우 신중하고 리스크를 최소화하는 방향으로 움직이며,"
+            else -> "균형 잡힌 시각으로 업무에 임하며,"
+        }
+        
+        return "\n\n[Persona Context: 당신은 현재 ${agent.name}으로서, $style 인지 신뢰도 지수(Reliability Index)는 ${agent.reliabilityIndex}%입니다. 당신의 성격적 특성(Analytical: $analytical, Creative: $creative, Bold: $bold, Cautious: $cautious)을 반영하여 상황에 어조와 문제 해결 방식을 조정하세요.]"
+    }
+
+    fun getAssetPrompt(agentId: Long): String {
+        val assets = officeItemRepository.findByAgentId(agentId)
+        if (assets.isEmpty()) return ""
+        
+        val sb = java.lang.StringBuilder("\n\n[활성화된 고성능 컴퓨팅 리소스 설정]")
+        val assetTypes = assets.map { it.type }.toSet()
+        val auxCount = assets.count { it.type == "AUXILIARY_INSTANCE" }
+
+        assetTypes.forEach { type ->
+            when (type) {
+                "REASONING_CORE" -> sb.append("\n- 🚀 [고성능 추론 코어]: GPU 연산 가속이 활성화되어 더 깊고 높은 논리적 엄밀함을 발휘할 수 있습니다. 엄격한 알고리즘 설계 및 최적화된 로직으로 코드를 작성하세요.")
+                "EXTENDED_CONTEXT" -> sb.append("\n- 📁 [대용량 컨텍스트 메모리]: Context Window가 128k로 확장되고 지능형 세션 캐싱이 적용되어 복잡한 전역 구조나 방대한 기술 설정을 손쉽게 파악할 수 있습니다.")
+                "VECTOR_SEARCH" -> sb.append("\n- 🔍 [실시간 벡터 DB 검색 세션]: 과거의 기억과 프로젝트 RAG 지식 검색의 정밀도가 극대화되어 있습니다. 정확한 지식 베이스를 인출하여 답변하세요.")
+                "AUXILIARY_INSTANCE" -> {
+                    val nodes = 1 + auxCount
+                    sb.append("\n- 🛡️ [보조 추론 모델 인스턴스 ($nodes Nodes)]: ${auxCount}개의 병렬 분산 복제 노드가 가동 중입니다. 다중 스레드 교차 코드 검사 및 자가 치유 능력이 극적으로 가속화되어 있습니다.")
+                }
+                "CODE_STABILITY_SANDBOX" -> sb.append("\n- 🧪 [코드 안정성 검증용 자율 샌드박스]: 격리된 실행 환경이 활성화되어 실제 코드에 미치는 사이드 이펙트나 구문 오류를 사전에 자율적으로 예방 및 테스트할 수 있습니다. 적극적인 빌드 검증을 시도하세요.")
+                "SYNERGY_BRIDGE" -> sb.append("\n- 🌐 [협업 시너지 공명 브릿지]: 에이전트 간 협업 채널 전용 대역폭이 확보되어 협업 시너지 효율이 가속되며, 작업 실패 시의 시너지 하락 리스크를 흡수 방어합니다.")
+                "COST_OPTIMIZER" -> sb.append("\n- ⚡ [실시간 API 비용 및 토큰 최적화 엔진]: 중복 컨텍스트 분석 및 프롬프트 최적화 필터가 가동되어 API 호출 시 발생하는 토큰 소모량과 추론 비용이 20% 절감됩니다.")
+                "VULNERABILITY_SHIELD" -> sb.append("\n- 🛡️ [실시간 보안 및 취약점 검증 쉴드]: 코드 작성 시 보안 취약점이나 악성 종속성을 자율 검증 및 스캔하는 가상의 보안 쉴드가 활성화되어 있습니다. OWASP Top 10 가이드라인을 준수하며 가장 안전하고 검증된 구현 패턴을 사용하여 코딩하세요.")
+                "CI_CD_PIPELINE_EMULATOR" -> sb.append("\n- 🔄 [CI/CD 파이프라인 에뮬레이터]: 빌드 및 배포 자동화 검증이 활성화되어 소스코드 변경 건에 대한 실제 배포 사이드 이펙트를 가상 환경에서 사전 테스트하고 결함을 제거할 수 있습니다.")
+                "DEPRECATED_API_SCANNER" -> sb.append("\n- 📊 [사용 제안 API 분석기]: 폐기 예정(Deprecated)되거나 비효율적인 오래된 API 패턴을 선제 탐지하여 현대적이고 안정적인 API 대체 코드를 추천 및 보정합니다.")
+            }
+        }
+        return sb.toString()
+    }
 }

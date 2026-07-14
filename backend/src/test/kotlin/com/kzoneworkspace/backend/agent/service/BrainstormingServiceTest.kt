@@ -28,6 +28,7 @@ class BrainstormingServiceTest {
     @Mock private lateinit var synergyRepository: AgentSynergyRepository
     @Mock private lateinit var officeItemRepository: OfficeItemRepository
     @Mock private lateinit var assetUtilizationLogRepository: AssetUtilizationLogRepository
+    @Mock private lateinit var agentService: AgentService
 
     private lateinit var brainstormingService: BrainstormingService
 
@@ -43,7 +44,8 @@ class BrainstormingServiceTest {
             collaborationService,
             synergyRepository,
             officeItemRepository,
-            assetUtilizationLogRepository
+            assetUtilizationLogRepository,
+            agentService
         )
     }
 
@@ -72,6 +74,10 @@ class BrainstormingServiceTest {
         )
 
         `when`(agentRepository.findAllById(listOf(agentId1, agentId2))).thenReturn(listOf(agent1, agent2))
+        `when`(agentService.getPersonaPrompt(agent1)).thenReturn("Mock Persona Prompt 1")
+        `when`(agentService.getPersonaPrompt(agent2)).thenReturn("Mock Persona Prompt 2")
+        `when`(agentService.getAssetPrompt(agentId1)).thenReturn("Mock Asset Prompt 1")
+        `when`(agentService.getAssetPrompt(agentId2)).thenReturn("Mock Asset Prompt 2")
         
         // Mock Session
         val session = BrainstormingSession(roomId = roomId, goal = goal, status = BrainstormingStatus.PROPOSING)
@@ -138,5 +144,11 @@ class BrainstormingServiceTest {
 
         // 자산 활용 로그가 올바르게 호출 및 저장되었는지 검증
         verify(assetUtilizationLogRepository, atLeastOnce()).save(any(AssetUtilizationLog::class.java))
+
+        // 에이전트 인지 특성 및 자산 프롬프트 생성 호출 검증
+        verify(agentService, times(1)).getPersonaPrompt(agent1)
+        verify(agentService, times(1)).getPersonaPrompt(agent2)
+        verify(agentService, times(1)).getAssetPrompt(agentId1)
+        verify(agentService, times(1)).getAssetPrompt(agentId2)
     }
 }
