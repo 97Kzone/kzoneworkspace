@@ -1041,13 +1041,48 @@ class AgentExecutor(
 
         val assets = officeItemRepository.findByAgentId(agent.id)
         val hasSandbox = assets.any { it.type == "CODE_STABILITY_SANDBOX" }
+        val hasShield = assets.any { it.type == "VULNERABILITY_SHIELD" }
+
+        val extension = file.extension.lowercase()
+
+        // 1. 실시간 보안 및 취약점 검증 쉴드 (Vulnerability Shield) 가동
+        if (hasShield) {
+            val vulnerabilityReason = scanForVulnerabilities(content, extension)
+            if (vulnerabilityReason != null) {
+                val shieldAsset = assets.firstOrNull { it.type == "VULNERABILITY_SHIELD" }
+                if (shieldAsset != null) {
+                    shieldAsset.failurePreventedCount += 1
+                    officeItemRepository.save(shieldAsset)
+                }
+
+                assetUtilizationLogRepository.save(AssetUtilizationLog(
+                    agentId = agent.id,
+                    agentName = agent.name,
+                    assetType = "VULNERABILITY_SHIELD",
+                    assetName = "실시간 보안 및 취약점 검증 쉴드",
+                    actionType = "UTILIZATION",
+                    description = "🛡️ [보안 쉴드 차단] ${agent.name} 에이전트가 작성한 파일(${path})에서 보안 취약점 감지: $vulnerabilityReason. 파일 쓰기 요청을 자율 차단하고 롤백 조치했습니다."
+                ))
+
+                officeService.broadcastUpdates()
+                return "🛡️ [실시간 보안 및 취약점 검증 쉴드 에러]: 작성한 파일(${path})에서 심각한 보안 취약점이 감지되어 파일 작성이 자율 차단되었습니다.\n요인: $vulnerabilityReason"
+            } else {
+                assetUtilizationLogRepository.save(AssetUtilizationLog(
+                    agentId = agent.id,
+                    agentName = agent.name,
+                    assetType = "VULNERABILITY_SHIELD",
+                    assetName = "실시간 보안 및 취약점 검증 쉴드",
+                    actionType = "UTILIZATION",
+                    description = "${agent.name} 에이전트: [실시간 보안 및 취약점 검증 쉴드] 보안성 정적 분석 검증 통과 완료 (${path})"
+                ))
+            }
+        }
 
         return try {
             file.parentFile?.mkdirs()
             file.writeText(content)
 
             if (hasSandbox) {
-                val extension = file.extension.lowercase()
                 var isValid = true
                 var buildErrorMessage = ""
 
@@ -1090,6 +1125,12 @@ class AgentExecutor(
                         file.delete()
                     }
 
+                    val sandboxAsset = assets.firstOrNull { it.type == "CODE_STABILITY_SANDBOX" }
+                    if (sandboxAsset != null) {
+                        sandboxAsset.failurePreventedCount += 1
+                        officeItemRepository.save(sandboxAsset)
+                    }
+
                     assetUtilizationLogRepository.save(AssetUtilizationLog(
                         agentId = agent.id,
                         agentName = agent.name,
@@ -1099,6 +1140,7 @@ class AgentExecutor(
                         description = "${agent.name} 에이전트: [코드 안정성 검증용 자율 샌드박스] 가동 중 작성한 코드에서 빌드/구문 오류가 감지되어 변경사항이 자율 차단 및 롤백되었습니다."
                     ))
 
+                    officeService.broadcastUpdates()
                     return "🧪 [코드 안정성 검증용 자율 샌드박스 에러]: 작성한 파일(${path})의 코드에 빌드 또는 타입/구문 오류가 감지되어 파일 쓰기가 차단 및 이전 상태로 복구되었습니다. 오류 내용을 보고 코드를 수정하세요:\n$buildErrorMessage"
                 } else {
                     assetUtilizationLogRepository.save(AssetUtilizationLog(
@@ -1109,6 +1151,7 @@ class AgentExecutor(
                         actionType = "UTILIZATION",
                         description = "${agent.name} 에이전트: [코드 안정성 검증용 자율 샌드박스] 가동. 작성한 파일(${path})의 구문 및 빌드 안정성 검증을 통과하여 최종 반영되었습니다."
                     ))
+                    officeService.broadcastUpdates()
                 }
             }
 
@@ -1344,5 +1387,65 @@ class AgentExecutor(
         } catch (e: Exception) {
             println("자산 종료 상태 업데이트 에러: ${e.message}")
         }
+    }
+
+    private fun scanForVulnerabilities(content: String, extension: String): String? {
+        // 1. 하드코딩된 Secrets 패턴 검사
+        val secretRegexes = listOf(
+            Regex("(?i)aws_(?:secret|key|token|access).*['\"=][a-zA-Z0-9/+=]{20,40}"),
+            Regex("(?i)slack_api_token.*['\"=]xoxb-[a-zA-Z0-9-]{10,40}"),
+            Regex("-----BEGIN (?:RSA |EC |PEM |)?PRIVATE KEY-----"),
+            Regex("(?i)db_password.*['\"=][a-zA-Z0-9@#\\$%^&*()_+]{6,40}")
+        )
+        for (regex in secretRegexes) {
+            if (regex.containsMatchIn(content)) {
+                return "하드코딩된 인증 키 또는 민감한 비밀 자격 증명(Credential) 노출 위험이 감지되었습니다."
+            }
+        }
+
+        // 2. SQL 인젝션 위험성 검사
+        if (extension in listOf("kt", "java", "py", "js", "ts", "tsx")) {
+            val sqlInjectionRegexes = listOf(
+                Regex("(?i)\"(?:select|insert|update|delete|create|drop).*\\+.*\""),
+                Regex("(?i)\"(?:select|insert|update|delete|create|drop).*\\$.*\""),
+                Regex("(?i)'(?:select|insert|update|delete|create|drop).*'\\s*\\+\\s*"),
+                Regex("(?i)`(?:select|insert|update|delete|create|drop).*\\$.*`")
+            )
+            for (regex in sqlInjectionRegexes) {
+                if (regex.containsMatchIn(content)) {
+                    return "동적 쿼리 생성 시 매개변수 바인딩(PreparedStatement)을 사용하지 않고 문자열 결합(SQL Injection 취약성)을 한 정황이 감지되었습니다."
+                }
+            }
+        }
+
+        // 3. 코드/커맨드 인젝션 위험성 검사
+        if (extension in listOf("js", "ts", "tsx")) {
+            if (content.contains("eval(") || content.contains("Function(") || content.contains("child_process.exec(")) {
+                return "임의 코드 실행 및 명령어 주입(Command/Code Injection) 가능성이 높은 eval() 또는 child_process.exec() 사용이 감지되었습니다."
+            }
+        } else if (extension in listOf("kt", "java")) {
+            if (content.contains("Runtime.getRuntime().exec(") || content.contains("ProcessBuilder(")) {
+                return "시스템 자원에 직접 접근하는 위험한 프로세스 생성 함수(ProcessBuilder/Runtime.exec) 사용이 감지되었습니다."
+            }
+        } else if (extension == "py") {
+            if (content.contains("eval(") || content.contains("exec(") || content.contains("os.system(") || content.contains("subprocess.Popen(")) {
+                return "시스템 명령어를 직접 실행하는 os.system() 또는 subprocess.Popen() 사용이 감지되었습니다."
+            }
+        }
+
+        // 4. 안전하지 않은 암호화 알고리즘 검사
+        val weakCryptoRegexes = listOf(
+            Regex("(?i)MessageDigest\\.getInstance\\(\\s*\"MD5\"\\s*\\)"),
+            Regex("(?i)MessageDigest\\.getInstance\\(\\s*\"SHA-1\"\\s*\\)"),
+            Regex("(?i)hashlib\\.md5"),
+            Regex("(?i)hashlib\\.sha1")
+        )
+        for (regex in weakCryptoRegexes) {
+            if (regex.containsMatchIn(content)) {
+                return "충돌 취약성이 입증되어 현재 권장되지 않는 취약한 해시 알고리즘(MD5 또는 SHA-1)의 사용이 감지되었습니다."
+            }
+        }
+
+        return null
     }
 }
