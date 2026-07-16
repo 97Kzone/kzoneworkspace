@@ -220,6 +220,19 @@ export default function VirtualOfficeBright() {
     }
   };
 
+  const handleJanitorIgnore = async (issueId: number) => {
+    vo.setIsJanitorLoading(true);
+    try {
+      await janitorService.ignoreIssue(issueId);
+      const res = await janitorService.getIssues();
+      vo.setJanitorIssues(res.data);
+    } catch (e) {
+      console.error("무시 실패:", e);
+    } finally {
+      vo.setIsJanitorLoading(false);
+    }
+  };
+
   const handleRunScenario = async (title: string, description: string) => {
     vo.setIsScenarioLoading(true);
     try {
@@ -568,6 +581,7 @@ export default function VirtualOfficeBright() {
                isLoading={vo.isJanitorLoading}
                onStartScan={handleStartJanitor}
                onApplyFix={handleJanitorFix}
+               onIgnoreIssue={handleJanitorIgnore}
              />
           )}
 

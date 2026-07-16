@@ -11,6 +11,7 @@ interface JanitorDashboardProps {
   isLoading: boolean;
   onStartScan: () => void;
   onApplyFix: (id: number) => void;
+  onIgnoreIssue?: (id: number) => void;
 }
 
 export const JanitorDashboard: React.FC<JanitorDashboardProps> = ({
@@ -19,6 +20,7 @@ export const JanitorDashboard: React.FC<JanitorDashboardProps> = ({
   isLoading,
   onStartScan,
   onApplyFix,
+  onIgnoreIssue,
 }) => {
   return (
     <div className="flex-1 flex flex-col gap-6 overflow-hidden">
@@ -120,15 +122,26 @@ export const JanitorDashboard: React.FC<JanitorDashboardProps> = ({
                   {issue.description}
                 </p>
               </div>
-              <button
-                onClick={() => onApplyFix(issue.id)}
-                disabled={isLoading || issue.status === "APPLIED"}
-                className={`px-6 py-3 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
-                    issue.status === 'APPLIED' ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-emerald-500'
-                }`}
-              >
-                {issue.status === "APPLIED" ? "완료됨" : "자동 수정"}
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {issue.status !== "APPLIED" && (
+                  <button
+                    onClick={() => onIgnoreIssue?.(issue.id)}
+                    disabled={isLoading}
+                    className="px-4 py-3 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border border-slate-200 hover:border-rose-200"
+                  >
+                    무시
+                  </button>
+                )}
+                <button
+                  onClick={() => onApplyFix(issue.id)}
+                  disabled={isLoading || issue.status === "APPLIED"}
+                  className={`px-6 py-3 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+                      issue.status === 'APPLIED' ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-emerald-500'
+                  }`}
+                >
+                  {issue.status === "APPLIED" ? "완료됨" : "자동 수정"}
+                </button>
+              </div>
             </motion.div>
           ))
         )}
