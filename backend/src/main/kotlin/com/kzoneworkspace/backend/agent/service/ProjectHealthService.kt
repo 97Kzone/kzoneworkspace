@@ -81,7 +81,7 @@ class ProjectHealthService(
             응답은 반드시 JSON 형식으로만 제공하며, 다음 필드를 포함해야 합니다:
             - score: 0~100 사이의 정수 (프로젝트 건강도)
             - status: 'EXCELLENT', 'GOOD', 'STABLE', 'WARNING', 'CRITICAL' 중 하나
-            - synergyLevel: 'HIGH', 'MEDIUM', 'LOW' (에이전트 간의 협업 및 인지 신뢰도/공명 상태 기준)
+            - synergyLevel: 'HIGH', 'MEDIUM', 'LOW' (에이전트 간의 협업 및 인지 모드 기준)
             - risks: 현재 프로젝트에서 발견된 잠재적 위험 요소 리스트 (문자열 리스트)
             - recommendations: 구체적이고 실행 가능한 전략 카드 리스트. 각 객체는 다음 필드를 포함함:
                 * title: 전략의 제목

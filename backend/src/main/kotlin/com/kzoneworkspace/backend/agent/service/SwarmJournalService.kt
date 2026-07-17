@@ -91,7 +91,7 @@ class SwarmJournalService(
             응답은 반드시 JSON 형식으로만 제공하며, 다음 필드를 포함해야 합니다:
             - summary: 오늘 하루의 핵심 요약 (한국어, 2~3문장)
             - content: 상세 활동 내용 (Markdown 형식, 한국어). 주요 성과, 지식 습득, 시너지 등을 포함하여 풍부하게 작성하세요.
-            - sentiment: 오늘의 전반적인 감정/분위기 (예: "NORMAL", "POSITIVE", "FOCUSED", "STRESS" 등)
+            - sentiment: 오늘의 전반적인 인지 모드/분위기 (예: "NORMAL", "POSITIVE", "FOCUSED", "STRESS" 등)
         """.trimIndent()
 
         val userPrompt = """

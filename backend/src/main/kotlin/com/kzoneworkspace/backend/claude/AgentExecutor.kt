@@ -188,7 +188,7 @@ class AgentExecutor(
             taskService.updateStatus(task.id, TaskStatus.COMPLETED, lastResponse)
             sendMessage(roomId, agent.name, lastResponse, MessageType.AGENT)
 
-            // 성공 시 포인트 지급 및 인지 모드 업데이트, 성격 진화 연동
+            // 성공 시 기여도 지급 및 인지 모드 업데이트, 성격 진화 연동
             agent.cognitiveMode = "STABLE"
             agentService.save(agent)
             agentService.evolvePersonality(agent.id, true, 2, task.id)
@@ -393,7 +393,7 @@ class AgentExecutor(
 
     /**
      * 평가 하네스(Evaluation Harness) 전용 실행 메서드.
-     * 사이드 이펙트(포인트, 기억 저장 등) 없이 순수하게 응답만 반환합니다.
+     * 사이드 이펙트(기여도 변동, 기억 저장 등) 없이 순수하게 응답만 반환합니다.
      */
     fun executeBenchmark(agent: Agent, modelOverride: String?, userMessage: String): String {
         val originalModel = agent.model
