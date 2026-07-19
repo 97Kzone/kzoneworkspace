@@ -32,7 +32,7 @@ class OfficeServiceAssetLogTest {
         `when`(agentService.getAgentById(agentId)).thenReturn(agent)
         `when`(officeItemRepository.save(any(OfficeItem::class.java))).thenAnswer { it.arguments[0] as OfficeItem }
 
-        val allocated = officeService.allocateAsset(agentId, "가속 코어", "REASONING_CORE", 10, 10, 150)
+        val allocated = officeService.allocateAsset(agentId, "가속 코어", "REASONING_CORE", 150)
 
         assertEquals(50, agent.contributionPoints)
         assertNotNull(allocated)
@@ -47,7 +47,7 @@ class OfficeServiceAssetLogTest {
     fun `자산 회수 시 기여도 환불 및 가동 로그 저장 검증`() {
         val agentId = 1L
         val agent = Agent(id = agentId, name = "Planner", role = "마스터 플래너", model = "test-model", contributionPoints = 50)
-        val item = OfficeItem(id = 10L, name = "가속 코어", type = "REASONING_CORE", x = 10, y = 10, agentId = agentId)
+        val item = OfficeItem(id = 10L, name = "가속 코어", type = "REASONING_CORE", agentId = agentId)
 
         `when`(officeItemRepository.findById(10L)).thenReturn(Optional.of(item))
         `when`(agentService.getAgentById(agentId)).thenReturn(agent)

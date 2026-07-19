@@ -43,7 +43,7 @@ class OfficeService(
     fun getAllItems(): List<OfficeItem> = officeItemRepository.findAll()
 
     @Transactional
-    fun allocateAsset(agentId: Long, name: String, type: String, x: Int = 0, y: Int = 0, cost: Int): OfficeItem {
+    fun allocateAsset(agentId: Long, name: String, type: String, cost: Int): OfficeItem {
         val agent = agentService.getAgentById(agentId)
         if (agent.contributionPoints < cost) {
             throw RuntimeException("생산성 컴퓨팅 자산 배치를 위한 성공 기여도가 부족합니다. (Not enough contribution points to allocate this asset)")
@@ -55,8 +55,6 @@ class OfficeService(
         val item = OfficeItem(
             name = name,
             type = type,
-            x = x,
-            y = y,
             agentId = agentId
         )
         val savedItem = officeItemRepository.save(item)
@@ -466,14 +464,10 @@ class OfficeService(
                 val recommended = recommendAssetForAgent(agent.id)
                 if (recommended != null && agent.contributionPoints >= recommended.cost) {
                     try {
-                        val randomX = (10..90).random()
-                        val randomY = (10..90).random()
                         allocateAsset(
                             agentId = agent.id,
                             name = recommended.name,
                             type = recommended.type,
-                            x = randomX,
-                            y = randomY,
                             cost = recommended.cost
                         )
                         allocatedCount++

@@ -100,8 +100,8 @@ class WorkflowPipelineServiceTest {
     fun `추천된 최적화 제안을 실행 시 해당하는 생산성 컴퓨팅 자원이 실시간 자동 배치 및 할당되는가`() {
         val agent = Agent(id = 2L, name = "Coder", role = "개발자", model = "test-model", contributionPoints = 500)
         `when`(agentService.getAllAgents()).thenReturn(listOf(agent))
-        `when`(officeService.allocateAsset(anyLong(), anyString(), anyString(), anyInt(), anyInt(), anyInt())).thenReturn(
-            OfficeItem(name = "고성능 추론 가속 코어", type = "REASONING_CORE", x = 10, y = 10, agentId = 2L)
+        `when`(officeService.allocateAsset(anyLong(), anyString(), anyString(), anyInt())).thenReturn(
+            OfficeItem(name = "고성능 추론 가속 코어", type = "REASONING_CORE", agentId = 2L)
         )
 
         val result = service.applyOptimization("STAGE_DEV", "추론 속도 가속 제안: Coder")
@@ -114,8 +114,6 @@ class WorkflowPipelineServiceTest {
             eq(2L),
             anyString(),
             anyString(),
-            anyInt(),
-            anyInt(),
             eq(150)
         )
 
@@ -134,12 +132,12 @@ class WorkflowPipelineServiceTest {
     fun `추천된 신규 최적화 제안(CI-CD 에뮬레이터 및 API 스캐너)을 실행 시 해당하는 생산성 컴퓨팅 자원이 실시간 자동 배치 및 할당되는가`() {
         val agent = Agent(id = 2L, name = "Coder", role = "개발자", model = "test-model", contributionPoints = 500)
         `when`(agentService.getAllAgents()).thenReturn(listOf(agent))
-        `when`(officeService.allocateAsset(anyLong(), anyString(), anyString(), anyInt(), anyInt(), anyInt())).thenAnswer { invocation ->
+        `when`(officeService.allocateAsset(anyLong(), anyString(), anyString(), anyInt())).thenAnswer { invocation ->
             val type = invocation.arguments[2] as String
             if (type == "CI_CD_PIPELINE_EMULATOR") {
-                OfficeItem(name = "CI/CD 파이프라인 에뮬레이터", type = "CI_CD_PIPELINE_EMULATOR", x = 10, y = 10, agentId = 2L)
+                OfficeItem(name = "CI/CD 파이프라인 에뮬레이터", type = "CI_CD_PIPELINE_EMULATOR", agentId = 2L)
             } else {
-                OfficeItem(name = "사용 제안 API 분석기", type = "DEPRECATED_API_SCANNER", x = 10, y = 10, agentId = 2L)
+                OfficeItem(name = "사용 제안 API 분석기", type = "DEPRECATED_API_SCANNER", agentId = 2L)
             }
         }
 
@@ -158,8 +156,6 @@ class WorkflowPipelineServiceTest {
             eq(2L),
             anyString(),
             anyString(),
-            anyInt(),
-            anyInt(),
             anyInt()
         )
     }
@@ -174,6 +170,6 @@ class WorkflowPipelineServiceTest {
 
         assertFalse(result.success)
         assertTrue(result.message.contains("성공 기여도"))
-        verify(officeService, never()).allocateAsset(anyLong(), anyString(), anyString(), anyInt(), anyInt(), anyInt())
+        verify(officeService, never()).allocateAsset(anyLong(), anyString(), anyString(), anyInt())
     }
 }

@@ -1305,8 +1305,6 @@ class AgentExecutor(
                         agentId = agentId,
                         name = "자동 가동 보조 인스턴스",
                         type = "AUXILIARY_INSTANCE",
-                        x = (10..90).random(),
-                        y = (10..90).random(),
                         cost = 200
                     )
                     

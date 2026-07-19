@@ -39,8 +39,6 @@ class OfficeController(
             agentId = request.agentId,
             name = request.name,
             type = request.type,
-            x = request.x,
-            y = request.y,
             cost = request.cost
         )
     }
@@ -61,8 +59,6 @@ class OfficeController(
         val agentId: Long,
         val name: String,
         val type: String,
-        val x: Int = 0,
-        val y: Int = 0,
         val cost: Int
     )
 

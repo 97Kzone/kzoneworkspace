@@ -86,8 +86,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "보조 추론 모델 인스턴스 (${agent.name} 확장)",
                     type = "AUXILIARY_INSTANCE",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
 
@@ -134,8 +132,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "고성능 추론 가속 코어 (${agent.name} 탑재)",
                     type = "REASONING_CORE",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(
@@ -177,8 +173,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "코드 안정성 검증용 자율 샌드박스 (${agent.name} 보안)",
                     type = "CODE_STABILITY_SANDBOX",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(
@@ -220,8 +214,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "실시간 API 비용 및 토큰 최적화 엔진 (${agent.name} 최적화)",
                     type = "COST_OPTIMIZER",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(
@@ -263,8 +255,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "협업 시너지 공명 브릿지 (${agent.name} 연결)",
                     type = "SYNERGY_BRIDGE",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(
@@ -306,8 +296,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "실시간 벡터 지식 검색 세션 (${agent.name} 지식)",
                     type = "VECTOR_SEARCH",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(
@@ -349,8 +337,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "실시간 보안 및 취약점 검증 쉴드 (${agent.name} 보안)",
                     type = "VULNERABILITY_SHIELD",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(
@@ -392,8 +378,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "CI/CD 파이프라인 에뮬레이터 (${agent.name} 가상 배포)",
                     type = "CI_CD_PIPELINE_EMULATOR",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(
@@ -435,8 +419,6 @@ class WorkflowPipelineService(
                     agentId = agent.id,
                     name = "사용 제안 API 분석기 (${agent.name} 분석)",
                     type = "DEPRECATED_API_SCANNER",
-                    x = Random.nextInt(10, 90),
-                    y = Random.nextInt(10, 90),
                     cost = cost
                 )
                 activityLogService.logActivity(

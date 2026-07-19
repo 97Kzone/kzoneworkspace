@@ -112,8 +112,8 @@ class BrainstormingServiceTest {
         `when`(synergyRepository.findByAgent1NameAndAgent2Name("CoderAgent", "PlannerAgent")).thenReturn(synergy)
 
         // Mock Office Assets
-        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", x = 1, y = 1, agentId = agentId1)
-        val synergyBridge = OfficeItem(name = "협업 시너지 브릿지", type = "SYNERGY_BRIDGE", x = 2, y = 2, agentId = agentId2)
+        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", agentId = agentId1)
+        val synergyBridge = OfficeItem(name = "협업 시너지 브릿지", type = "SYNERGY_BRIDGE", agentId = agentId2)
         `when`(officeItemRepository.findByAgentId(agentId1)).thenReturn(listOf(costOptimizer))
         `when`(officeItemRepository.findByAgentId(agentId2)).thenReturn(listOf(synergyBridge))
 

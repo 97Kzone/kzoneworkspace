@@ -116,8 +116,8 @@ class AgentExecutorAssetTest {
             provider = AiProvider.ANTHROPIC
         )
 
-        val extendedContext = OfficeItem(name = "대용량 컨텍스트", type = "EXTENDED_CONTEXT", x = 1, y = 1, agentId = agent.id)
-        val vectorSearch = OfficeItem(name = "실시간 벡터 검색", type = "VECTOR_SEARCH", x = 2, y = 2, agentId = agent.id)
+        val extendedContext = OfficeItem(name = "대용량 컨텍스트", type = "EXTENDED_CONTEXT", agentId = agent.id)
+        val vectorSearch = OfficeItem(name = "실시간 벡터 검색", type = "VECTOR_SEARCH", agentId = agent.id)
         
         `when`(officeItemRepository.findByAgentId(anyLong())).thenReturn(listOf(extendedContext, vectorSearch))
         `when`(codebaseIndexingService.search(anyString(), anyInt())).thenReturn(emptyList())
@@ -153,7 +153,7 @@ class AgentExecutorAssetTest {
             provider = AiProvider.ANTHROPIC
         )
 
-        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", x = 1, y = 1, agentId = agent.id)
+        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", agentId = agent.id)
         
         `when`(officeItemRepository.findByAgentId(anyLong())).thenReturn(listOf(costOptimizer))
         `when`(codebaseIndexingService.search(anyString(), anyInt())).thenReturn(emptyList())

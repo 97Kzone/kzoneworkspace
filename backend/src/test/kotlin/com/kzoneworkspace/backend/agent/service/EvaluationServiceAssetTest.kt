@@ -84,7 +84,7 @@ class EvaluationServiceAssetTest {
         `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
         `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("실패 답변")
         
-        val reasoningCore = OfficeItem(name = "고성능 추론 코어", type = "REASONING_CORE", x = 10, y = 10, agentId = agentId)
+        val reasoningCore = OfficeItem(name = "고성능 추론 코어", type = "REASONING_CORE", agentId = agentId)
         `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(reasoningCore))
 
         val result = evaluationService.runQuickTest(agentId, taskId)
@@ -112,7 +112,7 @@ class EvaluationServiceAssetTest {
         `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
         `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("실패 답변")
         
-        val auxiliaryInstance = OfficeItem(name = "보조 추론 모델 인스턴스", type = "AUXILIARY_INSTANCE", x = 10, y = 10, agentId = agentId)
+        val auxiliaryInstance = OfficeItem(name = "보조 추론 모델 인스턴스", type = "AUXILIARY_INSTANCE", agentId = agentId)
         `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(auxiliaryInstance))
 
         val result = evaluationService.runQuickTest(agentId, taskId)
@@ -142,7 +142,7 @@ class EvaluationServiceAssetTest {
         `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
         `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("이것은 정답입니다.")
         
-        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", x = 10, y = 10, agentId = agentId)
+        val costOptimizer = OfficeItem(name = "비용 최적화 엔진", type = "COST_OPTIMIZER", agentId = agentId)
         `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(costOptimizer))
 
         val result = evaluationService.runQuickTest(agentId, taskId)
@@ -171,7 +171,7 @@ class EvaluationServiceAssetTest {
         `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
         `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("실패 답변")
         
-        val synergyBridge = OfficeItem(name = "협업 시너지 브릿지", type = "SYNERGY_BRIDGE", x = 10, y = 10, agentId = agentId)
+        val synergyBridge = OfficeItem(name = "협업 시너지 브릿지", type = "SYNERGY_BRIDGE", agentId = agentId)
         `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(synergyBridge))
 
         val result = evaluationService.runQuickTest(agentId, taskId)
@@ -200,7 +200,7 @@ class EvaluationServiceAssetTest {
         `when`(benchmarkTaskRepository.findById(taskId)).thenReturn(Optional.of(task))
         `when`(agentExecutor.executeBenchmark(agent, "test-model", "프롬프트")).thenReturn("이것은 정답입니다.")
         
-        val vulnerabilityShield = OfficeItem(name = "보안 쉴드", type = "VULNERABILITY_SHIELD", x = 10, y = 10, agentId = agentId)
+        val vulnerabilityShield = OfficeItem(name = "보안 쉴드", type = "VULNERABILITY_SHIELD", agentId = agentId)
         `when`(officeItemRepository.findByAgentId(agentId)).thenReturn(listOf(vulnerabilityShield))
 
         val result = evaluationService.runQuickTest(agentId, taskId)

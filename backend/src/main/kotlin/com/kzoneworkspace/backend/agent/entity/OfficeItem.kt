@@ -16,12 +16,6 @@ class OfficeItem(
     @Column(nullable = false)
     var type: String, // e.g., "REASONING_CORE", "EXTENDED_CONTEXT", "VECTOR_SEARCH"
 
-    @Column(nullable = false)
-    var x: Int = 0,
-
-    @Column(nullable = false)
-    var y: Int = 0,
-
     @Column
     var agentId: Long? = null, // Optional: owner of the item
 

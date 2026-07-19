@@ -232,8 +232,6 @@ class AgentService(
                 val scaleItem = com.kzoneworkspace.backend.agent.entity.OfficeItem(
                     name = "긴급 자가복구 보조 인스턴스",
                     type = "AUXILIARY_INSTANCE",
-                    x = (10..90).random(),
-                    y = (10..90).random(),
                     agentId = agentId
                 )
                 officeItemRepository.save(scaleItem)
