@@ -41,3 +41,29 @@ data class AutoRebalanceResultDto(
     val allocatedCount: Int,
     val message: String
 )
+
+data class SimulatedRebalanceResultDto(
+    val simulatedRevocations: List<SimulatedRevocationDto>,
+    val simulatedAllocations: List<SimulatedAllocationDto>,
+    val netRefundedPoints: Int,
+    val netAllocatedPoints: Int,
+    val totalImpactedAgentsCount: Int
+)
+
+data class SimulatedRevocationDto(
+    val assetId: Long,
+    val assetName: String,
+    val agentName: String,
+    val type: String,
+    val cost: Int,
+    val reason: String
+)
+
+data class SimulatedAllocationDto(
+    val agentId: Long,
+    val agentName: String,
+    val assetType: String,
+    val assetName: String,
+    val cost: Int,
+    val recommendationReason: String?
+)

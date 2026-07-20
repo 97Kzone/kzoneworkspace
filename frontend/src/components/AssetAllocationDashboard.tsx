@@ -8,7 +8,7 @@ import {
   Info, X, Network, List, Bot, TrendingUp, BarChart3, PieChart, Activity
 } from "lucide-react";
 import { 
-  agentService, officeService, Agent, OfficeItem, AssetUtilizationLog, SwarmAssetAnalytics 
+  agentService, officeService, Agent, OfficeItem, AssetUtilizationLog, SwarmAssetAnalytics, SimulatedRebalanceResult 
 } from "../app/apiService";
 import { getAgentColor } from "../utils/agentColors";
 
@@ -105,6 +105,10 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
   // 성공/실패 알림 상태
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // 시뮬레이션 관련 상태
+  const [simulatedResult, setSimulatedResult] = useState<SimulatedRebalanceResult | null>(null);
+  const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
 
   // 현재 선택된 에이전트 상세 객체 및 할당된 자산 필터링
   const selectedAgent = useMemo(() => {
@@ -375,6 +379,46 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
       console.error(e);
       const errMsg = e.response?.data?.message || "일괄 자동 재배치 처리 중 오류가 발생했습니다. 백엔드 에러를 확인하세요.";
       setErrorMessage(errMsg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 컴퓨팅 자산 재배치 시뮬레이션 실행
+  const handleSimulateRebalance = async () => {
+    setActionLoading(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    setSelectedAssetDetail(null);
+    try {
+      const res = await officeService.simulateRebalance();
+      if (res && res.data) {
+        setSimulatedResult(res.data);
+        setIsSimulateModalOpen(true);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setErrorMessage("재배치 시뮬레이션 중 오류가 발생했습니다.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApplyRebalanceFromSimulate = async () => {
+    setIsSimulateModalOpen(false);
+    setActionLoading(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    try {
+      const res = await officeService.rebalanceAuto();
+      if (res && res.data) {
+        setSuccessMessage(res.data.message);
+        setTimeout(() => setSuccessMessage(null), 7000);
+        await fetchData();
+      }
+    } catch (e: any) {
+      console.error(e);
+      setErrorMessage("재배치 적용 중 오류가 발생했습니다.");
     } finally {
       setActionLoading(false);
     }
@@ -1606,14 +1650,24 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
                       자산 재배치 및 회수 권장 제안 (Rebalancing Recommendations)
                     </h5>
                     {analyticsData && analyticsData.rebalancingRecommendations && analyticsData.rebalancingRecommendations.length > 0 && (
-                      <button
-                        onClick={handleAutoRebalance}
-                        disabled={actionLoading}
-                        className="px-2.5 py-1.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500 hover:to-orange-500 hover:text-black border border-amber-500/20 hover:border-amber-500 text-amber-400 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
-                      >
-                        <RefreshCw size={10} className={actionLoading ? "animate-spin" : ""} />
-                        일괄 자동 재배치 및 최적화 실행
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleSimulateRebalance}
+                          disabled={actionLoading}
+                          className="px-2.5 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500 hover:to-indigo-500 hover:text-white border border-blue-500/20 hover:border-blue-500 text-blue-400 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                        >
+                          <TrendingUp size={10} />
+                          재배치 시뮬레이션
+                        </button>
+                        <button
+                          onClick={handleAutoRebalance}
+                          disabled={actionLoading}
+                          className="px-2.5 py-1.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500 hover:to-orange-500 hover:text-black border border-amber-500/20 hover:border-amber-500 text-amber-400 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                        >
+                          <RefreshCw size={10} className={actionLoading ? "animate-spin" : ""} />
+                          일괄 자동 재배치 및 최적화 실행
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1809,6 +1863,145 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           </span>
         </div>
       </div>
+
+      {/* 컴퓨팅 자산 재배치 시뮬레이션 모달 */}
+      <AnimatePresence>
+        {isSimulateModalOpen && simulatedResult && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] flex items-center justify-center p-6 text-slate-100">
+            <motion.div
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-white/5 px-8 py-5">
+                <div>
+                  <h4 className="text-sm font-black text-slate-100 uppercase tracking-widest flex items-center gap-2">
+                    <TrendingUp size={16} className="text-blue-400" />
+                    자산 재배치 시뮬레이션 결과 리포트 (Rebalancing Simulation Plan)
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">
+                    실제 적용 시 차감 및 환불 예정인 성공 기여도와 추천 연동 자산을 가상 실행한 결과입니다.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsSimulateModalOpen(false)}
+                  className="w-8 h-8 rounded-full border border-slate-800 hover:border-slate-600 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="overflow-y-auto p-8 space-y-6 flex-1 custom-scrollbar-dark">
+                {/* Stats Dashboard */}
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">영향받는 에이전트</span>
+                    <strong className="text-xl font-black text-white italic mt-1">{simulatedResult.totalImpactedAgentsCount} 명</strong>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">환불 예정 기여도</span>
+                    <strong className="text-xl font-black text-rose-400 italic mt-1">+{simulatedResult.netRefundedPoints} pts</strong>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">배치 예정 기여도</span>
+                    <strong className="text-xl font-black text-emerald-400 italic mt-1">-{simulatedResult.netAllocatedPoints} pts</strong>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">순액 기여도 변동</span>
+                    <strong className={`text-xl font-black italic mt-1 ${simulatedResult.netRefundedPoints - simulatedResult.netAllocatedPoints >= 0 ? "text-indigo-400" : "text-amber-400"}`}>
+                      {simulatedResult.netRefundedPoints - simulatedResult.netAllocatedPoints >= 0 ? "+" : ""}
+                      {simulatedResult.netRefundedPoints - simulatedResult.netAllocatedPoints} pts
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Revocations Column */}
+                  <div className="flex flex-col gap-3">
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 px-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      1. 회수 대상 자산 ({simulatedResult.simulatedRevocations.length}개)
+                    </h5>
+                    <div className="space-y-3 overflow-y-auto max-h-[35vh] pr-2 custom-scrollbar-dark">
+                      {simulatedResult.simulatedRevocations.length === 0 ? (
+                        <div className="bg-slate-950/20 border border-slate-800/80 rounded-2xl p-6 text-center text-slate-500">
+                          <p className="text-[9px] font-bold uppercase tracking-wider">회수 대상 유휴 자산이 없습니다.</p>
+                        </div>
+                      ) : (
+                        simulatedResult.simulatedRevocations.map((rev, index) => (
+                          <div key={index} className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-black px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                {rev.agentName}
+                              </span>
+                              <strong className="text-[10px] text-rose-400">+{rev.cost} pts 환불</strong>
+                            </div>
+                            <h6 className="text-[10px] font-black text-white">{rev.assetName} <span className="text-[8px] font-bold text-slate-500 font-mono">({rev.type})</span></h6>
+                            <p className="text-[9px] text-slate-400 font-bold leading-normal">{rev.reason}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Allocations Column */}
+                  <div className="flex flex-col gap-3">
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 px-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      2. 신규 배치 추천 자산 ({simulatedResult.simulatedAllocations.length}개)
+                    </h5>
+                    <div className="space-y-3 overflow-y-auto max-h-[35vh] pr-2 custom-scrollbar-dark">
+                      {simulatedResult.simulatedAllocations.length === 0 ? (
+                        <div className="bg-slate-950/20 border border-slate-800/80 rounded-2xl p-6 text-center text-slate-500">
+                          <p className="text-[9px] font-bold uppercase tracking-wider">새로 배치할 추천 자산이 없습니다.</p>
+                        </div>
+                      ) : (
+                        simulatedResult.simulatedAllocations.map((alloc, index) => (
+                          <div key={index} className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-2xl flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-black px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                {alloc.agentName}
+                              </span>
+                              <strong className="text-[10px] text-emerald-400">-{alloc.cost} pts 소모</strong>
+                            </div>
+                            <h6 className="text-[10px] font-black text-white">{alloc.assetName} <span className="text-[8px] font-bold text-slate-500 font-mono">({alloc.assetType})</span></h6>
+                            <p className="text-[9px] text-slate-400 font-bold leading-normal">{alloc.recommendationReason}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between border-t border-white/5 px-8 py-5 bg-slate-900/50">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                  ※ 시뮬레이션 결과는 가상 상태이며, 실제 적용 후에는 복구할 수 없습니다.
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsSimulateModalOpen(false)}
+                    className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest transition-colors cursor-pointer"
+                  >
+                    시뮬레이션 닫기
+                  </button>
+                  <button
+                    onClick={handleApplyRebalanceFromSimulate}
+                    className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-lg shadow-blue-500/15"
+                  >
+                    실제 실행 및 최적화 적용
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

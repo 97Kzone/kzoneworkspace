@@ -4,11 +4,7 @@ import com.kzoneworkspace.backend.agent.entity.OfficeItem
 import com.kzoneworkspace.backend.agent.entity.AssetUtilizationLog
 import com.kzoneworkspace.backend.agent.repository.OfficeItemRepository
 import com.kzoneworkspace.backend.agent.repository.AssetUtilizationLogRepository
-import com.kzoneworkspace.backend.agent.dto.SwarmAssetAnalyticsDto
-import com.kzoneworkspace.backend.agent.dto.AgentAssetAnalyticsDto
-import com.kzoneworkspace.backend.agent.dto.AssetTypeAnalyticsDto
-import com.kzoneworkspace.backend.agent.dto.AssetRebalancingRecommendationDto
-import com.kzoneworkspace.backend.agent.dto.AutoRebalanceResultDto
+import com.kzoneworkspace.backend.agent.dto.*
 
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
@@ -488,6 +484,207 @@ class OfficeService(
             rebalancedCount = revokedCount,
             allocatedCount = allocatedCount,
             message = msg
+        )
+    }
+
+    /**
+     * 비효율 컴퓨팅 자산 회수 및 추천 자산 자동 배치를 실제로 데이터베이스에 반영하지 않고 시뮬레이션합니다.
+     */
+    fun simulateRebalancing(): SimulatedRebalanceResultDto {
+        val analytics = getAssetAnalytics()
+        val recommendations = analytics.rebalancingRecommendations
+
+        // 1. 시뮬레이션용 에이전트 맵 (에이전트 ID -> 기여도 포인트 복제본)
+        val agents = agentService.getAllAgents()
+        val agentPointsMap = agents.associate { it.id!! to it.contributionPoints }.toMutableMap()
+        
+        // 2. 시뮬레이션용 배치 자산 맵 (에이전트 ID -> 보유 중인 자산 타입 Set)
+        val allItems = officeItemRepository.findAll()
+        val agentAssetsMap = allItems.groupBy { it.agentId }
+            .mapValues { (_, items) -> items.map { it.type }.toMutableSet() }
+            .toMutableMap()
+            
+        // 3. 시뮬레이션 회수 대상 리스트
+        val simulatedRevocations = recommendations.map { rec ->
+            val agent = agents.find { it.name == rec.agentName }
+            val agentId = agent?.id ?: 0L
+            
+            // 환불 시뮬레이션
+            val refund = ASSET_COSTS[rec.type] ?: 0
+            if (agentId != 0L && refund > 0) {
+                agentPointsMap[agentId] = (agentPointsMap[agentId] ?: 0) + refund
+                agentAssetsMap[agentId]?.remove(rec.type)
+            }
+            
+            SimulatedRevocationDto(
+                assetId = rec.assetId,
+                assetName = rec.assetName,
+                agentName = rec.agentName,
+                type = rec.type,
+                cost = rec.cost,
+                reason = rec.recommendationReason
+            )
+        }
+        
+        val netRefundedPoints = simulatedRevocations.sumOf { it.cost }
+        
+        // 4. 시뮬레이션 할당 대상 리스트
+        val simulatedAllocations = mutableListOf<SimulatedAllocationDto>()
+        
+        // 에이전트별로 시뮬레이션 추천을 반복 적용
+        agents.forEach { agent ->
+            val agentId = agent.id!!
+            var keepRecommending = true
+            while (keepRecommending) {
+                // 이 에이전트가 현재 시뮬레이션 상에서 안 가지고 있는 자산들 필터링
+                val assignedTypes = agentAssetsMap[agentId] ?: emptySet<String>()
+                val available = getAvailableAssets().filter { it.type !in assignedTypes }
+                
+                if (available.isEmpty()) {
+                    keepRecommending = false
+                    break
+                }
+                
+                // 해당 에이전트의 시뮬레이션 포인트
+                val simulatedPoints = agentPointsMap[agentId] ?: 0
+                
+                // recommendAssetForAgent와 동일한 스코어 연산 로직을 시뮬레이션 상태에 맞춰 수행
+                val roleLower = agent.role.lowercase()
+                val traits = agent.personalityTraits
+                val reliability = agent.reliabilityIndex
+                val modelLower = agent.model.lowercase()
+                
+                val scoredAssets = available.map { asset ->
+                    var score = 0.0
+                    val reasons = mutableListOf<String>()
+                    
+                    // 1. 역할 매칭 (+50점)
+                    val isRoleMatch = when (asset.type) {
+                        "REASONING_CORE" -> roleLower.contains("architect") || roleLower.contains("lead") || roleLower.contains("pm")
+                        "EXTENDED_CONTEXT" -> roleLower.contains("analyst") || roleLower.contains("researcher") || roleLower.contains("writer")
+                        "VECTOR_SEARCH" -> roleLower.contains("analyst") || roleLower.contains("researcher") || roleLower.contains("db")
+                        "AUXILIARY_INSTANCE" -> roleLower.contains("qa") || roleLower.contains("reviewer") || roleLower.contains("coder") || roleLower.contains("dev")
+                        "CODE_STABILITY_SANDBOX" -> roleLower.contains("coder") || roleLower.contains("dev")
+                        "SYNERGY_BRIDGE" -> roleLower.contains("architect") || roleLower.contains("lead") || roleLower.contains("coordinator")
+                        "COST_OPTIMIZER" -> true
+                        "VULNERABILITY_SHIELD" -> roleLower.contains("qa") || roleLower.contains("reviewer") || roleLower.contains("security")
+                        "CI_CD_PIPELINE_EMULATOR" -> roleLower.contains("coder") || roleLower.contains("dev") || roleLower.contains("ops")
+                        "DEPRECATED_API_SCANNER" -> roleLower.contains("coder") || roleLower.contains("dev") || roleLower.contains("qa") || roleLower.contains("reviewer")
+                        else -> false
+                    }
+                    if (isRoleMatch) {
+                        score += 50.0
+                        reasons.add("에이전트 역할군(${agent.role}) 특화 자원")
+                    }
+                    
+                    // 2. 인지 성향 반영
+                    val traitWeights = when (asset.type) {
+                        "REASONING_CORE" -> mapOf("ANALYTICAL" to 0.6, "BOLD" to 0.4)
+                        "EXTENDED_CONTEXT" -> mapOf("ANALYTICAL" to 0.5, "CREATIVE" to 0.5)
+                        "VECTOR_SEARCH" -> mapOf("ANALYTICAL" to 0.7, "CAUTIOUS" to 0.3)
+                        "AUXILIARY_INSTANCE" -> mapOf("CAUTIOUS" to 0.6, "EMPATHETIC" to 0.4)
+                        "CODE_STABILITY_SANDBOX" -> mapOf("CAUTIOUS" to 0.8, "ANALYTICAL" to 0.2)
+                        "SYNERGY_BRIDGE" -> mapOf("EMPATHETIC" to 0.8, "CREATIVE" to 0.2)
+                        "COST_OPTIMIZER" -> mapOf("ANALYTICAL" to 0.5, "CAUTIOUS" to 0.5)
+                        "VULNERABILITY_SHIELD" -> mapOf("CAUTIOUS" to 0.9, "ANALYTICAL" to 0.1)
+                        "CI_CD_PIPELINE_EMULATOR" -> mapOf("BOLD" to 0.6, "CAUTIOUS" to 0.4)
+                        "DEPRECATED_API_SCANNER" -> mapOf("CAUTIOUS" to 0.7, "ANALYTICAL" to 0.3)
+                        else -> emptyMap()
+                    }
+                    
+                    var traitBonus = 0.0
+                    val highTraits = mutableListOf<String>()
+                    traitWeights.forEach { (trait, weight) ->
+                        val value = traits[trait] ?: 50
+                        traitBonus += value * weight
+                        if (value >= 70) {
+                            val traitNameKo = when (trait) {
+                                "ANALYTICAL" -> "분석"
+                                "CREATIVE" -> "창의"
+                                "CAUTIOUS" -> "신중"
+                                "BOLD" -> "도전"
+                                "EMPATHETIC" -> "협동"
+                                else -> trait
+                            }
+                            highTraits.add("${traitNameKo} 성향(${value})")
+                        }
+                    }
+                    score += traitBonus
+                    if (highTraits.isNotEmpty()) {
+                        reasons.add("우수 인지 특성(${highTraits.joinToString(", ")}) 연계")
+                    }
+                    
+                    // 3. 인지 신뢰도 보정
+                    if (reliability < 60) {
+                        if (asset.type in listOf("CODE_STABILITY_SANDBOX", "VULNERABILITY_SHIELD", "AUXILIARY_INSTANCE")) {
+                            score += 40.0
+                            reasons.add("신뢰도 경고 점수(${reliability}%)에 따른 시스템 자가치유 보강")
+                        }
+                    } else if (reliability > 85) {
+                        if (asset.type in listOf("REASONING_CORE", "EXTENDED_CONTEXT")) {
+                            score += 25.0
+                            reasons.add("우수 신뢰도 등급(${reliability}%) 연산 시너지")
+                        }
+                    }
+                    
+                    // 4. 모델 연산 비용 보정
+                    val isHeavyModel = modelLower.contains("pro") || modelLower.contains("ultra") || 
+                                       modelLower.contains("opus") || modelLower.contains("gpt-4")
+                    if (isHeavyModel && asset.type == "COST_OPTIMIZER") {
+                        score += 40.0
+                        reasons.add("대형 추론 모델(${agent.model}) 가동에 따른 API 토큰 절감")
+                    }
+                    
+                    val reasonText = if (reasons.isNotEmpty()) {
+                        reasons.joinToString(" / ")
+                    } else {
+                        "에이전트 맞춤형 범용 연산 자산"
+                    }
+                    
+                    asset to (score to reasonText)
+                }
+                
+                // 시뮬레이션 포인트로 배치 가능한 자산 필터링
+                val affordable = scoredAssets.filter { simulatedPoints >= it.first.cost }
+                    .sortedByDescending { it.second.first }
+                
+                val recommended = affordable.firstOrNull()
+                if (recommended != null) {
+                    val asset = recommended.first
+                    val reason = recommended.second.second
+                    
+                    // 시뮬레이션에 반영
+                    agentPointsMap[agentId] = simulatedPoints - asset.cost
+                    if (agentAssetsMap[agentId] == null) {
+                        agentAssetsMap[agentId] = mutableSetOf()
+                    }
+                    agentAssetsMap[agentId]!!.add(asset.type)
+                    
+                    simulatedAllocations.add(SimulatedAllocationDto(
+                        agentId = agentId,
+                        agentName = agent.name,
+                        assetType = asset.type,
+                        assetName = asset.name,
+                        cost = asset.cost,
+                        recommendationReason = reason
+                    ))
+                } else {
+                    keepRecommending = false
+                }
+            }
+        }
+        
+        val netAllocatedPoints = simulatedAllocations.sumOf { it.cost }
+        
+        // 영향받은 에이전트 목록 수집
+        val impactedAgentNames = (simulatedRevocations.map { it.agentName } + simulatedAllocations.map { it.agentName }).toSet()
+        
+        return SimulatedRebalanceResultDto(
+            simulatedRevocations = simulatedRevocations,
+            simulatedAllocations = simulatedAllocations,
+            netRefundedPoints = netRefundedPoints,
+            netAllocatedPoints = netAllocatedPoints,
+            totalImpactedAgentsCount = impactedAgentNames.size
         )
     }
 }

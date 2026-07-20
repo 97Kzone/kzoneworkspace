@@ -384,6 +384,32 @@ export interface SwarmAssetAnalytics {
     rebalancingRecommendations?: AssetRebalancingRecommendation[];
 }
 
+export interface SimulatedRevocation {
+    assetId: number;
+    assetName: string;
+    agentName: string;
+    type: string;
+    cost: number;
+    reason: string;
+}
+
+export interface SimulatedAllocation {
+    agentId: number;
+    agentName: string;
+    assetType: string;
+    assetName: string;
+    cost: number;
+    recommendationReason: string | null;
+}
+
+export interface SimulatedRebalanceResult {
+    simulatedRevocations: SimulatedRevocation[];
+    simulatedAllocations: SimulatedAllocation[];
+    netRefundedPoints: number;
+    netAllocatedPoints: number;
+    totalImpactedAgentsCount: number;
+}
+
 export const officeService = {
     getAll: () => api.get<OfficeItem[]>('/office/items'),
     allocateAsset: (data: { agentId: number, name: string, type: string, x?: number, y?: number, cost: number }) => 
@@ -395,6 +421,7 @@ export const officeService = {
     getAssetAnalytics: () => api.get<SwarmAssetAnalytics>('/office/analytics/roi'),
     getRecommendation: (agentId: number) => api.get<AvailableAsset>(`/office/recommendations/${agentId}`),
     rebalanceAuto: () => api.post<{ rebalancedCount: number, allocatedCount: number, message: string }>('/office/rebalance/auto'),
+    simulateRebalance: () => api.get<SimulatedRebalanceResult>('/office/rebalance/simulate'),
 };
 
 
