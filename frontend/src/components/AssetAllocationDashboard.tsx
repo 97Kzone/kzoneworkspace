@@ -54,6 +54,8 @@ const getAssetIcon = (type: string) => {
     case "VULNERABILITY_SHIELD": return <ShieldCheck size={20} />;
     case "CI_CD_PIPELINE_EMULATOR": return <RefreshCw size={20} />;
     case "DEPRECATED_API_SCANNER": return <Search size={20} />;
+    case "LLM_FALLBACK_ROUTER": return <Server size={20} />;
+    case "PROMPT_TEMPORAL_CACHE": return <Layers size={20} />;
     default: return <Zap size={20} />;
   }
 };
@@ -70,6 +72,8 @@ const getAssetColorGradient = (type: string) => {
     case "VULNERABILITY_SHIELD": return "from-rose-500 to-amber-500";
     case "CI_CD_PIPELINE_EMULATOR": return "from-cyan-500 to-blue-600";
     case "DEPRECATED_API_SCANNER": return "from-teal-500 to-emerald-600";
+    case "LLM_FALLBACK_ROUTER": return "from-orange-500 to-red-600";
+    case "PROMPT_TEMPORAL_CACHE": return "from-cyan-500 to-emerald-500";
     default: return "from-slate-500 to-slate-700";
   }
 };
@@ -512,6 +516,20 @@ export const AssetAllocationDashboard: React.FC<AssetAllocationDashboardProps> =
           stroke: "#14b8a6",
           spec: "레거시 및 Deprecated API 사용 건 실시간 정밀 추적 및 현대적인 대체 유형 제안",
           icon: <Search size={16} />
+        };
+      case "LLM_FALLBACK_ROUTER":
+        return {
+          bg: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+          stroke: "#f97316",
+          spec: "주 LLM 장애 또는 API 속도 제한 발생 시, 즉각 대체 모델로 트래픽을 자동 폴백 라우팅하여 무중단 연속성을 제공합니다.",
+          icon: <Server size={16} />
+        };
+      case "PROMPT_TEMPORAL_CACHE":
+        return {
+          bg: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
+          stroke: "#06b6d4",
+          spec: "에이전트 군집의 중복 추론 컨텍스트와 매개변수를 캐싱하여 시간적/공간적 연산 낭비를 줄이고 API 응답 지연을 가속합니다.",
+          icon: <Layers size={16} />
         };
       default:
         return {

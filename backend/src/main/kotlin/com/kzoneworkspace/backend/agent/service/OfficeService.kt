@@ -30,7 +30,9 @@ class OfficeService(
             "COST_OPTIMIZER" to 90,
             "VULNERABILITY_SHIELD" to 110,
             "CI_CD_PIPELINE_EMULATOR" to 140,
-            "DEPRECATED_API_SCANNER" to 95
+            "DEPRECATED_API_SCANNER" to 95,
+            "LLM_FALLBACK_ROUTER" to 160,
+            "PROMPT_TEMPORAL_CACHE" to 75
         )
     }
 
@@ -298,6 +300,20 @@ class OfficeService(
                 type = "DEPRECATED_API_SCANNER",
                 description = "레거시 및 Deprecated API 사용 건을 실시간 감지하여 현대적인 대체 코드 구현 유형을 권장합니다.",
                 cost = ASSET_COSTS["DEPRECATED_API_SCANNER"] ?: 95
+            ),
+            AvailableAssetDto(
+                id = "llm_fallback_router",
+                name = "실시간 멀티-LLM 폴백 라우터",
+                type = "LLM_FALLBACK_ROUTER",
+                description = "주 API 장애나 속도 제한 감지 시 대기 시간 없이 차순위 LLM으로 자율 전환하여 추론 연속성을 보장합니다.",
+                cost = ASSET_COSTS["LLM_FALLBACK_ROUTER"] ?: 160
+            ),
+            AvailableAssetDto(
+                id = "prompt_temporal_cache",
+                name = "시공간 프롬프트 캐시 엔진",
+                type = "PROMPT_TEMPORAL_CACHE",
+                description = "에이전트 군집 내 중복 프롬프트와 컨텍스트 메모리를 캐싱하여 연산 리소스 및 API 토큰 낭비를 절감합니다.",
+                cost = ASSET_COSTS["PROMPT_TEMPORAL_CACHE"] ?: 75
             )
         )
     }
@@ -337,6 +353,8 @@ class OfficeService(
                 "VULNERABILITY_SHIELD" -> roleLower.contains("qa") || roleLower.contains("reviewer") || roleLower.contains("security")
                 "CI_CD_PIPELINE_EMULATOR" -> roleLower.contains("coder") || roleLower.contains("dev") || roleLower.contains("ops")
                 "DEPRECATED_API_SCANNER" -> roleLower.contains("coder") || roleLower.contains("dev") || roleLower.contains("qa") || roleLower.contains("reviewer")
+                "LLM_FALLBACK_ROUTER" -> roleLower.contains("coder") || roleLower.contains("dev") || roleLower.contains("ops")
+                "PROMPT_TEMPORAL_CACHE" -> roleLower.contains("analyst") || roleLower.contains("researcher") || roleLower.contains("coder") || roleLower.contains("dev")
                 else -> false
             }
             if (isRoleMatch) {
@@ -356,6 +374,8 @@ class OfficeService(
                 "VULNERABILITY_SHIELD" -> mapOf("CAUTIOUS" to 0.9, "ANALYTICAL" to 0.1)
                 "CI_CD_PIPELINE_EMULATOR" -> mapOf("BOLD" to 0.6, "CAUTIOUS" to 0.4)
                 "DEPRECATED_API_SCANNER" -> mapOf("CAUTIOUS" to 0.7, "ANALYTICAL" to 0.3)
+                "LLM_FALLBACK_ROUTER" -> mapOf("CAUTIOUS" to 0.7, "BOLD" to 0.3)
+                "PROMPT_TEMPORAL_CACHE" -> mapOf("ANALYTICAL" to 0.8, "CAUTIOUS" to 0.2)
                 else -> emptyMap()
             }
 
@@ -383,7 +403,7 @@ class OfficeService(
 
             // 3. 인지 신뢰도 보정
             if (reliability < 60) {
-                if (asset.type in listOf("CODE_STABILITY_SANDBOX", "VULNERABILITY_SHIELD", "AUXILIARY_INSTANCE")) {
+                if (asset.type in listOf("CODE_STABILITY_SANDBOX", "VULNERABILITY_SHIELD", "AUXILIARY_INSTANCE", "LLM_FALLBACK_ROUTER")) {
                     score += 40.0
                     reasons.add("신뢰도 경고 점수(${reliability}%)에 따른 시스템 자가치유 보강")
                 }
@@ -397,7 +417,7 @@ class OfficeService(
             // 4. 모델 연산 비용 보정
             val isHeavyModel = modelLower.contains("pro") || modelLower.contains("ultra") || 
                                modelLower.contains("opus") || modelLower.contains("gpt-4")
-            if (isHeavyModel && asset.type == "COST_OPTIMIZER") {
+            if (isHeavyModel && (asset.type == "COST_OPTIMIZER" || asset.type == "PROMPT_TEMPORAL_CACHE")) {
                 score += 40.0
                 reasons.add("대형 추론 모델(${agent.model}) 가동에 따른 API 토큰 절감")
             }
