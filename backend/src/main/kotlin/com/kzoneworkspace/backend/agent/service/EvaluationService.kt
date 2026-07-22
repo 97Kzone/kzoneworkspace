@@ -274,8 +274,7 @@ class EvaluationService(
         return try {
             val response = geminiClient.sendMessage(
                 systemPrompt = systemPrompt,
-                messages = listOf(mapOf("role" to "user", "content" to judgePrompt)),
-                model = "gemini-2.0-flash"
+                messages = listOf(mapOf("role" to "user", "content" to judgePrompt))
             )
             val textRaw = response.candidates().orElse(null)?.firstOrNull()?.content()?.orElse(null)?.parts()?.orElse(null)?.firstOrNull()?.text()?.orElse("") ?: ""
             val cleanJson = textRaw.replace("```json", "").replace("```", "").trim()

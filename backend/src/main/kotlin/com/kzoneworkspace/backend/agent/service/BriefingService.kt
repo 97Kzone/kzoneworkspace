@@ -65,8 +65,7 @@ class BriefingService(
         return try {
             val response = geminiClient.sendMessage(
                 systemPrompt = "당신은 유능한 AI 오피스 매니저입니다.",
-                messages = listOf(mapOf("role" to "user", "content" to prompt)),
-                model = "gemini-2.0-flash"
+                messages = listOf(mapOf("role" to "user", "content" to prompt))
             )
             
             val candidate = response.candidates().orElse(emptyList()).firstOrNull()

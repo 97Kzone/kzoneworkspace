@@ -84,7 +84,7 @@ class BrainstormingService(
                 val response = geminiClient.sendMessage(
                     systemPrompt = systemPrompt,
                     messages = listOf(mapOf("role" to "user", "content" to userPrompt)),
-                    model = if (agent.model.contains("gemini")) agent.model else "gemini-2.0-flash"
+                    model = if (agent.model.contains("gemini")) agent.model else geminiClient.defaultModel
                 )
 
                 val content = extractText(response)
@@ -150,8 +150,7 @@ class BrainstormingService(
         try {
             val response = geminiClient.sendMessage(
                 systemPrompt = systemPrompt,
-                messages = listOf(mapOf("role" to "user", "content" to userPrompt)),
-                model = "gemini-2.0-flash" // Synthesis uses high-performance model
+                messages = listOf(mapOf("role" to "user", "content" to userPrompt))
             )
 
             var blueprint = extractText(response)

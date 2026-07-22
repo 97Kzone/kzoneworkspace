@@ -64,8 +64,7 @@ class TechPulseService(
         return try {
             val response = geminiClient.sendMessage(
                 systemPrompt = systemPrompt,
-                messages = listOf(mapOf("role" to "user", "content" to userPrompt)),
-                model = "gemini-2.0-flash"
+                messages = listOf(mapOf("role" to "user", "content" to userPrompt))
             )
 
             val candidate = response.candidates().orElse(emptyList()).firstOrNull()

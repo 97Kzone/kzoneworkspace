@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component
 
 @Component
 class GeminiClient(
-    @Value("\${GEMINI_API_KEY}") private val apiKey: String
+    @Value("\${GEMINI_API_KEY}") private val apiKey: String,
+    @Value("\${GEMINI_MODEL:gemini-2.0-flash}") val defaultModel: String
 ) {
     private val client: Client by lazy {
         Client.builder()
@@ -22,7 +23,7 @@ class GeminiClient(
     fun sendMessage(
         systemPrompt: String,
         messages: List<Map<String, Any>>,
-        model: String = "gemini-2.0-flash",
+        model: String? = null,
         tools: List<Map<String, Any>>? = null,
         temperature: Double? = null
     ): com.google.genai.types.GenerateContentResponse {
@@ -122,8 +123,9 @@ class GeminiClient(
                 .build()
         }
 
+        val responseModel = if (model.isNullOrBlank()) defaultModel else model
         return client.models.generateContent(
-            model,
+            responseModel,
             contents,
             configBuilder.build()
         )
