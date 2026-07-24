@@ -22,8 +22,6 @@ class SchemaFix(private val jdbcTemplate: JdbcTemplate) {
                     id BIGINT NOT NULL PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     type VARCHAR(255) NOT NULL,
-                    x INTEGER NOT NULL,
-                    y INTEGER NOT NULL,
                     agent_id BIGINT,
                     created_at TIMESTAMP NOT NULL
                 )

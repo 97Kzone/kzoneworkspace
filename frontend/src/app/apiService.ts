@@ -50,8 +50,6 @@ export interface OfficeItem {
     id: number;
     name: string;
     type: string;
-    x: number;
-    y: number;
     agentId: number | null;
     createdAt: string;
     utilizationRate?: number;
@@ -412,7 +410,7 @@ export interface SimulatedRebalanceResult {
 
 export const officeService = {
     getAll: () => api.get<OfficeItem[]>('/office/items'),
-    allocateAsset: (data: { agentId: number, name: string, type: string, x?: number, y?: number, cost: number }) => 
+    allocateAsset: (data: { agentId: number, name: string, type: string, cost: number }) => 
         api.post<OfficeItem>('/office/items/allocate', data),
 
     deleteItem: (id: number) => api.delete(`/office/items/${id}`),
