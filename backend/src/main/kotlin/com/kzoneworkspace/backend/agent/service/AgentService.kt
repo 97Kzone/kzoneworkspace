@@ -602,6 +602,8 @@ class AgentService(
                 "VULNERABILITY_SHIELD" -> sb.append("\n- 🛡️ [실시간 보안 및 취약점 검증 쉴드]: 코드 작성 시 보안 취약점이나 악성 종속성을 자율 검증 및 스캔하는 가상의 보안 쉴드가 활성화되어 있습니다. OWASP Top 10 가이드라인을 준수하며 가장 안전하고 검증된 구현 패턴을 사용하여 코딩하세요.")
                 "CI_CD_PIPELINE_EMULATOR" -> sb.append("\n- 🔄 [CI/CD 파이프라인 에뮬레이터]: 빌드 및 배포 자동화 검증이 활성화되어 소스코드 변경 건에 대한 실제 배포 사이드 이펙트를 가상 환경에서 사전 테스트하고 결함을 제거할 수 있습니다.")
                 "DEPRECATED_API_SCANNER" -> sb.append("\n- 📊 [사용 제안 API 분석기]: 폐기 예정(Deprecated)되거나 비효율적인 오래된 API 패턴을 선제 탐지하여 현대적이고 안정적인 API 대체 코드를 추천 및 보정합니다.")
+                "LLM_FALLBACK_ROUTER" -> sb.append("\n- 🛡️ [실시간 멀티-LLM 폴백 라우터]: 주 API 장애나 속도 제한 감지 시 대기 시간 없이 차순위 LLM으로 자율 전환하여 추론 연속성을 보장합니다.")
+                "PROMPT_TEMPORAL_CACHE" -> sb.append("\n- ⚡ [시공간 프롬프트 캐시 엔진]: 에이전트 군집 내 중복 프롬프트와 컨텍스트 메모리를 캐싱하여 연산 리소스 및 API 토큰 낭비를 절감합니다.")
             }
         }
         return sb.toString()

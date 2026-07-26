@@ -68,6 +68,36 @@ class AgentExecutor(
     private val shadowSessions = mutableMapOf<String, Long>() // roomId or sessionId mapping
     private val objectMapper = jacksonObjectMapper()
     private val httpClient = java.net.http.HttpClient.newHttpClient()
+    private val promptCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    private fun getCacheKey(agentId: Long, systemPrompt: String, messages: List<Map<String, Any>>): String {
+        val content = buildString {
+            append(agentId)
+            append("|")
+            append(systemPrompt)
+            append("|")
+            messages.forEach { msg ->
+                append(msg["role"])
+                append(":")
+                val body = msg["content"]
+                if (body is String) {
+                    append(body)
+                } else if (body is List<*>) {
+                    body.forEach { block ->
+                        if (block is Map<*, *>) {
+                            append(block["type"])
+                            append(":")
+                            append(block["text"] ?: block["input"] ?: block["content"] ?: "")
+                        }
+                    }
+                }
+                append("|")
+            }
+        }
+        return java.security.MessageDigest.getInstance("SHA-256")
+            .digest(content.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }
 
 
 
@@ -98,6 +128,8 @@ class AgentExecutor(
                     "VULNERABILITY_SHIELD" -> "코드 변경 시 취약점 정밀 검사 및 보안 결함 사전 스캔 차단 필터 상시 가동"
                     "CI_CD_PIPELINE_EMULATOR" -> "가상 빌드 및 CI/CD 파이프라인 통합 에뮬레이션 테스트 실행"
                     "DEPRECATED_API_SCANNER" -> "사용 코드 내 Deprecated API 및 레거시 문법 구문 분석 가동"
+                    "LLM_FALLBACK_ROUTER" -> "주 API 장애나 속도 제한 감지 시 대기 시간 없이 차순위 LLM으로 자율 전환하여 추론 연속성을 보장"
+                    "PROMPT_TEMPORAL_CACHE" -> "에이전트 군집 내 중복 프롬프트와 컨텍스트 메모리를 캐싱하여 연산 리소스 및 API 토큰 낭비 절감"
                     else -> null
                 }
                 if (desc != null) {
@@ -282,6 +314,10 @@ class AgentExecutor(
                     "SYNERGY_BRIDGE" -> "협업 성공 시 시너지 스코어 상승폭 가속 및 실패 시 감쇠 충격 완화 방어"
                     "COST_OPTIMIZER" -> "추론 시 중복 컨텍스트 압축 및 API 비용/토큰 20% 절감 최적화"
                     "VULNERABILITY_SHIELD" -> "코드 변경 시 취약점 정밀 검사 및 보안 결함 사전 스캔 차단 필터 상시 가동"
+                    "CI_CD_PIPELINE_EMULATOR" -> "가상 빌드 및 CI/CD 파이프라인 통합 에뮬레이션 테스트 실행"
+                    "DEPRECATED_API_SCANNER" -> "사용 코드 내 Deprecated API 및 레거시 문법 구문 분석 가동"
+                    "LLM_FALLBACK_ROUTER" -> "주 API 장애나 속도 제한 감지 시 대기 시간 없이 차순위 LLM으로 자율 전환하여 추론 연속성을 보장"
+                    "PROMPT_TEMPORAL_CACHE" -> "에이전트 군집 내 중복 프롬프트와 컨텍스트 메모리를 캐싱하여 연산 리소스 및 API 토큰 낭비 절감"
                     else -> null
                 }
                 if (desc != null) {
@@ -692,6 +728,24 @@ class AgentExecutor(
         val maxIterations = if (hasReasoningCore) 15 else 10
         val temperature = if (hasReasoningCore) 0.1 else null
 
+        val hasTemporalCache = assets.any { it.type == "PROMPT_TEMPORAL_CACHE" }
+        if (hasTemporalCache) {
+            val cacheKey = getCacheKey(agent.id, agent.systemPrompt, messages)
+            val cachedResponse = promptCache[cacheKey]
+            if (cachedResponse != null) {
+                assetUtilizationLogRepository.save(AssetUtilizationLog(
+                    agentId = agent.id,
+                    agentName = agent.name,
+                    assetType = "PROMPT_TEMPORAL_CACHE",
+                    assetName = "시공간 프롬프트 캐시 엔진",
+                    actionType = "UTILIZATION",
+                    description = "⚡ [프롬프트 캐시 히트] ${agent.name} 에이전트: 중복된 추론 요구사항 감지. 시공간 캐시 엔진에서 즉각적으로 연산 결과를 인출하여 API 비용 및 토큰 소모를 100% 절감했습니다."
+                ))
+                sendMessage(roomId, "System", "⚡ **[프롬프트 캐시]** '${agent.name}' 에이전트가 캐시 엔진에서 결과를 즉시 반출했습니다. (토큰 절감 100%)", MessageType.SYSTEM)
+                return cachedResponse
+            }
+        }
+
         var loop = true
         var lastResponse: String = ""
         var iteration = 0
@@ -705,75 +759,180 @@ class AgentExecutor(
 
             var rawInputTokens = 0L
             var rawOutputTokens = 0L
+            val hasFallbackRouter = assets.any { it.type == "LLM_FALLBACK_ROUTER" }
+            var executionSuccess = false
+            var currentProvider = agent.provider
+            var currentModel = agent.model
 
-            when (agent.provider) {
-                AiProvider.ANTHROPIC -> {
-                    val responseNode = claudeClient.sendMessageREST(
-                        systemPrompt = agent.systemPrompt,
-                        messages = messages,
-                        model = agent.model,
-                        tools = tools,
-                        temperature = temperature
-                    )
-                    val usageNode = responseNode["usage"]
-                    rawInputTokens = usageNode?.get("input_tokens")?.asLong() ?: 0L
-                    rawOutputTokens = usageNode?.get("output_tokens")?.asLong() ?: 0L
+            try {
+                when (currentProvider) {
+                    AiProvider.ANTHROPIC -> {
+                        val responseNode = claudeClient.sendMessageREST(
+                            systemPrompt = agent.systemPrompt,
+                            messages = messages,
+                            model = currentModel,
+                            tools = tools,
+                            temperature = temperature
+                        )
+                        val usageNode = responseNode["usage"]
+                        rawInputTokens = usageNode?.get("input_tokens")?.asLong() ?: 0L
+                        rawOutputTokens = usageNode?.get("output_tokens")?.asLong() ?: 0L
 
-                    val contentBlocks = responseNode["content"]
-                    for (block in contentBlocks) {
-                        val blockType = block["type"].asText()
-                        if (blockType == "text") {
-                            val text = block["text"].asText()
-                            assistantContentList.add(mapOf("type" to "text", "text" to text))
-                            textResponseMessage += text
-                        } else if (blockType == "tool_use") {
-                            val id = block["id"].asText()
-                            val name = block["name"].asText()
-                            @Suppress("UNCHECKED_CAST")
-                            val input = objectMapper.convertValue(block["input"], Map::class.java) as Map<String, Any>
-                            assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to input))
-                            toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to input))
+                        val contentBlocks = responseNode["content"]
+                        for (block in contentBlocks) {
+                            val blockType = block["type"].asText()
+                            if (blockType == "text") {
+                                val text = block["text"].asText()
+                                assistantContentList.add(mapOf("type" to "text", "text" to text))
+                                textResponseMessage += text
+                            } else if (blockType == "tool_use") {
+                                val id = block["id"].asText()
+                                val name = block["name"].asText()
+                                @Suppress("UNCHECKED_CAST")
+                                val input = objectMapper.convertValue(block["input"], Map::class.java) as Map<String, Any>
+                                assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to input))
+                                toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to input))
+                            }
                         }
                     }
-                }
-                AiProvider.GOOGLE -> {
-                    val response = geminiClient.sendMessage(
-                        systemPrompt = agent.systemPrompt,
-                        messages = messages,
-                        model = agent.model,
-                        tools = tools,
-                        temperature = temperature
-                    )
-                    val usage = response.usageMetadata().orElse(null)
-                    rawInputTokens = usage?.promptTokenCount()?.orElse(0)?.toLong() ?: 0L
-                    rawOutputTokens = usage?.candidatesTokenCount()?.orElse(0)?.toLong() ?: 0L
+                    AiProvider.GOOGLE -> {
+                        val response = geminiClient.sendMessage(
+                            systemPrompt = agent.systemPrompt,
+                            messages = messages,
+                            model = currentModel,
+                            tools = tools,
+                            temperature = temperature
+                        )
+                        val usage = response.usageMetadata().orElse(null)
+                        rawInputTokens = usage?.promptTokenCount()?.orElse(0)?.toLong() ?: 0L
+                        rawOutputTokens = usage?.candidatesTokenCount()?.orElse(0)?.toLong() ?: 0L
 
-                    val candidates = response.candidates().orElse(null)
-                    val candidate = if (candidates != null && candidates.isNotEmpty()) candidates[0] else null
-                    val contentOpt = candidate?.content()
-                    val partsOpt = contentOpt?.orElse(null)?.parts()
-                    val parts = partsOpt?.orElse(null)
+                        val candidates = response.candidates().orElse(null)
+                        val candidate = if (candidates != null && candidates.isNotEmpty()) candidates[0] else null
+                        val contentOpt = candidate?.content()
+                        val partsOpt = contentOpt?.orElse(null)?.parts()
+                        val parts = partsOpt?.orElse(null)
+                        
+                        parts?.forEach { part: Part ->
+                            val textOpt = part.text()
+                            if (textOpt.isPresent) {
+                                val text = textOpt.get()
+                                assistantContentList.add(mapOf("type" to "text", "text" to text))
+                                textResponseMessage += text
+                            }
+                            val fcOpt = part.functionCall()
+                            if (fcOpt.isPresent) {
+                                val fc: FunctionCall = fcOpt.get()
+                                val id = "gemini-${System.currentTimeMillis()}"
+                                val name = fc.name().orElse("")
+                                 @Suppress("UNCHECKED_CAST")
+                                 val args = fc.args().orElse(emptyMap<String, Any>()) as Map<String, Any>
+                                assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to args))
+                                toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to args))
+                            }
+                        }
+                    }
+                    else -> throw RuntimeException("지원되지 않는 프로바이더입니다.")
+                }
+                executionSuccess = true
+            } catch (ex: Exception) {
+                if (hasFallbackRouter) {
+                    println("🚨 Primary provider ($currentProvider) call failed: ${ex.message}. Attempting fallback...")
+                    assistantContentList.clear()
+                    toolUseBlocks.clear()
+                    textResponseMessage = ""
+
+                    val fallbackProvider = if (currentProvider == AiProvider.ANTHROPIC) AiProvider.GOOGLE else AiProvider.ANTHROPIC
+                    val fallbackModel = if (fallbackProvider == AiProvider.GOOGLE) "gemini-2.0-flash" else "claude-3-5-sonnet-20241022"
                     
-                    parts?.forEach { part: Part ->
-                        val textOpt = part.text()
-                        if (textOpt.isPresent) {
-                            val text = textOpt.get()
-                            assistantContentList.add(mapOf("type" to "text", "text" to text))
-                            textResponseMessage += text
+                    val fallbackMsg = "🛡️ **[폴백 라우팅]** '${agent.name}' 에이전트 주 API 호출 실패: ${ex.message?.take(60)}. 폴백 라우터가 차순위 모델(${fallbackModel})로 자동 전환하여 연속 추론을 보장합니다."
+                    sendMessage(roomId, "System", fallbackMsg, MessageType.SYSTEM)
+                    
+                    assetUtilizationLogRepository.save(AssetUtilizationLog(
+                        agentId = agent.id,
+                        agentName = agent.name,
+                        assetType = "LLM_FALLBACK_ROUTER",
+                        assetName = "실시간 멀티-LLM 폴백 라우터",
+                        actionType = "UTILIZATION",
+                        description = "🛡️ [폴백 라우팅 가동] ${agent.name} 에이전트: API 호출 실패 감지. 차순위 모델(${fallbackModel})로 자율 폴백 연산을 가동했습니다."
+                    ))
+
+                    currentProvider = fallbackProvider
+                    currentModel = fallbackModel
+
+                    when (fallbackProvider) {
+                        AiProvider.ANTHROPIC -> {
+                            val responseNode = claudeClient.sendMessageREST(
+                                systemPrompt = agent.systemPrompt,
+                                messages = messages,
+                                model = fallbackModel,
+                                tools = tools,
+                                temperature = temperature
+                            )
+                            val usageNode = responseNode["usage"]
+                            rawInputTokens = usageNode?.get("input_tokens")?.asLong() ?: 0L
+                            rawOutputTokens = usageNode?.get("output_tokens")?.asLong() ?: 0L
+
+                            val contentBlocks = responseNode["content"]
+                            for (block in contentBlocks) {
+                                val blockType = block["type"].asText()
+                                if (blockType == "text") {
+                                    val text = block["text"].asText()
+                                    assistantContentList.add(mapOf("type" to "text", "text" to text))
+                                    textResponseMessage += text
+                                } else if (blockType == "tool_use") {
+                                    val id = block["id"].asText()
+                                    val name = block["name"].asText()
+                                    @Suppress("UNCHECKED_CAST")
+                                    val input = objectMapper.convertValue(block["input"], Map::class.java) as Map<String, Any>
+                                    assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to input))
+                                    toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to input))
+                                }
+                            }
                         }
-                        val fcOpt = part.functionCall()
-                        if (fcOpt.isPresent) {
-                            val fc: FunctionCall = fcOpt.get()
-                            val id = "gemini-${System.currentTimeMillis()}"
-                            val name = fc.name().orElse("")
-                             @Suppress("UNCHECKED_CAST")
-                             val args = fc.args().orElse(emptyMap<String, Any>()) as Map<String, Any>
-                            assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to args))
-                            toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to args))
+                        AiProvider.GOOGLE -> {
+                            val response = geminiClient.sendMessage(
+                                systemPrompt = agent.systemPrompt,
+                                messages = messages,
+                                model = fallbackModel,
+                                tools = tools,
+                                temperature = temperature
+                            )
+                            val usage = response.usageMetadata().orElse(null)
+                            rawInputTokens = usage?.promptTokenCount()?.orElse(0)?.toLong() ?: 0L
+                            rawOutputTokens = usage?.candidatesTokenCount()?.orElse(0)?.toLong() ?: 0L
+
+                            val candidates = response.candidates().orElse(null)
+                            val candidate = if (candidates != null && candidates.isNotEmpty()) candidates[0] else null
+                            val contentOpt = candidate?.content()
+                            val partsOpt = contentOpt?.orElse(null)?.parts()
+                            val parts = partsOpt?.orElse(null)
+                            
+                            parts?.forEach { part: Part ->
+                                val textOpt = part.text()
+                                if (textOpt.isPresent) {
+                                    val text = textOpt.get()
+                                    assistantContentList.add(mapOf("type" to "text", "text" to text))
+                                    textResponseMessage += text
+                                }
+                                val fcOpt = part.functionCall()
+                                if (fcOpt.isPresent) {
+                                    val fc: FunctionCall = fcOpt.get()
+                                    val id = "gemini-${System.currentTimeMillis()}"
+                                    val name = fc.name().orElse("")
+                                     @Suppress("UNCHECKED_CAST")
+                                     val args = fc.args().orElse(emptyMap<String, Any>()) as Map<String, Any>
+                                    assistantContentList.add(mapOf("type" to "tool_use", "id" to id, "name" to name, "input" to args))
+                                    toolUseBlocks.add(mapOf("id" to id, "name" to name, "input" to args))
+                                }
+                            }
                         }
+                        else -> throw ex
                     }
+                    executionSuccess = true
+                } else {
+                    throw ex
                 }
-                else -> throw RuntimeException("지원되지 않는 프로바이더입니다.")
             }
 
             val inputTokens = if (hasCostOptimizer) (rawInputTokens * 0.8).toLong() else rawInputTokens
@@ -782,8 +941,8 @@ class AgentExecutor(
             apiTrafficService.logTraffic(
                 agentId = agent.id,
                 agentName = agent.name,
-                provider = agent.provider,
-                model = agent.model,
+                provider = currentProvider,
+                model = currentModel,
                 inputTokens = inputTokens,
                 outputTokens = outputTokens
             )
@@ -906,6 +1065,12 @@ class AgentExecutor(
                 }
             }
         }
+
+        if (hasTemporalCache && lastResponse.isNotEmpty()) {
+            val cacheKey = getCacheKey(agent.id, agent.systemPrompt, messages)
+            promptCache[cacheKey] = lastResponse
+        }
+
         return lastResponse
     }
 

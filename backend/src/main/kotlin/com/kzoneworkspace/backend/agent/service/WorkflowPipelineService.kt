@@ -447,6 +447,88 @@ class WorkflowPipelineService(
                     message = "자산 자동 할당 중 오류 발생: ${e.message}"
                 )
             }
+        } else if (title.contains("폴백 라우터") || title.contains("멀티-LLM 폴백")) {
+            val cost = officeService.getAssetCost("LLM_FALLBACK_ROUTER")
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 실시간 멀티-LLM 폴백 라우터 배치를 위해서는 최소 $cost pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "실시간 멀티-LLM 폴백 라우터 (${agent.name} 폴백)",
+                    type = "LLM_FALLBACK_ROUTER",
+                    cost = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "폴백 라우터 최적화 적용: '${agent.name}' 에이전트에 실시간 멀티-LLM 폴백 라우터 자동 배치 완료 (성공 기여도 160 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 장애 내구성 강화를 위한 **실시간 멀티-LLM 폴백 라우터** 조치 완료! API 장애 시 차순위 모델 자율 전환이 자동 연동되었습니다. (성공 기여도 160 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 실시간 멀티-LLM 폴백 라우터 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
+        } else if (title.contains("프롬프트 캐시") || title.contains("시공간 프롬프트 캐시")) {
+            val cost = officeService.getAssetCost("PROMPT_TEMPORAL_CACHE")
+            if (agent.contributionPoints < cost) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "'${agent.name}' 에이전트의 성공 기여도(현재: ${agent.contributionPoints} pts)가 부족합니다. 시공간 프롬프트 캐시 엔진 배치를 위해서는 최소 $cost pts가 필요합니다."
+                )
+            }
+            try {
+                officeService.allocateAsset(
+                    agentId = agent.id,
+                    name = "시공간 프롬프트 캐시 엔진 (${agent.name} 캐시)",
+                    type = "PROMPT_TEMPORAL_CACHE",
+                    cost = cost
+                )
+                activityLogService.logActivity(
+                    agentId = agent.id,
+                    roomId = "default",
+                    activityType = "PIPELINE_OPTIMIZATION",
+                    details = "프롬프트 캐시 최적화 적용: '${agent.name}' 에이전트에 시공간 프롬프트 캐시 엔진 자동 배치 완료 (성공 기여도 75 pts 차감)"
+                )
+                val message = ChatMessage(
+                    roomId = "default",
+                    senderId = "system",
+                    senderName = "System",
+                    content = "⚙️ **[워크플로우 최적화]** '${agent.name}' 에이전트의 중복 연산 제어를 위한 **시공간 프롬프트 캐시 엔진** 조치 완료! 캐시 히트 시 API 토큰 소모 100% 절감이 적용됩니다. (성공 기여도 75 pts 차감)",
+                    type = MessageType.SYSTEM,
+                    timestamp = LocalDateTime.now()
+                )
+                chatMessageRepository.save(message)
+                messagingTemplate.convertAndSend("/topic/public", message)
+                return ApplyOptimizationResult(
+                    success = true,
+                    message = "'${agent.name}' 에이전트에 대한 시공간 프롬프트 캐시 엔진 자동 할당이 완료되었습니다."
+                )
+            } catch (e: Exception) {
+                return ApplyOptimizationResult(
+                    success = false,
+                    message = "자산 자동 할당 중 오류 발생: ${e.message}"
+                )
+            }
         } else {
             // 컨텍스트 보강 전략 적용: 시스템 프롬프트 자동 튜닝 및 인지 신뢰도 약간 상승
             val optimizePrompt = "\n\n[AI 최적화 지침: 입력 요구사항 명세에 대한 엄밀한 분석을 우선 시행하고, 논리 정합성 자가 검증 루프를 필히 통과시키십시오.]"
@@ -686,6 +768,32 @@ class WorkflowPipelineService(
                         OptimizationRecommendation(
                             title = "레거시 API 스캔 제안: ${stage.name}",
                             description = "[API 패턴 검증] '${stage.agentName}' 에이전트가 작성하는 코드 내 구식(Deprecated) 혹은 비효율적 API 문법을 스캔해야 합니다. 사용 제안 API 분석기(DEPRECATED_API_SCANNER, 95 pts)를 할당하여 대체 패턴을 자동으로 권장받으세요.",
+                            targetStageId = stage.id,
+                            impact = "LOW"
+                        )
+                    )
+                }
+
+                // 11. LLM Fallback Router: if successRate is somewhat low or as general recommendation
+                val hasFallback = agentItems.any { it.type == "LLM_FALLBACK_ROUTER" }
+                if (stage.successRate < 93.0 && !hasFallback) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "멀티-LLM 폴백 라우터 제안: ${stage.name}",
+                            description = "[추론 무중단] '${stage.agentName}' 에이전트의 연산 안정성을 극대화하기 위해 실시간 멀티-LLM 폴백 라우터(LLM_FALLBACK_ROUTER, 160 pts)를 배치하여 주 API 장애 시 자동 전환을 활성화하십시오.",
+                            targetStageId = stage.id,
+                            impact = "MEDIUM"
+                        )
+                    )
+                }
+
+                // 12. Prompt Temporal Cache: if stage has active queue size or as general recommendation
+                val hasCache = agentItems.any { it.type == "PROMPT_TEMPORAL_CACHE" }
+                if (stage.queueSize > 0 && !hasCache) {
+                    recommendations.add(
+                        OptimizationRecommendation(
+                            title = "시공간 프롬프트 캐시 제안: ${stage.name}",
+                            description = "[자원 소모 절감] '${stage.agentName}' 에이전트의 반복적인 질문 또는 컨텍스트 중복 입력을 캐싱하여 응답 속도를 높이고 토큰을 아끼기 위해 시공간 프롬프트 캐시 엔진(PROMPT_TEMPORAL_CACHE, 75 pts) 배치를 권장합니다.",
                             targetStageId = stage.id,
                             impact = "LOW"
                         )
