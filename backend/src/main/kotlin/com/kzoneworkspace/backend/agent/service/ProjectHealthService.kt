@@ -45,7 +45,7 @@ class ProjectHealthService(
     private val log = LoggerFactory.getLogger(ProjectHealthService::class.java)
     private val gson = Gson()
 
-    fun getProjectHealthReport(): ProjectHealthReport {
+    suspend fun getProjectHealthReport(): ProjectHealthReport = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         log.info("Generating Project Health Report...")
 
         // 1. 데이터 수집
@@ -112,7 +112,7 @@ class ProjectHealthService(
             위 데이터를 분석하여 프로젝트 건강 보고서를 JSON으로 작성하세요.
         """.trimIndent()
 
-        return try {
+        try {
             val response = geminiClient.sendMessage(
                 systemPrompt = systemPrompt,
                 messages = listOf(mapOf("role" to "user", "content" to userPrompt))
@@ -171,7 +171,7 @@ class ProjectHealthService(
                 strategicCouncilService.broadcastRecommendations()
             }
 
-            return report
+            report
         } catch (e: Exception) {
             log.error("Failed to generate health report", e)
             ProjectHealthReport(

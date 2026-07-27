@@ -1,14 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Shield, X, Check, Terminal, Brain, Loader2, RefreshCw } from "lucide-react";
+import { Zap, Shield, X, Check, Terminal, Brain, Loader2, RefreshCw, Filter } from "lucide-react";
 import { selfHealingService, SelfHealingLog } from "../app/apiService";
+
+type FilterType = "ALL" | "RETRY_WITH_FIX" | "GIVE_UP";
+
+const FILTER_OPTIONS: { key: FilterType; label: string; color: string }[] = [
+  { key: "ALL", label: "전체", color: "bg-slate-700 text-white" },
+  { key: "RETRY_WITH_FIX", label: "자율 복구 (RETRY)", color: "bg-emerald-600 text-white" },
+  { key: "GIVE_UP", label: "복구 중단 (GIVE UP)", color: "bg-red-600 text-white" },
+];
 
 export function SelfHealingDashboard() {
     const [logs, setLogs] = useState<SelfHealingLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLog, setSelectedLog] = useState<SelfHealingLog | null>(null);
+    const [filter, setFilter] = useState<FilterType>("ALL");
 
     const fetchLogs = async () => {
         setIsLoading(true);
@@ -30,6 +39,11 @@ export function SelfHealingDashboard() {
     const giveUpCount = logs.filter(log => log.strategyType === "GIVE_UP").length;
     const successRate = logs.length > 0 ? Math.round((retryCount / logs.length) * 100) : 0;
 
+    const filteredLogs = useMemo(() => {
+        if (filter === "ALL") return logs;
+        return logs.filter(l => l.strategyType === filter);
+    }, [logs, filter]);
+
     return (
         <div className="flex-1 flex flex-col gap-6 overflow-hidden">
             {/* Header */}
@@ -43,7 +57,7 @@ export function SelfHealingDashboard() {
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">에이전트 장애 복구 및 자율 치유 이력 관측</p>
                     </div>
                 </div>
-                <button 
+                <button
                     onClick={fetchLogs}
                     className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
                 >
@@ -57,23 +71,70 @@ export function SelfHealingDashboard() {
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">총 자가 치유 시도</span>
                     <span className="text-3xl font-black text-slate-800">{logs.length} <span className="text-sm text-slate-400">건</span></span>
+                    <div className="mt-1 w-full bg-slate-100 rounded-full h-1.5">
+                        <div className="bg-orange-400 h-1.5 rounded-full" style={{ width: "100%" }} />
+                    </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">복구 성공률 (RETRY)</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">자율 복구 성공률 (RETRY)</span>
                     <span className="text-3xl font-black text-emerald-500">{successRate} <span className="text-sm text-slate-400">%</span></span>
+                    <div className="mt-1 w-full bg-slate-100 rounded-full h-1.5">
+                        <motion.div
+                            className="bg-emerald-400 h-1.5 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${successRate}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                        />
+                    </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">자율 복구 중단 (GIVE UP)</span>
                     <span className="text-3xl font-black text-red-500">{giveUpCount} <span className="text-sm text-slate-400">건</span></span>
+                    <div className="mt-1 w-full bg-slate-100 rounded-full h-1.5">
+                        <motion.div
+                            className="bg-red-400 h-1.5 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: logs.length > 0 ? `${(giveUpCount / logs.length) * 100}%` : "0%" }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                        />
+                    </div>
                 </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="shrink-0 flex items-center gap-2 px-1">
+                <Filter size={14} className="text-slate-400" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">전략 필터:</span>
+                {FILTER_OPTIONS.map(opt => (
+                    <button
+                        key={opt.key}
+                        onClick={() => {
+                            setFilter(opt.key);
+                            setSelectedLog(null);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                            filter === opt.key
+                                ? opt.color + " border-transparent shadow"
+                                : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                        }`}
+                    >
+                        {opt.label}
+                        {opt.key !== "ALL" && (
+                            <span className="ml-1.5 opacity-70">
+                                ({opt.key === "RETRY_WITH_FIX" ? retryCount : giveUpCount})
+                            </span>
+                        )}
+                    </button>
+                ))}
             </div>
 
             {/* Content Area */}
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
                 {/* Logs List */}
                 <div className="lg:col-span-1 bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                    <div className="p-4 border-b border-slate-50 bg-slate-50/50">
+                    <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">이력 목록</span>
+                        <span className="text-[10px] text-slate-400 font-bold">{filteredLogs.length}건</span>
                     </div>
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3">
                         {isLoading ? (
@@ -81,19 +142,20 @@ export function SelfHealingDashboard() {
                                 <Loader2 size={24} className="animate-spin" />
                                 <span className="text-xs font-bold">로그 로딩 중...</span>
                             </div>
-                        ) : logs.length === 0 ? (
+                        ) : filteredLogs.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-300 gap-2 py-10">
                                 <Shield size={32} />
-                                <span className="text-xs font-bold">기록된 자가 치유 이력이 없습니다.</span>
+                                <span className="text-xs font-bold text-center">해당 필터의 자가 치유 이력이 없습니다.</span>
                             </div>
                         ) : (
-                            logs.map(log => (
+                            filteredLogs.map(log => (
                                 <motion.div
                                     key={log.id}
                                     onClick={() => setSelectedLog(log)}
+                                    layout
                                     className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                                        selectedLog?.id === log.id 
-                                            ? "border-orange-200 bg-orange-50/50" 
+                                        selectedLog?.id === log.id
+                                            ? "border-orange-200 bg-orange-50/50"
                                             : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"
                                     }`}
                                     whileHover={{ scale: 0.98 }}
@@ -107,6 +169,15 @@ export function SelfHealingDashboard() {
                                         <span className="text-[10px] font-mono text-slate-400">{new Date(log.createdAt).toLocaleTimeString()}</span>
                                     </div>
                                     <p className="text-xs text-slate-500 truncate">{log.originalCommand}</p>
+                                    <div className="mt-2">
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                                            log.strategyType === "RETRY_WITH_FIX"
+                                                ? "bg-emerald-50 text-emerald-600"
+                                                : "bg-red-50 text-red-600"
+                                        }`}>
+                                            {log.strategyType === "RETRY_WITH_FIX" ? "RETRY" : "GIVE UP"}
+                                        </span>
+                                    </div>
                                 </motion.div>
                             ))
                         )}
@@ -131,8 +202,8 @@ export function SelfHealingDashboard() {
                                     {/* Strategy Badge */}
                                     <div className="flex justify-between items-center">
                                         <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                                            selectedLog.strategyType === "RETRY_WITH_FIX" 
-                                                ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                                            selectedLog.strategyType === "RETRY_WITH_FIX"
+                                                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                                                 : "bg-red-50 text-red-600 border-red-100"
                                         }`}>
                                             {selectedLog.strategyType === "RETRY_WITH_FIX" ? "자율 복구 및 재시도 (RETRY)" : "자율 복구 중단 및 보고 (GIVE UP)"}

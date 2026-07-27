@@ -2,6 +2,7 @@ package com.kzoneworkspace.backend.agent.controller
 
 import com.kzoneworkspace.backend.agent.service.ProjectHealthReport
 import com.kzoneworkspace.backend.agent.service.ProjectHealthService
+import kotlinx.coroutines.runBlocking
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController
 class ProjectHealthController(private val projectHealthService: ProjectHealthService) {
 
     @GetMapping
-    fun getProjectHealthReport(): ProjectHealthReport {
-        return projectHealthService.getProjectHealthReport()
+    fun getProjectHealthReport(): ProjectHealthReport = runBlocking {
+        projectHealthService.getProjectHealthReport()
     }
 }
